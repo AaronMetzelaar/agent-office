@@ -4,6 +4,9 @@ import { createAccounts, fakeValidator, validateWithSdk } from './accounts/healt
 import { openVault } from './accounts/tokens'
 import { handle, send } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
+import { createWaitMetrics } from './metrics/wait'
+import { createBroker, windowResolver } from './permissions/registry'
+import { createRules } from './permissions/rules'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createSessionManager, type Engine } from './sessions/manager'
 import { createChatStore } from './store/chats'
@@ -32,9 +35,16 @@ async function start(): Promise<void> {
   const db = openDb(join(userData, 'office.db'))
   const useFakeValidator = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_VALIDATOR === '1'
   const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validateWithSdk, db)
-  const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => store.canUseTool(...args))
-  const store = createChatStore(engine, db, accounts)
+  const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
+  const rules = createRules(db.sql, engine)
+  const store = createChatStore(engine, db, accounts, rules.forSession)
+  const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
+  if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
   const sync = wireChats(win, appUrl, store)
+  sync.setAccounts(accounts.list())
+  handle('resolveRequest', win, appUrl, windowResolver(broker, () => win.isFocused()))
+  handle('listRules', win, appUrl, rules.list)
+  handle('revokeRule', win, appUrl, rules.revoke)
   const show = () => {
     reveal(win)
     sync.setVisible(true)
@@ -51,7 +61,10 @@ async function start(): Promise<void> {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
   handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version: app.getVersion() }))
-  accounts.events.on('changed', (list) => send(win, 'accountsChanged', list))
+  accounts.events.on('changed', (list) => {
+    send(win, 'accountsChanged', list)
+    sync.setAccounts(list)
+  })
   accounts.events.on('removed', store.accountRemoved)
   handle('listAccounts', win, appUrl, accounts.list)
   handle('addAccount', win, appUrl, accounts.add)

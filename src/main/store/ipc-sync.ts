@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
-import type { ChatPatch, ChatPatchBatch, ChatRow, ChatSnapshot } from '../../shared/chat'
+import type { ChatPatch, ChatPatchBatch, ChatRow, ChatSnapshot, LoginItem } from '../../shared/chat'
+import type { AccountView } from '../../shared/ipc'
 import { handle, send } from '../ipc'
 import type { ChatStore } from './chats'
 
@@ -37,12 +38,15 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
   let visible = false
   let seq = 0
   let timer: ReturnType<typeof setTimeout> | undefined
+  let logins: LoginItem[] = []
+  let loginsChanged = false
 
   const flush = () => {
     timer = undefined
-    if (!pending.size) return
-    push({ seq: ++seq, patches: [...pending.values()] })
+    if (!pending.size && !loginsChanged) return
+    push({ seq: ++seq, patches: [...pending.values()], ...(loginsChanged ? { logins } : {}) })
     pending.clear()
+    loginsChanged = false
   }
 
   store.events.on('patch', (patch) => {
@@ -55,7 +59,15 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
   return {
     snapshot(): ChatSnapshot {
       pending.clear()
-      return { seq, chats: store.snapshot() }
+      loginsChanged = false
+      return { seq, chats: store.snapshot(), logins }
+    },
+    setAccounts(accounts: AccountView[]) {
+      const next = accounts.filter((account) => account.health.status === 'needs-login').map((account) => ({ accountId: account.id, label: account.label }))
+      if (JSON.stringify(next) === JSON.stringify(logins)) return
+      logins = next
+      loginsChanged = true
+      timer ??= setTimeout(flush, tickMs)
     },
     setVisible(value: boolean) {
       visible = value

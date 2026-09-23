@@ -36,7 +36,7 @@ Closing the window hides it, and the app keeps running in the menu bar. Click th
 The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `accounts.json` lists accounts (id, label, created at).
 - `secrets/` holds each account token, and the optional Linear key, as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
-- `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, state, read state, usage, wait timestamps), composer drafts encrypted with `safeStorage`, and each account's last health. It never holds message text.
+- `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, and each account's last health. It never holds message text.
 
 Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and doesn't touch `~/.claude` otherwise, apart from the optional hook entry Unit 13 adds with your consent.
 
@@ -54,14 +54,24 @@ Account health (status and usage) is saved in `office.db`, so it survives a rest
 
 Each chat runs as one streaming Agent SDK session in the main process, with its account's token, its folder as the working directory, and Auto mode. Main owns the chat state. The renderer asks for a snapshot on mount and whenever the window shows, then applies per-chat patches, flushed at most once per 16ms. While the window is hidden, only state changes are pushed.
 
-A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck carries a reason: needs login, rate limited (with the retry time when Claude sends one), crashed, interrupted or error. An exception in one chat only marks that chat Stuck. Until Unit 5's broker lands, permission requests are denied and noted in the chat.
+A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck carries a reason: needs login, rate limited (with the retry time when Claude sends one), crashed, interrupted or error. An exception in one chat only marks that chat Stuck.
 
 Quitting while a chat is mid-turn asks first, then interrupts its turn. After a restart, or a crash, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
+
+## Permissions
+
+Sessions run in Auto mode, so Claude only asks when Auto mode escalates. Each ask becomes a pending request on its chat, and the chat moves to Needs you. A chat can hold several requests, oldest first, and the snapshot carries them with the time of the oldest. Every surface answers through one `resolveRequest`: the first answer wins, and later ones get "already answered (source)". A request whose session died answers "session ended" and the chat shows Stuck.
+
+- **Dangerous requests** need a click in the app. Keys, notifications and the phone can only deny them. The office flags `rm -rf`, `sudo`, downloads piped into a shell, `git push --force`, `git reset --hard`, credential and config paths (`.env*`, `~/.ssh`, `~/.aws`, the keychain and similar), anything outside the chat's folder, and whatever Claude Code marks `defaultToNo`. Keyboard answers only count while the window is focused.
+- **Always allow** saves Claude's literal suggested rule, such as `Bash(pnpm test)`, for the account and the repository. Worktrees share their repository's rules, found through git's common directory. Rules reach sessions through the SDK's flag settings layer: at start, and live when a rule is added or revoked. WebFetch and WebSearch never get Always allow and always ask, since fetched content is the easiest way to steer an agent. Dangerous requests and asks where Claude Code suppresses the rule don't offer it either. Office rules don't apply to the terminal or the desktop app.
+- **Plans and questions** use the same path. Approving a plan switches the session back to Auto mode. Answers to a question go back to Claude as the tool's input.
+- **Wait metrics** in `office.db` record how long each request waited and how long a Done reply waited to be read.
+- **Needs login:** while an account needs a new token, the office refuses new turns on it, and the snapshot lists one login item per account.
 
 ## Test flags
 
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
-- `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working. Packaged builds ignore it.
+- `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, and one containing `[ask]` asks to run `pnpm test` first. Packaged builds ignore it.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
 ## Packaging and signing

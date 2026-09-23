@@ -3,14 +3,16 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { efforts, emptyUsage, maxRows, type ChatFields, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type StartChatResult, type Stuck } from '../../shared/chat'
-import type { ChatCanUseTool, Engine } from '../sessions/manager'
+import { efforts, emptyUsage, maxRows, type ChatFields, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import type { PendingRequestView } from '../../shared/permissions'
+import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
 import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
   exists(id: string): boolean
+  needsLogin(id: string): boolean
   loginFailed(id: string): void
   recordHeadroom(id: string, info: SDKRateLimitInfo): void
 }
@@ -30,6 +32,8 @@ export type ChatStore = ReturnType<typeof createChatStore>
 const midTurn = new Set<ChatState>(['starting', 'working', 'needs-you'])
 const resumePrompt = 'Continue where you left off.'
 const modelPattern = /^[\w.:[\]-]{1,80}$/
+const noPending = { pending: [], pendingRequests: [], oldestPendingAt: undefined }
+const needsLogin: Refusal = { error: 'This account needs a new login. Add its token again in Accounts, then try again.', code: 'needs-login' }
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
@@ -86,17 +90,17 @@ function upsert(rows: ChatRow[], row: ChatRow): void {
 
 function fromRecord(record: ChatRecord): Chat {
   const { doneAt, readAt, ...fields } = record
-  const view: ChatView = { ...fields, stateSince: record.lastActivityAt, activity: '', pending: [], subagents: [], partial: '', rows: [] }
+  const view: ChatView = { ...fields, stateSince: record.lastActivityAt, activity: '', pending: [], pendingRequests: [], subagents: [], partial: '', rows: [] }
   return { view, background: new Set(), interrupting: false, doneAt, readAt }
 }
 
 function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
-  const { stateSince: _s, activity: _a, pending: _p, subagents: _g, partial: _t, rows: _r, ...fields } = view
+  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, ...fields } = view
   return { ...fields, doneAt, readAt }
 }
 
-export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) {
-  const events = new EventEmitter<{ patch: [ChatPatch] }>()
+export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined) {
+  const events = new EventEmitter<{ patch: [ChatPatch]; read: [chatId: string, doneAt: number, readAt: number] }>()
   const chats = new Map<string, Chat>()
 
   const emit = (patch: ChatPatch) => events.emit('patch', patch)
@@ -117,7 +121,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
 
   function stuck(chat: Chat, reason: Stuck) {
     if (chat.view.partial) addRow(chat, { kind: 'text', id: randomUUID(), text: chat.view.partial })
-    transition(chat, 'stuck', { stuck: reason, pending: [], subagents: [], partial: '' })
+    transition(chat, 'stuck', { stuck: reason, ...noPending, subagents: [], partial: '' })
   }
 
   function fail(chat: Chat, error: string | undefined, fallback: 'crashed' | 'error') {
@@ -183,7 +187,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
         if (event.isError && !interrupted) fail(chat, [lastError, event.errorText].filter(Boolean).join(': '), 'error')
         else if (midTurn.has(view.state)) {
           chat.doneAt = Date.now()
-          transition(chat, 'done', { unread: true, activity: '', pending: [], subagents: [], partial: '' })
+          transition(chat, 'done', { unread: true, activity: '', ...noPending, subagents: [], partial: '' })
         } else save(chat)
         break
       }
@@ -215,16 +219,11 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
     addRow(chat, { kind: 'user', id: randomUUID(), text })
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, resume: view.sessionId })
+      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId })
       engine.send(view.id, text)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
     }
-  }
-
-  const canUseTool: ChatCanUseTool = async (chatId, toolName) => {
-    guard(chatId, (chat) => addRow(chat, { kind: 'other', id: randomUUID(), label: `Denied ${toolName}: the office can’t answer permission requests yet` }))
-    return { behavior: 'deny', message: 'Agent Office can’t answer permission requests yet, so this was denied.' }
   }
 
   const find = (chatId: unknown) => (typeof chatId === 'string' ? chats.get(chatId) : undefined)
@@ -258,6 +257,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
 
     start(accountId: unknown, cwd: unknown, prompt: unknown, model?: unknown, effort?: unknown): StartChatResult {
       if (typeof accountId !== 'string' || !accounts.exists(accountId)) return { error: 'Pick an account first.' }
+      if (accounts.needsLogin(accountId)) return needsLogin
       if (typeof cwd !== 'string' || !isAbsolute(cwd) || !statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) return { error: 'Pick an existing folder.' }
       if (typeof prompt !== 'string' || !prompt.trim()) return { error: 'Write a prompt first.' }
       if (model !== undefined && (typeof model !== 'string' || !modelPattern.test(model))) return { error: 'That model name isn’t valid.' }
@@ -276,6 +276,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
         unread: false,
         activity: 'Thinking',
         pending: [],
+        pendingRequests: [],
         subagents: [],
         usage: emptyUsage(),
         partial: '',
@@ -292,17 +293,22 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
       return { chatId: view.id }
     },
 
-    sendMessage(chatId: unknown, text: unknown): void {
+    sendMessage(chatId: unknown, text: unknown): Refusal | undefined {
       const chat = find(chatId)
-      if (chat && typeof text === 'string' && text.trim()) send(chat, text)
+      if (!chat || typeof text !== 'string' || !text.trim()) return undefined
+      if (accounts.needsLogin(chat.view.accountId)) return needsLogin
+      send(chat, text)
+      return undefined
     },
 
-    resumeChat(chatId: unknown): void {
+    resumeChat(chatId: unknown): Refusal | undefined {
       const chat = find(chatId)
-      if (chat?.view.state !== 'stuck') return
+      if (chat?.view.state !== 'stuck') return undefined
+      if (accounts.needsLogin(chat.view.accountId)) return needsLogin
       engine.stop(chat.view.id)
       const firstPrompt = chat.view.rows.find((row) => row.kind === 'user')?.text
       send(chat, chat.view.sessionId ? resumePrompt : (firstPrompt ?? resumePrompt))
+      return undefined
     },
 
     async interruptChat(chatId: unknown): Promise<void> {
@@ -339,26 +345,32 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks) 
       const chat = find(chatId)
       if (chat?.view.state !== 'done') return
       chat.readAt = Date.now()
+      if (chat.doneAt) events.emit('read', chat.view.id, chat.doneAt, chat.readAt)
       transition(chat, 'idle', { unread: false })
     },
 
-    addPending(chatId: string, request: { id: string; toolName: string }): void {
+    context(chatId: string): { accountId: string; cwd: string } | undefined {
+      const chat = chats.get(chatId)
+      return chat && chat.view.state !== 'stuck' ? { accountId: chat.view.accountId, cwd: chat.view.cwd } : undefined
+    },
+
+    addPending(chatId: string, request: PendingRequestView): void {
       const chat = chats.get(chatId)
       if (!chat || chat.view.state === 'stuck') return
-      const pending = [...chat.view.pending, request]
-      if (chat.view.state === 'working') transition(chat, 'needs-you', { pending })
-      else set(chat, { pending })
+      const pendingRequests = [...chat.view.pendingRequests, request]
+      const fields = { pending: [...chat.view.pending, { id: request.id, toolName: request.tool }], pendingRequests, oldestPendingAt: pendingRequests[0]!.createdAt }
+      if (chat.view.state !== 'needs-you') transition(chat, 'needs-you', fields)
+      else set(chat, fields)
     },
 
     resolvePending(chatId: string, requestId: string): void {
       const chat = chats.get(chatId)
-      if (!chat) return
-      const pending = chat.view.pending.filter((request) => request.id !== requestId)
-      if (chat.view.state === 'needs-you' && pending.length === 0) transition(chat, 'working', { pending })
-      else set(chat, { pending })
+      if (!chat?.view.pendingRequests.some((request) => request.id === requestId)) return
+      const pendingRequests = chat.view.pendingRequests.filter((request) => request.id !== requestId)
+      const fields = { pending: chat.view.pending.filter((request) => request.id !== requestId), pendingRequests, oldestPendingAt: pendingRequests[0]?.createdAt }
+      if (chat.view.state === 'needs-you' && pendingRequests.length === 0) transition(chat, 'working', fields)
+      else set(chat, fields)
     },
-
-    canUseTool,
 
     accountRemoved(accountId: string): void {
       for (const chat of chats.values()) {

@@ -3,8 +3,11 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { validateWithSdk } from '../../src/main/accounts/health'
+import { createWaitMetrics } from '../../src/main/metrics/wait'
+import { createBroker, type Broker } from '../../src/main/permissions/registry'
+import { createRules } from '../../src/main/permissions/rules'
 import { createSessionManager } from '../../src/main/sessions/manager'
-import { createChatStore, type ChatStore } from '../../src/main/store/chats'
+import { createChatStore } from '../../src/main/store/chats'
 import { openDb } from '../../src/main/store/db'
 
 vi.mock('electron', () => import('../fakes/electron'))
@@ -47,9 +50,11 @@ describe.skipIf(!enabled)('real session smoke', () => {
     const tokens = new Map(spikeTokens())
     const dir = mkdtempSync(join(tmpdir(), 'agent-office-smoke-'))
     const db = openDb(join(dir, 'office.db'))
-    let store: ChatStore | undefined
-    const engine = createSessionManager((id) => tokens.get(id), (...args) => store!.canUseTool(...args))
-    store = createChatStore(engine, db, { exists: (id) => tokens.has(id), loginFailed: () => {}, recordHeadroom: () => {} })
+    let broker: Broker | undefined
+    const engine = createSessionManager((id) => tokens.get(id), (...args) => broker!.canUseTool(...args))
+    const rules = createRules(db.sql, engine)
+    const store = createChatStore(engine, db, { exists: (id) => tokens.has(id), needsLogin: () => false, loginFailed: () => {}, recordHeadroom: () => {} }, rules.forSession)
+    broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
     const states = new Map<string, string[]>()
     const pidTracked = new Map<string, boolean>()
     store.events.on('patch', ({ id, fields }) => {
@@ -59,14 +64,14 @@ describe.skipIf(!enabled)('real session smoke', () => {
     })
 
     const chats = [...tokens.keys()].map((label) => {
-      const started = store!.start(label, dir, 'Reply with exactly: ok', 'haiku')
+      const started = store.start(label, dir, 'Reply with exactly: ok', 'haiku')
       if ('error' in started) throw new Error(started.error)
       return [label, started.chatId] as const
     })
-    await vi.waitFor(() => expect(store!.snapshot().every((chat) => chat.state === 'done' || chat.state === 'stuck')).toBe(true), { timeout: 150_000, interval: 500 })
+    await vi.waitFor(() => expect(store.snapshot().every((chat) => chat.state === 'done' || chat.state === 'stuck')).toBe(true), { timeout: 150_000, interval: 500 })
 
     const report = chats.map(([label, id]) => {
-      const chat = store!.snapshot().find((view) => view.id === id)!
+      const chat = store.snapshot().find((view) => view.id === id)!
       return { label, states: states.get(id), stuck: chat.stuck?.reason, pidTracked: pidTracked.get(id), usage: chat.usage }
     })
     console.log(JSON.stringify(report, null, 2))

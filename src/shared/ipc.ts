@@ -1,4 +1,5 @@
-import type { ChatPatchBatch, ChatSnapshot, Effort, StartChatResult } from './chat'
+import type { ChatPatchBatch, ChatSnapshot, Effort, Refusal, StartChatResult } from './chat'
+import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 
 export interface AppInfo {
   name: string
@@ -43,13 +44,16 @@ export interface Commands {
   hasLinearKey(): boolean
   getSnapshot(): ChatSnapshot
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort): StartChatResult
-  sendMessage(chatId: string, text: string): void
+  sendMessage(chatId: string, text: string): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
   stopChat(chatId: string): void
   setModel(chatId: string, model: string): Promise<void>
   setEffort(chatId: string, effort: Effort): Promise<void>
-  resumeChat(chatId: string): void
+  resumeChat(chatId: string): Refusal | undefined
   markRead(chatId: string): void
+  resolveRequest(requestId: string, decision: Decision, source: WindowSource): ResolveResult
+  listRules(): RuleView[]
+  revokeRule(id: number): Promise<void>
 }
 
 export interface Events {

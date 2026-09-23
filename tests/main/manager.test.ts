@@ -53,10 +53,11 @@ describe('session manager', () => {
     const { engine, seen } = manager()
     sdk.messages = [{ type: 'system', subtype: 'init' }]
 
-    engine.start('c1', { accountId: 'main', cwd: tmpdir(), model: 'haiku', effort: 'low', resume: 'sess-1' })
+    const permissions = { allow: ['Bash(pnpm test)'], ask: ['WebFetch', 'WebSearch'] }
+    engine.start('c1', { accountId: 'main', cwd: tmpdir(), model: 'haiku', effort: 'low', resume: 'sess-1', permissions })
     await vi.waitFor(() => expect(seen).toHaveLength(1))
 
-    expect(sdk.options).toMatchObject({ cwd: tmpdir(), permissionMode: 'auto', model: 'haiku', effort: 'low', resume: 'sess-1', includePartialMessages: true })
+    expect(sdk.options).toMatchObject({ cwd: tmpdir(), permissionMode: 'auto', model: 'haiku', effort: 'low', resume: 'sess-1', includePartialMessages: true, settings: { permissions } })
     expect(sdk.options?.forkSession).toBeUndefined()
     expect(sdk.options?.env?.CLAUDE_CODE_OAUTH_TOKEN).toBe(token)
     expect(sdk.options?.env).not.toHaveProperty('ANTHROPIC_API_KEY')
@@ -78,10 +79,12 @@ describe('session manager', () => {
     await engine.setModel('c1', 'sonnet')
     await engine.setEffort('c1', 'high')
     await engine.setPermissionMode('c1', 'plan')
+    await engine.setPermissions('c1', { allow: [], ask: ['WebFetch'] })
     expect(sdk.control.interrupt).toHaveBeenCalled()
     expect(sdk.control.setModel).toHaveBeenCalledWith('sonnet')
     expect(sdk.control.applyFlagSettings).toHaveBeenCalledWith({ effortLevel: 'high' })
     expect(sdk.control.setPermissionMode).toHaveBeenCalledWith('plan')
+    expect(sdk.control.applyFlagSettings).toHaveBeenCalledWith({ permissions: { allow: [], ask: ['WebFetch'] } })
     release()
   })
 

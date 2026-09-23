@@ -1,3 +1,5 @@
+import type { PendingRequestView } from './permissions'
+
 export const efforts = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type Effort = (typeof efforts)[number]
 
@@ -42,6 +44,8 @@ export interface ChatFields {
   unread: boolean
   activity: string
   pending: { id: string; toolName: string }[]
+  pendingRequests: PendingRequestView[]
+  oldestPendingAt?: number
   subagents: { id: string; description: string }[]
   usage: Usage
   partial: string
@@ -61,17 +65,29 @@ export interface ChatPatch {
   partialAppend?: string
 }
 
+export interface LoginItem {
+  accountId: string
+  label: string
+}
+
 export interface ChatSnapshot {
   seq: number
   chats: ChatView[]
+  logins: LoginItem[]
 }
 
 export interface ChatPatchBatch {
   seq: number
   patches: ChatPatch[]
+  logins?: LoginItem[]
 }
 
-export type StartChatResult = { chatId: string } | { error: string }
+export interface Refusal {
+  error: string
+  code: 'needs-login'
+}
+
+export type StartChatResult = { chatId: string } | { error: string; code?: Refusal['code'] }
 
 export const maxRows = 200
 

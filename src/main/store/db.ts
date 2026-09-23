@@ -114,6 +114,7 @@ export function openDb(file: string) {
   const listHealth = db.prepare('select account_id, health from account_health')
 
   return {
+    sql: db,
     saveChat: (record: ChatRecord) => void saveChat.run(toRow(record)),
     listChats: () => (listChats.all() as Row[]).map(fromRow),
     saveDraft(chatId: string, text: string) {

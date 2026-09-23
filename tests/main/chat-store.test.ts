@@ -175,22 +175,16 @@ describe('chat store', () => {
   it('moves to Needs you with a pending request and back to Working when the last one resolves', () => {
     const { store, chat } = office
     const id = working()
-    store.addPending(id, { id: 'r1', toolName: 'Bash' })
-    store.addPending(id, { id: 'r2', toolName: 'Edit' })
-    expect(chat(id).state).toBe('needs-you')
+    const request = (requestId: string, tool: string, createdAt: number) => ({ id: requestId, tool, summary: tool, input: {}, createdAt, dangerous: false, alwaysAllow: false })
+    store.addPending(id, request('r1', 'Bash', 100))
+    store.addPending(id, request('r2', 'Edit', 200))
+    expect(chat(id)).toMatchObject({ state: 'needs-you', oldestPendingAt: 100 })
     expect(caption(id)).toBe('Waiting for you · Bash')
 
     store.resolvePending(id, 'r1')
-    expect(chat(id)).toMatchObject({ state: 'needs-you', pending: [{ id: 'r2', toolName: 'Edit' }] })
+    expect(chat(id)).toMatchObject({ state: 'needs-you', pending: [{ id: 'r2', toolName: 'Edit' }], pendingRequests: [{ id: 'r2' }], oldestPendingAt: 200 })
     store.resolvePending(id, 'r2')
-    expect(chat(id)).toMatchObject({ state: 'working', pending: [] })
-  })
-
-  it('denies and records permission requests until the broker exists', async () => {
-    const id = working()
-    const decision = await office.store.canUseTool(id, 'Bash', { command: 'rm -rf dist' }, { signal: new AbortController().signal, toolUseID: 'x' } as never)
-    expect(decision).toMatchObject({ behavior: 'deny' })
-    expect(office.chat(id).rows.at(-1)).toMatchObject({ kind: 'other', label: expect.stringContaining('Denied Bash') })
+    expect(chat(id)).toMatchObject({ state: 'working', pending: [], pendingRequests: [], oldestPendingAt: undefined })
   })
 
   it('derives the doing-now caption from the latest events', () => {

@@ -441,7 +441,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Against the fake engine, every state transition in the design section is covered, and a real session on each account completes a turn with usage recorded.
 
-- [ ] **Unit 5: Permission broker and rules**
+- [x] **Unit 5: Permission broker and rules**
 
 **Goal:** One idempotent path for every decision Claude asks for: tool permissions, plan approval and questions. Also per-repository "Always allow" rules and wait-time metrics.
 

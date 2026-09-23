@@ -171,6 +171,8 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
 
     exists: (id: string) => vault.find(id) !== undefined,
 
+    needsLogin: (id: string) => health.get(id)?.status === 'needs-login',
+
     recordHeadroom(id: string, info: SDKRateLimitInfo): void {
       const account = vault.find(id)
       const update = headroomFromEvent(info)

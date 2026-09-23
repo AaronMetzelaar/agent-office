@@ -3,12 +3,15 @@ import { EventEmitter } from 'node:events'
 import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { Effort } from '../../shared/chat'
 
+export type SessionPermissions = { allow: string[]; ask: string[] }
+
 export interface StartOptions {
   accountId: string
   cwd: string
   model?: string
   effort?: Effort
   permissionMode?: PermissionMode
+  permissions?: SessionPermissions
   resume?: string
   forkSession?: boolean
 }
@@ -24,6 +27,7 @@ export interface Engine {
   setModel(chatId: string, model: string): Promise<void>
   setEffort(chatId: string, effort: Effort): Promise<void>
   setPermissionMode(chatId: string, mode: PermissionMode): Promise<void>
+  setPermissions(chatId: string, permissions: SessionPermissions): Promise<void>
   running(chatId: string): boolean
   pid(chatId: string): number | undefined
 }
@@ -124,6 +128,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
             effort: options.effort,
             resume: options.resume,
             forkSession: options.forkSession,
+            settings: options.permissions ? { permissions: options.permissions } : undefined,
             includePartialMessages: true,
             canUseTool: (...args) => canUseTool(chatId, ...args),
             spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
@@ -156,6 +161,9 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     },
     async setPermissionMode(chatId, mode) {
       await (await live(chatId)).setPermissionMode(mode)
+    },
+    async setPermissions(chatId, permissions) {
+      await (await live(chatId)).applyFlagSettings({ permissions })
     },
     running: (chatId) => sessions.has(chatId),
     pid: (chatId) => sessions.get(chatId)?.spawned.pid,

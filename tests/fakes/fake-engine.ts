@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import type { SDKMessage, SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import type { Engine, EngineEvents, StartOptions } from '../../src/main/sessions/manager'
+import type { CanUseTool, PermissionResult, SDKMessage, SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
+import type { ChatCanUseTool, Engine, EngineEvents, SessionPermissions, StartOptions } from '../../src/main/sessions/manager'
 
 const message = (fields: Record<string, unknown>) => ({ uuid: randomUUID(), session_id: 'fake', ...fields }) as unknown as SDKMessage
 
@@ -32,9 +32,20 @@ interface FakeSession {
   options: StartOptions
   sessionId: string
   initialized: boolean
+  permissions?: SessionPermissions
 }
 
+type AskOptions = Partial<Parameters<CanUseTool>[2]>
+
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15))
+
+export function ruleMatches(rule: string, toolName: string, input: Record<string, unknown>): boolean {
+  const [, name, content] = /^([^(]+)(?:\((.*)\))?$/.exec(rule) ?? []
+  if (name !== toolName) return false
+  if (content === undefined) return true
+  const value = String(input.command ?? input.file_path ?? input.url ?? '')
+  return content.endsWith(':*') ? value.startsWith(content.slice(0, -2)) : value === content
+}
 
 export function createFakeEngine({ auto = false } = {}) {
   const events = new EventEmitter<EngineEvents>()
@@ -43,6 +54,15 @@ export function createFakeEngine({ auto = false } = {}) {
   const sent: { chatId: string; text: string }[] = []
   const calls: string[] = []
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
+
+  function ask(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
+    const session = live.get(chatId)
+    if (!session) throw new Error(`no fake session for ${chatId}`)
+    const permissions = session.permissions
+    if (!permissions?.ask.includes(toolName) && permissions?.allow.some((rule) => ruleMatches(rule, toolName, input))) return Promise.resolve({ behavior: 'allow', updatedInput: input })
+    if (!fake.canUseTool) throw new Error('the fake engine has no canUseTool')
+    return fake.canUseTool(chatId, toolName, input, { signal: new AbortController().signal, toolUseID: randomUUID(), requestId: randomUUID(), ...options })
+  }
 
   const init = (chatId: string) => {
     const session = live.get(chatId)
@@ -58,6 +78,12 @@ export function createFakeEngine({ auto = false } = {}) {
     if (!still()) return
     if (!session?.initialized) init(chatId)
     if (text.includes('[hang]')) return
+    if (text.includes('[ask]')) {
+      const suggestions = [{ type: 'addRules' as const, rules: [{ toolName: 'Bash', ruleContent: 'pnpm test' }], behavior: 'allow' as const, destination: 'localSettings' as const }]
+      const decision = await ask(chatId, 'Bash', { command: 'pnpm test' }, { suggestions })
+      if (!still()) return
+      emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Tests pass.' : 'Skipped the tests.'))
+    }
     for (const piece of ['Sure', ', ', 'done', '.']) {
       await tick()
       if (!still()) return
@@ -71,7 +97,7 @@ export function createFakeEngine({ auto = false } = {}) {
     events,
     start(chatId, options) {
       starts.push({ chatId, options })
-      live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false })
+      live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false, permissions: options.permissions })
     },
     send(chatId, text) {
       if (!live.has(chatId)) throw new Error('This chat has no running session')
@@ -93,11 +119,20 @@ export function createFakeEngine({ auto = false } = {}) {
     async setPermissionMode(chatId, mode) {
       calls.push(`setPermissionMode:${chatId}:${mode}`)
     },
+    async setPermissions(chatId, permissions) {
+      const session = live.get(chatId)
+      if (!session) throw new Error('This chat has no running session')
+      session.permissions = permissions
+      calls.push(`setPermissions:${chatId}:${permissions.allow.join(',')}`)
+    },
     running: (chatId) => live.has(chatId),
     pid: (chatId) => (live.has(chatId) ? 4242 : undefined),
   } satisfies Engine
 
-  return Object.assign(engine, {
+  const fake = Object.assign(engine, {
+    canUseTool: undefined as ChatCanUseTool | undefined,
+    ask,
+    permissions: (chatId: string) => live.get(chatId)?.permissions,
     starts,
     sent,
     calls,
@@ -109,6 +144,7 @@ export function createFakeEngine({ auto = false } = {}) {
       events.emit('end', chatId, error)
     },
   })
+  return fake
 }
 
 export type FakeEngine = ReturnType<typeof createFakeEngine>
