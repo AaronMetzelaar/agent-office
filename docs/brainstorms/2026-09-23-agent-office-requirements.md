@@ -19,7 +19,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R1. A 3D office in the style of Aaron's reference image (`docs/reference.png`): colourful glossy blob characters with big eyes, white walls, wooden desks, plants, soft daylight. Cute, but professional and legible. Characters are matte (no glossy or refractive materials), and the office must feel fast.
 - R2. One character per chat, with a colour that stays stable for the life of the chat and a name tag showing the chat title.
 - R3. Departments reflect where the work happens:
-  - A Monorepo wing with **Marketplace**, **Mobile** and **Platform** (the rest of the monorepo).
+  - A Monorepo wing with **Marketplace** (`frontend/marketplace`), **Mobile** (`frontend/mobile`), and **Backend / infra**: services, API, workers and infra, plus anything else in the monorepo, including admin.
   - A **Research gym** holding every chat on the research account.
   - A **Side projects** area for the main account's other folders.
 
@@ -33,7 +33,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
   Sections look like the projects they hold. For MWS (mws.com, match-worn football shirts):
   - Marketplace: a shirt showroom with framed shirts, a hanger rail, an auction podium and pitch turf.
   - Mobile: a device-testing wall.
-  - Platform: server racks and monitoring screens.
+  - Backend / infra: server racks and monitoring screens.
   - Side projects: a corner per project.
   - The gym keeps its gym look.
   No real club crests or MWS logos.
@@ -107,13 +107,35 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R16. An inbox that lists "Waiting for you" in queue order, with quick actions, j/k to step through, and Esc to go back. Below it, every other agent appears as a scannable board grouped by department: one row each with state, title, doing now, and time in that state.
 
 **Accounts and chats started elsewhere**
-- R17. Runs sessions for both accounts side by side. The account shows through location (the Research gym is the research account) and in the chat header, with no extra colour coding, so the per-chat colours in R2 stay unique. Each account's login is stored in the macOS Keychain, separately per account.
+- R17. Runs sessions for both accounts side by side. The research account's own work lives in the gym, and it's also overflow capacity: when main is limited, monorepo chats can run on it too, keeping their department and showing a small account badge. The office shows headroom per account (5-hour and weekly windows), suggests the account with more room when starting an agent, and offers to move a rate-limited chat to the other account. The account shows through location (the Research gym is the research account) and in the chat header, with no extra colour coding, so the per-chat colours in R2 stay unique. Each account's login is stored in the macOS Keychain, separately per account.
 - R18. Chats started outside the office (the desktop app, `claude` in a terminal) appear read-only with live status. A "Move into the office" action resumes that chat inside the office so you can chat and approve there.
 
 **Housekeeping**
-- R21. Parking: a chat with no message for 1 day leaves its desk for a Parked area near the entrance, dimmed and without a tag at the overview. It returns when a message arrives. Thresholds are editable.
+- R21. Parking: a chat with no message for 1 day leaves its desk for a Parked area near the entrance, dimmed and without a tag at the overview. It returns when a message arrives. Parking also stops the chat's long-running child processes (dev servers, test watchers, docker compose) to free RAM; they restart on demand. Thresholds are editable.
 - R22. Resources: the office shows RAM per agent (its session plus the processes it started, such as dev servers and test runners), the number of worktrees and their disk size, and each worktree's git state. A top-bar indicator turns amber when RAM is high.
 - R23. Cleanup: chats with no message for 3 days are suggested for cleanup. The possible actions are stop processes, archive the chat, and remove the worktree. Removing a worktree is blocked, with the reason shown, when it has uncommitted or unpushed changes. One "Clean up safe" action previews, then handles, all the safe candidates, and reports what was freed.
+
+**Workflow**
+- R24. Linear on the desks: each agent shows its Linear ticket (from the branch or worktree name, e.g. AUC-1302) and the ticket's status. An agent can be started from a ticket, with the worktree and branch named after it and the ticket as context. When a chat is done, the office can move its ticket to review, after confirming.
+- R25. Ship-it actions: agents offer the next step for their state, using Aaron's own skills:
+  - Changes but no PR yet: write test cases (`/mws-test-cases`), verify (`/mws-verify`), review (`/mws-review`), then commit and open a PR (`/mws-pr`).
+  - PR open with unresolved comments: answer them (`/pr-comment-rundown`).
+  - CI failing: fix CI (`gh-fix-ci`).
+  - PR merged: clean up the worktree (R23) and move the Linear ticket.
+- R26. Job board: saved agent presets (skill, prompt template, model, effort, department, account) that can be dropped on a desk. Seeded with his recurring jobs:
+  - weekly frontend Sentry prep (`frontend-sentry-meeting-prep`)
+  - WBSO (`mws-wbso`)
+  - review someone's PR (`pr-review-rundown`)
+  - unit tests per area
+  - backend warnings burn-down (`mws-backend-warnings`)
+  - characterize before a refactor (`mws-characterize`)
+- R28. Review queue: open PRs where Aaron's review is requested (via `gh`) form a second queue, next to "Waiting for you":
+  - In the office: an in-tray on his desk holds them, with the count visible at the overview and older requests in amber.
+  - In the drawer: a "Review requests" section lists repo, title, author, age, size and CI status.
+  - One click starts an agent that runs `/pr-review-rundown` on that PR in its own worktree, in the PR's department.
+  - A request leaves the queue once his review is submitted or the request is withdrawn.
+  - His own PRs with new review comments surface the `/pr-comment-rundown` action (R25).
+- R27. Morning briefing: the first time he opens the office after a break (6 hours or more, or the first open of the day), one card summarizes what finished, what's waiting, PRs ready, CI failures, and what was parked or cleaned up.
 
 **App shell**
 - R19. A native Mac app with three parts:

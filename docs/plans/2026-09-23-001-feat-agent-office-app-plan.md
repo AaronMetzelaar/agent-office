@@ -32,6 +32,7 @@ All of R1–R20 in the origin doc, grouped here by where the plan delivers them:
 - **Accounts and outside chats (R17–R18):** Units 3, 4 and 13.
 - **App shell (R19–R20):** Units 2, 4 and 7.
 - **Housekeeping (R21–R23):** Units 6 and 15.
+- **Workflow (R24–R28):** Units 16 and 17.
 
 Success criteria carried forward:
 
@@ -233,6 +234,9 @@ Aaron kept these as built. Reverting either one is a small change in Units 5 and
           tray/                 # menu bar strip image + menu
           notify/               # notifications with actions
           metrics/              # wait-time tracking
+          housekeeping/         # parking, resources, safe cleanup
+          workflow/             # next-step actions, Linear, review requests
+          jobs/  briefing/      # presets, morning summary
         preload/index.ts
         renderer/
           App.vue
@@ -315,7 +319,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - **Dual accounts:** two concurrent streaming `query()` sessions in one Node process, each with its own token in `env`. Confirm both run at once, and that errors are typed when one token is revoked or wrong.
 - **Controls:** `canUseTool` round-trip with `suggestions`, `interrupt()`, `setModel()`, `applyFlagSettings({ effortLevel })`, `setPermissionMode('plan')`, and an `ExitPlanMode` approval.
 - **Adoption:** resume a chat the desktop app currently has open, using `forkSession`. Confirm the original transcript isn't appended to, and that the fork continues with full context.
-- **Measure the gaps:** list which MCP tools are available in a token-authenticated session versus a desktop session (the claude.ai connector gap). Confirm shell hooks from `~/.claude/settings.json` fire. Confirm the `setup-token` token lifetime, from the docs or by inspecting its metadata.
+- **Measure the gaps:** list which MCP tools are available in a token-authenticated session versus a desktop session (the claude.ai connector gap). Confirm shell hooks from `~/.claude/settings.json` fire. Confirm that a chat started on one account can continue on the other: fork it under the other account's token, for R17's move-to-other-account. Confirm the `setup-token` token lifetime, from the docs or by inspecting its metadata.
 - Write the result as a solutions doc: go / no-go per assumption. How a partial pass is handled:
   - **Must pass for Units 2–12:** a token-authenticated session runs, the runtime controls work, and `canUseTool` requests reach the broker. If any fails, fall back to jump-and-approve with status from hooks (origin Key Decisions).
   - **Dual-account concurrency:** if only one account can be hosted at a time, v1 hosts main, and research chats appear via hooks with jump-and-approve until it's solved.
@@ -383,6 +387,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - Each token is stored as its own `safeStorage`-encrypted entry. Tokens are never logged, sent to the renderer, written in plain text, stored in SQLite, or included in serialized errors.
 - Validation runs a minimal one-turn query on the account.
 - Account health is ok or needs login, and feeds the queue (see Key Technical Decisions).
+- **Headroom per account** comes from the `rate_limit_event` messages each session streams (status, utilization and reset time per window). It's shown in settings and on the new-agent form, and a warning status suggests the other account.
+- An optional Linear personal API key (for Unit 16) is stored the same way as the tokens.
 
 **Test scenarios:**
 - Happy path: adding an account stores an encrypted entry; restarting reads it back; the renderer only ever sees the label and health.
@@ -628,7 +634,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Choose a recent repository or a folder. Optionally ask for a fresh worktree (`<repo>/.claude/worktrees/<slug>` on a new branch).
   - Write the prompt, and pick the model and effort. The default effort is remembered, and Auto mode is on by default.
   - The desk shows "setting up worktree…"; a failure shows on the desk and in the chat with Retry.
-- The account defaults to main for main-account folders and research for the gym, and can be overridden.
+- The account defaults to main for main-account folders and research for the gym. When main's headroom is low, the form suggests research for monorepo work (R17); an overflow agent keeps its department and shows an account badge.
+- A rate-limited chat offers "Continue on the other account": the office forks it under the other account's token and parks the original.
 - Placement follows the classifier in Key Technical Decisions. A starting chat sits at the desk it was started from until the classifier has evidence. Moves are deferred while queued or open.
 
 **Test scenarios:**
@@ -697,7 +704,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Worktrees are listed with `git worktree list` per known repository, with disk size computed lazily and cached.
 - **Git state per worktree:** uncommitted changes, unpushed commits, and PR state (open or merged, via `gh`).
 - **Cleanup actions:**
-  - Stop processes: signal the agent's child processes, never the office itself.
+  - Stop processes: signal the agent's child processes, never the office itself. Parking already does this for long-running children (dev servers, watchers, docker compose); they restart on demand.
   - Archive chat.
   - Remove worktree: `git worktree remove` without force, allowed only when clean, or when fully pushed with the PR merged.
 - "Clean up safe" previews the list, runs the allowed actions, and reports what was freed (GB and worktree count).
@@ -716,7 +723,53 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - On his machine, the Housekeeping view matches `git worktree list` and Activity Monitor within reason. Cleaning up safe candidates frees their memory and worktrees without touching anything with unpushed work.
 
 
-### Phase 4 — Rich input
+### Phase 4 — Workflow
+
+- [ ] **Unit 16: Workflow — ship-it actions, Linear on the desks, review queue**
+
+**Goal:** Put Aaron's own MWS workflow one click away from each agent. Surface the PRs waiting for his review as a second queue.
+
+**Requirements:** R24, R25, R28
+
+**Dependencies:** Units 8, 9 and 10 (PR/CI data), Unit 15 (cleanup after merge)
+
+**Files:**
+- Create: `src/main/workflow/next-step.ts`, `src/main/workflow/linear.ts`, `src/main/workflow/review-requests.ts`
+- Create: `src/renderer/panels/chat/ShipIt.vue`, `src/renderer/panels/ReviewRequests.vue`, `src/renderer/office/intray.ts`
+- Test: `tests/main/next-step.test.ts`, `tests/main/linear.test.ts`, `tests/main/review-requests.test.ts`, `tests/e2e/review-queue.spec.ts`
+
+**Approach:**
+- **Next step** is a pure function from a chat's git, PR and CI state to the suggested actions, each sent to the session as a slash command:
+  - Changes but no PR: `/mws-test-cases`, `/mws-verify`, `/mws-review`, `/mws-pr`.
+  - PR open with unresolved comments: `/pr-comment-rundown`.
+  - CI failing: `gh-fix-ci`.
+  - PR merged: clean up (Unit 15), and move the Linear ticket.
+  An action is only offered when the session's `supportedCommands()` includes it, since the MWS skills exist only in monorepo sessions.
+- **Linear:**
+  - The ticket id is parsed from the branch or worktree name (e.g. `auc-1302-…` gives AUC-1302).
+  - Ticket title and status are fetched with a Linear personal API key, stored with `safeStorage` like the account tokens (optional; without it, tags show the bare id).
+  - "Start from ticket" creates the worktree and branch from the ticket id and seeds the prompt with the ticket.
+  - Moving a ticket's status always asks first.
+- **Review queue:**
+  - Polls `gh search prs --review-requested=@me --state=open` (every ~5 minutes, and on focus) for repo, title, author, age, size and CI.
+  - The office shows an in-tray on Aaron's desk with envelopes, and the count is visible at the overview. Requests older than 2 working days turn amber.
+  - The drawer gets a "Review requests" section below "Waiting for you".
+  - "Review" starts an agent in a worktree checked out at the PR head, in the PR's department, running `/pr-review-rundown <PR>`.
+  - A request leaves the tray when `gh` no longer lists it (review submitted or request withdrawn).
+
+**Test scenarios:**
+- Happy path: a chat with uncommitted changes and no PR offers test cases, verify, review and ship. After `/mws-pr` creates a PR, the offer changes to waiting on CI.
+- Happy path: a PR with two unresolved review threads offers "Answer comments"; clicking it sends `/pr-comment-rundown` to that chat.
+- Edge case: a Side-projects chat, whose session lacks the MWS skills, doesn't offer MWS actions.
+- Happy path: branch `auc-1302-bid-flow-approach` shows AUC-1302 with its Linear title and status. Without an API key, the tag shows the id only.
+- Error path: the Linear API or `gh` being unavailable shows a quiet notice, and the rest of the office keeps working.
+- Happy path: two review requests appear in the tray and the drawer. "Review" on one starts an agent on that PR's head in a new worktree, running `/pr-review-rundown`.
+- Edge case: a request withdrawn by its author disappears on the next poll without affecting a review agent already running.
+
+**Verification:**
+- With his real `gh` login, the tray lists exactly what GitHub shows under "Review requests", and each ship-it action runs the matching skill in the right chat.
+
+### Phase 5 — Rich input
 
 - [ ] **Unit 11: Attachments, slash commands, skills and plan mode**
 
@@ -746,7 +799,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Images, files, slash commands, skills and plan mode all work on a real session.
 
-### Phase 5 — History and outside chats
+### Phase 6 — History, outside chats, jobs and briefing
 
 - [ ] **Unit 12: History, search and usage**
 
@@ -849,6 +902,40 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - The performance test passes on his MacBook, and the stats view reports real numbers after a day of use.
 
+- [ ] **Unit 17: Job board and morning briefing**
+
+**Goal:** One-drop presets for recurring jobs, and a single summary card after a break.
+
+**Requirements:** R26, R27
+
+**Dependencies:** Units 9, 12 and 16
+
+**Files:**
+- Create: `src/main/jobs/presets.ts`, `src/main/briefing/summary.ts`
+- Create: `src/renderer/panels/JobBoard.vue`, `src/renderer/panels/Briefing.vue`
+- Test: `tests/main/presets.test.ts`, `tests/main/briefing.test.ts`
+
+**Approach:**
+- **Presets:** each is a skill or prompt template, with model, effort, department, account and worktree choice.
+  - They're stored in office metadata and seeded with Sentry prep, WBSO, PR review, unit tests per area, backend warnings and characterize.
+  - Dragging one onto a desk, or picking it in ⌘N, starts the agent there.
+- **Briefing:** after 6 hours or more without interaction, or on the first open of the day, one dismissible card lists:
+  - finished chats
+  - waiting requests
+  - PRs ready
+  - CI failures
+  - review requests
+  - what housekeeping parked or cleaned
+  Each line links to the agent or PR. There are no camera tours.
+
+**Test scenarios:**
+- Happy path: dropping "Weekly Sentry prep" on a desk starts an agent with that skill, model and effort, in the preset's department.
+- Happy path: after an 8-hour gap, the briefing shows three finished chats, one CI failure and two review requests, with working links.
+- Edge case: opening again within the hour shows no briefing. Dismissing it keeps it hidden until the next break.
+
+**Verification:**
+- His seeded presets start the right skills, and the briefing matches the day's actual activity.
+
 ## System-Wide Impact
 
 - **Interaction graph:**
@@ -875,6 +962,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | Dual-account headless sessions or fork adoption don't behave as documented | Unit 1 is a go/no-go before any app code. The fallback is jump-and-approve with hook status (origin Key Decisions). |
 | Token-authenticated sessions lack claude.ai connectors (Linear, Slack, Sentry…), a real parity gap for his work | Unit 1 lists exactly what's missing; a follow-up task recreates the important ones as local MCP servers, or keeps those tasks in the desktop app for now. |
 | Anthropic's terms bar third-party products from offering claude.ai logins | Keep the app strictly personal: no distribution. Recorded in Scope Boundaries. |
+| Linear API key and `gh` polling | The key is stored like the tokens and is optional. `gh` reuses his login, polled every ~5 minutes and on focus, to stay within GitHub rate limits. |
+| Ship-it actions call skills that only exist in some repos | Offered only when the session's `supportedCommands()` includes them. |
 | Phone push sends work details off the machine | Redacted payloads (agent, department, tool, short summary), a user-chosen service (ntfy or Pushover), and an off switch. |
 | Cleanup deletes work Aaron still needed | Worktree removal only when clean, or fully pushed with the PR merged; never forced; a preview before bulk cleanup; unknown git state counts as unsafe. |
 | Notification actions don't show (unsigned build, or Banners style) | Build with a stable self-signed identity; onboarding links to the notification settings. |
@@ -895,8 +984,9 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | 1 | 2–7 | Office, queue, approvals, inbox, menu bar and notifications on real sessions. Chats start via ⌘N quick start and are driven from the inbox reply box. |
 | 2 | 8–9 | Full conversation and new agents in folders or worktrees, with live department placement. |
 | 3 | 10, 15 | Review inside the office, plus housekeeping: parking, RAM and worktree view, safe cleanup. |
-| 4 | 11 | Rich input. |
-| 5 | 12–14 | History, outside chats with adoption, proven performance and wait-time stats. |
+| 4 | 16 | Ship-it actions with his skills, Linear on the desks, and the PR review queue. |
+| 5 | 11 | Rich input. |
+| 6 | 12–14, 17 | History, outside chats with adoption, proven performance and wait-time stats, job board and morning briefing. |
 
 ## Documentation / Operational Notes
 
