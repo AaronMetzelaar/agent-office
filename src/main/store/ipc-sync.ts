@@ -96,6 +96,7 @@ export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) 
     if (openChat) void store.restore(openChat)
   })
   handle('resumeChat', win, appUrl, store.resumeChat)
+  handle('continueOnAccount', win, appUrl, store.continueOnAccount)
   handle('markRead', win, appUrl, store.markRead)
   return Object.assign(sync, { openChat: () => openChat })
 }

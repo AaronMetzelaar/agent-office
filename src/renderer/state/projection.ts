@@ -1,6 +1,7 @@
 import { Color } from 'three'
 import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
+import { showsAccountBadge } from '../../shared/departments'
 import { departmentOf, isResearch, palette, parkAfterMs, type DeptId } from '../../shared/office'
 
 export interface ChatSource {
@@ -95,6 +96,7 @@ export interface Agent {
   quietMs: number
   createdAt: number
   colour: number
+  badge?: string
   request?: { tool: string; summary: string; dangerous: boolean }
 }
 
@@ -149,6 +151,7 @@ const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.tes
 
 export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
   const research = new Set(accounts.filter(isResearch).map((account) => account.id))
+  const labels = new Map(accounts.map((account) => [account.id, account.label]))
   const live = [...chats].filter((chat) => !chat.archived)
   const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research.has(chat.accountId)) }))
   const colours = assignColours(
@@ -175,6 +178,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       quietMs,
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
+      ...(showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
       ...(chat.state === 'needs-you' && tool ? { request: { tool, summary: first?.summary ?? tool, dangerous: first?.dangerous ?? false } } : {}),
     }
   })

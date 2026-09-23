@@ -628,7 +628,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - A real session on each account can be driven end to end from the panel: send, stop, model and effort change, allow and deny, plan approval, answering a question.
 
-- [ ] **Unit 9: New agent flow and department placement**
+- [x] **Unit 9: New agent flow and department placement**
 
 **Goal:** Start agents from a desk or a command, in a folder or a fresh worktree. Place and move chats by the files they touch.
 

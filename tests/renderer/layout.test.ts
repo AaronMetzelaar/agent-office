@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignDesks, capacityOf, deptIds, layoutFloor, settle, type Demand, type DeptId } from '../../src/renderer/office/layout'
+import { assignDesks, capacityOf, columnsFor, deptIds, layoutFloor, settle, type Demand, type DeptId } from '../../src/renderer/office/layout'
 
 const shownOrder = (demand: Demand) => {
   const { zones } = layoutFloor(demand)
@@ -50,16 +50,36 @@ describe('adaptive floor', () => {
 })
 
 describe('department growth', () => {
-  it('grows a full department by a desk column and pushes its neighbours along without overlap', () => {
+  it('grows desk rows toward the front before pushing its neighbours sideways', () => {
     const base = layoutFloor({ mkt: 4, adm: 1, mob: 2, gym: 1 })
-    const grown = layoutFloor({ mkt: 5, adm: 1, mob: 2, gym: 1 })
-    expect(grown.zones.mkt.slots).toHaveLength(capacityOf('mkt', 5))
+    const front = layoutFloor({ mkt: 5, adm: 1, mob: 2, gym: 1 })
+    expect(front.zones.mkt.slots).toHaveLength(5)
+    expect(front.zones.mkt.width).toBe(base.zones.mkt.width)
+    expect(front.zones.adm.box).toEqual(base.zones.adm.box)
+    expect(front.right).toBe(base.right)
+    const [x, z] = front.zones.mkt.slots[4]!
+    expect(z).toBeGreaterThan(Math.max(...base.zones.mkt.slots.map(([, row]) => row)))
+    expect(z).toBeLessThan(front.zones.mkt.box[3])
+    expect(x).toBeGreaterThan(front.zones.mkt.box[0])
+
+    const grown = layoutFloor({ mkt: 6, adm: 1, mob: 2, gym: 1 })
     expect(grown.zones.mkt.width).toBeGreaterThan(base.zones.mkt.width)
     expect(grown.zones.adm.box[0]).toBeCloseTo(grown.zones.mkt.box[2] + 1)
     expect(grown.zones.mob.box[0]).toBeGreaterThan(base.zones.mob.box[0])
-    expect(grown.right).toBeGreaterThan(base.right)
     const shown = deptIds.filter((id) => grown.zones[id].shown).map((id) => grown.zones[id].box)
     for (let i = 0; i < shown.length; i++) for (let j = i + 1; j < shown.length; j++) expect(overlap(shown[i]!, shown[j]!)).toBe(false)
+  })
+
+  it('keeps the floor compact: every new column also carries a front desk, and no two desks crowd each other', () => {
+    expect(columnsFor('mkt', 15)).toBe(4)
+    expect(columnsFor('mob', 5)).toBe(0)
+    expect(columnsFor('side', 5)).toBe(0)
+    expect(columnsFor('side', 6)).toBe(1)
+    for (const id of deptIds) {
+      const slots = layoutFloor({ [id]: 12 }).zones[id].slots
+      expect(slots).toHaveLength(capacityOf(id, 12))
+      for (let i = 0; i < slots.length; i++) for (let j = i + 1; j < slots.length; j++) expect(Math.hypot(slots[i]![0] - slots[j]![0], slots[i]![1] - slots[j]![1])).toBeGreaterThan(1.8)
+    }
   })
 
   it('never seats two agents at one desk, even with 15 agents in one department', () => {

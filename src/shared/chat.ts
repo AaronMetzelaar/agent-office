@@ -51,6 +51,7 @@ export interface ChatFields {
   effort?: Effort
   permissionMode?: ChatMode
   worktree?: string
+  setup?: 'worktree' | 'worktree-failed'
   colour?: string
   department?: string
   archived: boolean
@@ -154,7 +155,7 @@ export function ago(ms: number): string {
 export function doingNow(chat: ChatFields, now: number): string {
   switch (chat.state) {
     case 'starting':
-      return 'Starting…'
+      return chat.setup === 'worktree' ? 'Setting up worktree…' : 'Starting…'
     case 'needs-you':
       return `Waiting for you · ${chat.pending[0]?.toolName ?? 'a decision'}`
     case 'done':
@@ -162,6 +163,7 @@ export function doingNow(chat: ChatFields, now: number): string {
     case 'idle':
       return `Idle ${ago(now - chat.stateSince)}`
     case 'stuck': {
+      if (chat.setup === 'worktree-failed') return 'Stuck · worktree failed'
       const stuck = chat.stuck ?? { reason: 'crashed' }
       const until = stuck.retryAt ? ` until ${new Date(stuck.retryAt).toTimeString().slice(0, 5)}` : ''
       return `Stuck · ${stuckLabels[stuck.reason]}${until}`

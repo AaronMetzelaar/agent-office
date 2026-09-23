@@ -5,6 +5,7 @@ import { departmentOf, deptNames, isResearch } from '../shared/office'
 import type { Navigate, SettingName } from '../shared/ipc'
 import { createAccounts, fakeValidator, validateWithSdk } from './accounts/health'
 import { openVault } from './accounts/tokens'
+import { createPlacement, loadRules } from './departments/classifier'
 import { handle, send } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
 import { createWaitMetrics } from './metrics/wait'
@@ -43,10 +44,13 @@ async function start(): Promise<void> {
   const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validateWithSdk, db)
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
-  const store = createChatStore(engine, db, accounts, rules.forSession)
+  const deptRules = loadRules(configDir())
+  const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
   const sync = wireChats(win, appUrl, store)
+  createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
+  handle('departmentRules', win, appUrl, () => deptRules)
   sync.setAccounts(accounts.list())
   handle('resolveRequest', win, appUrl, windowResolver(broker, () => win.isFocused()))
   handle('listRules', win, appUrl, rules.list)

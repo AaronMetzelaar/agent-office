@@ -1,4 +1,5 @@
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
+import type { DeptRule, StartOptions } from './departments'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 
 export interface AppInfo {
@@ -53,7 +54,9 @@ export interface Commands {
   clearLinearKey(): void
   hasLinearKey(): boolean
   getSnapshot(): ChatSnapshot
-  startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort): StartChatResult
+  startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): StartChatResult
+  continueOnAccount(chatId: string, accountId: string): Refusal | undefined
+  departmentRules(): DeptRule[]
   sendMessage(chatId: string, text: string): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
   stopChat(chatId: string): void

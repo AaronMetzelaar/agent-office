@@ -1,30 +1,8 @@
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'gym'] as const
-export type DeptId = (typeof deptIds)[number]
-export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
+import type { DeptId } from './departments'
 
-export const deptNames: Record<DeptId, string> = {
-  mkt: 'Marketplace',
-  adm: 'Admin',
-  mob: 'Mobile',
-  plat: 'Backend / infra',
-  side: 'Side projects',
-  gym: 'Research gym',
-}
+export { departmentOf, deptIds, deptNames, isDeptId, isResearch, type DeptId } from './departments'
 
 export const parkAfterMs = 24 * 60 * 60 * 1000
-
-export const isResearch = (account: { label: string }) => /research/i.test(account.label)
-
-export function departmentOf(chat: { cwd: string; department?: string }, research: boolean): DeptId {
-  if (isDeptId(chat.department)) return chat.department
-  if (research) return 'gym'
-  const path = chat.cwd.replaceAll('\\', '/')
-  if (!/\/monorepo(\/|$)/.test(path)) return 'side'
-  if (/\/frontend\/marketplace(\/|$)/.test(path)) return 'mkt'
-  if (/\/frontend\/admin(\/|$)/.test(path)) return 'adm'
-  if (/\/frontend\/mobile(\/|$)/.test(path)) return 'mob'
-  return 'plat'
-}
 
 export const palette = [
   0xf0463c, 0x3b7bff, 0x2fb344, 0xffc21a, 0x8b5cf6, 0xff7a59, 0x14b8a6, 0xf25ca2, 0x38bdf8, 0x84cc16, 0xfb923c,

@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
-import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
+import { CSS2DRenderer, type CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { LoginItem } from '../../shared/chat'
 import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
-import { chipHalfWidth, chipMode, countsFor, createChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
+import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
 import { assignDesks, baseSlots, benchSeats, capacityOf, dept, depts, door, kindOf, layoutFloor, lounge, parkedZone, queueSpots, settle, widthOf, type Demand, type DeptId, type Floor } from './layout'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
@@ -70,6 +70,7 @@ export interface WorldOptions {
   region: () => Region
   ui: WorldUi
   reduce: boolean
+  onNewDesk?: (dept: DeptId, slot: number) => void
 }
 
 const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
@@ -77,7 +78,7 @@ const easeBack = (u: number) => 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u 
 
 export type World = ReturnType<typeof createWorld>
 
-export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce }: WorldOptions) {
+export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk }: WorldOptions) {
   const motion = reduce ? 0.25 : 1
   scene.background = new THREE.Color(0xedeff2)
   const pmrem = new THREE.PMREMGenerator(renderer)
@@ -103,6 +104,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
   const live = new Map<string, Live>()
   const desks = new Map<string, number>()
+  const claims = new Map<string, number>()
+  const deskChips = new Map<string, CSS2DObject>()
   const loungeOf = new Map<string, number>()
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const loungeVecs = lounge.map(([x, z]) => new THREE.Vector3(x, 0, z))
@@ -219,7 +222,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const { demand, pending } = settle(applied, wanted, canFold())
     pendingLayout = pending
     const next = layoutFloor(demand, Object.fromEntries(depts.map((d) => [d.id, anims[d.id].ox])))
-    const changed = depts.some((d) => next.zones[d.id].shown !== floor.zones[d.id].shown || next.zones[d.id].width !== floor.zones[d.id].width) || !booted
+    const changed = depts.some((d) => next.zones[d.id].shown !== floor.zones[d.id].shown || next.zones[d.id].width !== floor.zones[d.id].width || next.zones[d.id].slots.length !== floor.zones[d.id].slots.length) || !booted
     applied = demand
     if (changed) applyLayout(next, demand, !booted)
   }
@@ -228,9 +231,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const seated = active()
       .filter((l) => !l.facts.parked)
       .sort((a, b) => a.facts.createdAt - b.facts.createdAt)
-    const next = assignDesks(desks, seated.map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => capacityOf(id, applied[id] ?? 0))
+    const next = assignDesks(new Map([...desks, ...claims]), seated.map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => capacityOf(id, applied[id] ?? 0))
     desks.clear()
     for (const [id, i] of next) desks.set(id, i)
+    for (const id of claims.keys()) if (desks.has(id)) claims.delete(id)
     const usedLounge = new Set<number>()
     for (const l of live.values()) {
       const slot = l.gone || l.facts.parked ? undefined : scenes[l.facts.dept].slots[desks.get(l.facts.id)!]
@@ -298,11 +302,11 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function paint(l: Live) {
     const f = l.facts, dim = isDim(labelled(l), focus)
-    renderChip(l.chip, { title: f.title, caption: f.caption, colour: hexCss(f.colour), state: f.state, parked: f.parked, queueIndex: l.queueIndex, selected: focus.selected === f.id, dim, subs: f.subagents.length })
+    renderChip(l.chip, { title: f.title, caption: f.caption, colour: hexCss(f.colour), state: f.state, parked: f.parked, queueIndex: l.queueIndex, selected: focus.selected === f.id, dim, subs: f.subagents.length, badge: f.badge })
     l.c.ring.material.color.set(ringColourOf(f))
     kit.tint(l.c, f.colour, f.parked && !l.gone)
     if (!l.slot) return
-    const key = `${f.state}|${f.title}|${f.colour}|${f.request?.summary}|${f.state === 'stuck' ? f.caption : ''}`
+    const key = `${f.state}|${f.title}|${f.colour}|${f.request?.summary}|${f.state === 'stuck' || f.state === 'starting' ? f.caption : ''}`
     if (key === l.screenKey) return
     l.screenKey = key
     drawScreen(l.slot, { colour: f.colour, title: f.title, state: f.state, caption: f.caption, ask: f.request?.summary })
@@ -544,9 +548,34 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     setInterval(() => office.tickStatus(), 10_000),
   ]
 
+  function deskChip(id: DeptId, i: number) {
+    const key = `${id}:${i}`
+    let chip = deskChips.get(key)
+    if (!chip) {
+      chip = createDeskChip(`New agent at ${dept[id].name} ${kindOf(id) === 'gym' ? 'treadmill' : 'desk'} ${i + 1}`, () => onNewDesk?.(id, i))
+      labelScene.add(chip)
+      deskChips.set(key, chip)
+    }
+    return chip
+  }
+
+  function layoutDeskChips(zoomed: boolean) {
+    for (const chip of deskChips.values()) chip.visible = false
+    if (!zoomed || !onNewDesk || layU < 1) return
+    const taken = new Set(active().map((l) => l.slot))
+    for (const d of shown())
+      scenes[d.id].slots.forEach((slot, i) => {
+        if (taken.has(slot)) return
+        const chip = deskChip(d.id, i)
+        chip.position.copy(slot.chip)
+        chip.visible = true
+      })
+  }
+
   const projected = new THREE.Vector3()
   function layoutChips() {
     const zoomed = rig.zoomed(), far = !zoomed, w = innerWidth, h = innerHeight
+    layoutDeskChips(zoomed)
     if (far !== labelsEl.classList.contains('far')) {
       labelsEl.classList.toggle('far', far)
       renderSigns()
@@ -598,7 +627,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       scrT = 0
       if (zoomed)
         for (const l of live.values())
-          if (l.slot && !l.gone && stateKey(l.facts.state) === 'working' && l.target.home) {
+          if (l.slot && !l.gone && l.facts.state === 'working' && l.target.home) {
             l.slot.scroll++
             drawScreen(l.slot, { colour: l.facts.colour, title: l.facts.title, state: 'working', caption: l.facts.caption })
           }
@@ -659,6 +688,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     probe,
     sync,
     select,
+    claimDesk(chatId: string, slot: number) {
+      claims.set(chatId, slot)
+      refresh()
+    },
     setFilter,
     overview: () => select(undefined, false),
     escape() {

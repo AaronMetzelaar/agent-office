@@ -4,8 +4,8 @@ import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
 import type { Inbox, WaitingItem } from '../state/inbox'
 
-const props = defineProps<{ inbox: Inbox }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: [] }>()
+const props = defineProps<{ inbox: Inbox; canSwitch?: boolean }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
@@ -98,6 +98,7 @@ onUnmounted(() => {
         </template>
         <template v-else-if="item.kind === 'stuck' && item.chatId">
           <button type="button" class="btn sm" @click="resume(item.chatId)">Resume</button>
+          <button v-if="canSwitch && item.stuckReason === 'rate-limited'" type="button" class="btn sm" title="Continue on the other account" @click="emit('continue', item.chatId)">Other account</button>
           <button type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
         </template>
         <button v-else type="button" class="btn sm" @click="emit('accounts')">Log in</button>

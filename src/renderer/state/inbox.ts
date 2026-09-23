@@ -1,4 +1,4 @@
-import type { ChatView, LoginItem } from '../../shared/chat'
+import type { ChatView, LoginItem, StuckReason } from '../../shared/chat'
 import { hexOf, type DeptId } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import { buildQueue, type QueueItem } from '../../shared/queue'
@@ -19,6 +19,7 @@ export interface WaitingItem {
   requests: PendingRequestView[]
   detail: string
   lastReply?: string
+  stuckReason?: StuckReason
 }
 
 export interface BoardRow {
@@ -69,6 +70,7 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
       ...(agent ? { dept: dept[agent.dept].name, accent: hexOf(dept[agent.dept].accent) } : {}),
       requests: item.kind === 'request' ? (chat?.pendingRequests ?? []) : [],
       detail: agent?.caption ?? '',
+      ...(agent?.stuckReason ? { stuckReason: agent.stuckReason } : {}),
     }
   })
   const seated = agents.filter((agent) => !agent.parked)

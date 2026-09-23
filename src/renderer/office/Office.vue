@@ -2,10 +2,11 @@
 import { TresCanvas, useLoop, useTres } from '@tresjs/core'
 import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
+import type { DeptId } from '../../shared/departments'
 import type { AccountView, Navigate } from '../../shared/ipc'
 import Chat from '../panels/Chat.vue'
 import Inbox from '../panels/Inbox.vue'
-import QuickStart from '../panels/QuickStart.vue'
+import NewAgent from '../panels/NewAgent.vue'
 import { buildInbox, emptyInbox } from '../state/inbox'
 import { keyAction } from '../state/keys'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
@@ -29,9 +30,11 @@ const colours = new Map<string, number>()
 const palette = reactive({ open: false, query: '' })
 const inbox = shallowRef(emptyInbox)
 const mode = ref<'inbox' | 'new'>('inbox')
+const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
 const tick = ref(0)
 const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
 let pendingSelect: string | undefined
+let pendingFly = true
 const tallyLabels: [StateKey, string][] = [
   ['needs', 'need you'],
   ['stuck', 'stuck'],
@@ -53,18 +56,37 @@ function push() {
   inbox.value = buildInbox(projection.chats, agents, projection.logins)
   w.sync(agents, projection.logins)
   tick.value++
-  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect)
+  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingFly)
 }
 
-function select(chatId: string | undefined) {
+function select(chatId: string | undefined, fly = true) {
   mode.value = 'inbox'
   pendingSelect = chatId && !projection.chats.has(chatId) ? chatId : undefined
-  if (!pendingSelect) world.value?.select(chatId, !!chatId)
+  pendingFly = fly
+  if (!pendingSelect) world.value?.select(chatId, fly && !!chatId)
+}
+
+function openNew(desk?: { dept: DeptId; slot: number }) {
+  newDesk.value = desk
+  mode.value = 'new'
+}
+
+function started(chatId: string, dept: DeptId) {
+  const desk = newDesk.value
+  if (desk?.dept === dept) world.value?.claimDesk(chatId, desk.slot)
+  select(chatId, !desk)
+}
+
+const usable = computed(() => props.accounts.filter((account) => account.health.status !== 'needs-login'))
+
+async function continueElsewhere(chatId: string) {
+  const other = usable.value.find((account) => account.id !== projection.chats.get(chatId)?.accountId)
+  if (other) await window.office.continueOnAccount(chatId, other.id)
 }
 
 function navigate(to: Navigate) {
   if (to.to === 'accounts') return emit('accounts')
-  if (to.to === 'new') return void (mode.value = 'new')
+  if (to.to === 'new') return openNew()
   select(to.to === 'chat' ? to.chatId : undefined)
 }
 
@@ -91,7 +113,7 @@ const Scene = defineComponent({
     const { scene, renderer, advance } = useTres()
     const { onBeforeRender, render } = useLoop()
     const gl = renderer as WebGLRenderer
-    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce })
+    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }) })
     world.value = w
     if (probeEnabled) {
       const probe = w.probe
@@ -195,9 +217,9 @@ onUnmounted(() => {
     <slot />
   </header>
   <aside class="inbox" aria-label="Inbox">
-    <QuickStart v-if="mode === 'new'" :accounts="accounts" @close="mode = 'inbox'" @started="select" />
+    <NewAgent v-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" @select="select" @accounts="emit('accounts')" />
-    <Inbox v-else :inbox="inbox" @select="select" @accounts="emit('accounts')" @new="mode = 'new'" />
+    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">

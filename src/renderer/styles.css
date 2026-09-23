@@ -167,3 +167,43 @@ code {
   border-color: var(--ink);
   color: #fff;
 }
+
+.chip.new {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 14px;
+  color: var(--faint);
+  background: rgba(255, 255, 255, 0.8);
+  border-style: dashed;
+  border-color: #bfc5ce;
+  transition: width 0.18s ease, translate 0.15s, color 0.15s;
+}
+
+.chip.new span {
+  display: none;
+}
+
+.chip.new:hover {
+  width: auto;
+  padding: 3px 10px;
+  color: var(--ink2);
+  border-color: #9aa2ae;
+}
+
+.chip.new:hover span {
+  display: inline;
+  white-space: pre;
+}
+
+.chip .ab {
+  margin-left: 7px;
+  padding: 0 5px;
+  font: 500 9.5px/15px var(--mono);
+  color: var(--muted);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}

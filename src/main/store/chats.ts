@@ -4,11 +4,13 @@ import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { efforts, emptyUsage, maxRows, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
+import { createWorktree, planWorktree, slugFor, type WorktreePlan } from '../worktrees/create'
 import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
@@ -115,7 +117,7 @@ function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
   return { ...fields, doneAt, readAt }
 }
 
-export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined) {
+export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined, rules: readonly DeptRule[] = defaultRules) {
   const events = new EventEmitter<{ patch: [ChatPatch]; read: [chatId: string, doneAt: number, readAt: number] }>()
   const chats = new Map<string, Chat>()
 
@@ -235,20 +237,54 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     }),
   )
 
-  function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}) {
+  function run(chat: Chat, text: string, fork = false) {
     const view = chat.view
-    addRow(chat, { kind: 'user', id: randomUUID(), text })
-    if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId })
+      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork ? { forkSession: true } : {}) })
       engine.send(view.id, text)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
     }
   }
 
+  function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
+    const view = chat.view
+    addRow(chat, { kind: 'user', id: randomUUID(), text })
+    if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
+    run(chat, text, fork)
+  }
+
+  const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
+  const worktreeFailed = (chat: Chat, error: unknown) => transition(chat, 'stuck', { stuck: { reason: 'error', detail: `Couldn’t set up the worktree: ${errorText(error)}` }, setup: 'worktree-failed' })
+
+  function setUpWorktree(chat: Chat, plan: WorktreePlan, prompt: string) {
+    const id = chat.view.id
+    transition(chat, 'starting', { worktree: plan.path, cwd: plan.cwd, setup: 'worktree', stuck: undefined })
+    createWorktree(plan).then(
+      () =>
+        guard(id, (current) => {
+          const waiting = current.view.state === 'starting' && current.view.setup === 'worktree'
+          set(current, { setup: undefined })
+          if (waiting) run(current, prompt)
+        }),
+      (error: unknown) =>
+        guard(id, (current) => {
+          if (current.view.state === 'starting') worktreeFailed(current, error)
+          else set(current, { setup: undefined })
+        }),
+    )
+  }
+
+  function retryWorktree(chat: Chat, worktree: string, prompt: string) {
+    try {
+      setUpWorktree(chat, planWorktree(repoPath(chat.view.cwd), basename(worktree)), prompt)
+    } catch (error) {
+      worktreeFailed(chat, error)
+    }
+  }
+
   const find = (chatId: unknown) => (typeof chatId === 'string' ? chats.get(chatId) : undefined)
-  const deptOf = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) => departmentOf(chat, isResearch({ label: accounts.label(chat.accountId) ?? '' }))
+  const deptOf = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) => departmentOf(chat, isResearch({ label: accounts.label(chat.accountId) ?? '' }), rules)
   const colourFor = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) =>
     pickColour(
       [...chats.values()].filter(({ view }) => !view.archived && view.colour).map(({ view }) => ({ colour: view.colour, dept: deptOf(view) })),
@@ -282,7 +318,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     snapshot: (): ChatView[] => [...chats.values()].map((chat) => structuredClone(chat.view)),
     view: (chatId: string): Readonly<ChatView> | undefined => chats.get(chatId)?.view,
     views: (): readonly Readonly<ChatView>[] => [...chats.values()].map((chat) => chat.view),
-    recentFolders: (): string[] => [...new Set([...chats.values()].sort((a, b) => b.view.lastActivityAt - a.view.lastActivityAt).map((chat) => chat.view.cwd))].slice(0, 8),
+    recentFolders: (): string[] => [...new Set([...chats.values()].sort((a, b) => b.view.lastActivityAt - a.view.lastActivityAt).map((chat) => repoPath(chat.view.cwd)))].slice(0, 8),
     busy: () => [...chats.values()].some((chat) => midTurn.has(chat.view.state)),
 
     restore(chatId: unknown): Promise<void> {
@@ -328,19 +364,28 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (engine.running(chat.view.id)) await engine.setPermissionMode(chat.view.id, mode)
     },
 
-    start(accountId: unknown, cwd: unknown, prompt: unknown, model?: unknown, effort?: unknown): StartChatResult {
+    start(accountId: unknown, cwd: unknown, prompt: unknown, model?: unknown, effort?: unknown, options?: unknown): StartChatResult {
       if (typeof accountId !== 'string' || !accounts.exists(accountId)) return { error: 'Pick an account first.' }
       if (accounts.needsLogin(accountId)) return needsLogin
       if (typeof cwd !== 'string' || !isAbsolute(cwd) || !statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) return { error: 'Pick an existing folder.' }
       if (typeof prompt !== 'string' || !prompt.trim()) return { error: 'Write a prompt first.' }
       if (model !== undefined && (typeof model !== 'string' || !modelPattern.test(model))) return { error: 'That model name isn’t valid.' }
       if (effort !== undefined && !efforts.includes(effort as Effort)) return { error: 'That effort level isn’t valid.' }
+      const wanted = (typeof options === 'object' && options ? options : {}) as StartOptions
+      let plan: WorktreePlan | undefined
+      try {
+        plan = wanted.worktree === true ? planWorktree(cwd, slugFor(prompt)) : undefined
+      } catch (error) {
+        return { error: errorText(error) }
+      }
       const now = Date.now()
-      const colour = colourFor({ accountId, cwd })
+      const department: DeptId = isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
+      const colour = colourFor({ accountId, cwd, department })
       const view: ChatView = {
         id: randomUUID(),
         accountId,
         cwd,
+        department,
         ...(colour ? { colour } : {}),
         title: prompt.trim().split('\n')[0]!.slice(0, 60),
         ...(model ? { model: model as string } : {}),
@@ -364,7 +409,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       save(chat)
       const { rows: _rows, ...fields } = view
       emit({ id: view.id, fields, rows: [], replaceRows: true })
-      send(chat, prompt)
+      if (plan) {
+        addRow(chat, { kind: 'user', id: randomUUID(), text: prompt })
+        setUpWorktree(chat, plan, prompt)
+      } else send(chat, prompt)
       return { chatId: view.id }
     },
 
@@ -382,8 +430,29 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (accounts.needsLogin(chat.view.accountId)) return needsLogin
       engine.stop(chat.view.id)
       const firstPrompt = chat.view.rows.find((row) => row.kind === 'user')?.text
-      send(chat, chat.view.sessionId ? resumePrompt : (firstPrompt ?? resumePrompt))
+      const worktree = chat.view.worktree
+      if (worktree && !isDirectory(worktree)) retryWorktree(chat, worktree, firstPrompt ?? chat.view.title)
+      else send(chat, chat.view.sessionId ? resumePrompt : (firstPrompt ?? resumePrompt))
       return undefined
+    },
+
+    continueOnAccount(chatId: unknown, accountId: unknown): Refusal | undefined {
+      const chat = find(chatId)
+      const view = chat?.view
+      if (!chat || !view?.sessionId || view.state !== 'stuck' || typeof accountId !== 'string' || accountId === view.accountId || !accounts.exists(accountId)) return undefined
+      if (accounts.needsLogin(accountId)) return needsLogin
+      engine.stop(view.id)
+      const research = isResearch({ label: accounts.label(accountId) ?? '' })
+      set(chat, { accountId, department: view.department === 'gym' && !research ? homeDept(view.cwd, false, rules) : view.department })
+      send(chat, resumePrompt, {}, true)
+      return undefined
+    },
+
+    setDepartment(chatId: string, department: DeptId): void {
+      const chat = chats.get(chatId)
+      if (!chat || chat.view.department === department) return
+      set(chat, { department })
+      save(chat)
     },
 
     async interruptChat(chatId: unknown): Promise<void> {

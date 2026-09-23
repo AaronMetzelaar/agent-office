@@ -1613,6 +1613,10 @@ export function drawScreen(s: Slot, a: { colour: number; title: string; state: s
     x.fillText('Stuck', 32, 84)
     x.font = '14px "JetBrains Mono", monospace'
     x.fillText(a.caption.replace('Stuck · ', '').slice(0, 28), 32, 114)
+  } else if (st === 'starting') {
+    x.fillStyle = '#6B7280'
+    x.font = '15px "JetBrains Mono", monospace'
+    x.fillText(a.caption.slice(0, 30), 16, 84)
   } else if (st === 'done') {
     x.fillStyle = '#15A34A'
     x.font = '600 34px Geist, sans-serif'

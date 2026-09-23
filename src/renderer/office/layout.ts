@@ -12,6 +12,7 @@ export interface DeptDef {
   box: readonly [number, number, number, number]
   sign: readonly [number, number]
   slots: readonly (readonly [number, number])[]
+  front: readonly (readonly [number, number])[]
   growRows: readonly number[]
   pitch: number
 }
@@ -24,14 +25,16 @@ export const FZ = 8.2
 const AX0 = -5.1
 const AX1 = -4.1
 const gap = 1
+const NF = -1
+const SF = 7.7
 
 export const depts: readonly DeptDef[] = [
-  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, row: 'n', box: [-13.5, -8.5, AX0, MZ], sign: [-13.25, MZ], slots: [[-10.9, -5.5], [-7.1, -5.5], [-10.9, -2.9], [-7.1, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, row: 'n', box: [AX1, -8.5, AX1 + 3.8, MZ], sign: [AX1 + 0.25, MZ], slots: [[AX1 + 1.4, -5.5], [AX1 + 1.4, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, row: 'n', box: [AX1, -8.5, 4.5, MZ], sign: [AX1 + 0.25, MZ], slots: [[-2.3, -5.5], [1.5, -5.5], [-2.3, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, row: 's', box: [-13.5, MZ, AX0, FZ], sign: [-13.25, FZ], slots: [[-10.9, 2.7], [-7.1, 2.7], [-10.9, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
-  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub', accent: 0xea580c, row: 's', box: [AX1, MZ, 4.5, FZ], sign: [AX1 + 0.25, FZ], slots: [[-2.3, 2.7], [1.5, 2.7], [-2.3, 5.4], [1.5, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
-  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, row: 'g', box: [4.5, -8.5, 13.5, 8.5], sign: [6.55, 8.5], slots: [[6.1, -6.1], [8.1, -6.1], [10.1, -6.1], [12.1, -6.1]], growRows: [-6.1], pitch: 2 },
+  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, row: 'n', box: [-13.5, -8.5, AX0, MZ], sign: [-13.25, MZ], slots: [[-10.9, -5.5], [-7.1, -5.5], [-10.9, -2.9], [-7.1, -2.9]], front: [[-10.9, NF]], growRows: [-5.5, -2.9, NF], pitch: 3.8 },
+  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, row: 'n', box: [AX1, -8.5, AX1 + 3.8, MZ], sign: [AX1 + 0.25, MZ], slots: [[AX1 + 1.4, -5.5], [AX1 + 1.4, -2.9]], front: [[AX1 + 1.4, NF]], growRows: [-5.5, -2.9, NF], pitch: 3.8 },
+  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, row: 'n', box: [AX1, -8.5, 4.5, MZ], sign: [AX1 + 0.25, MZ], slots: [[-2.3, -5.5], [1.5, -5.5], [-2.3, -2.9]], front: [[-2.3, NF], [1.5, NF]], growRows: [-5.5, -2.9, NF], pitch: 3.8 },
+  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, row: 's', box: [-13.5, MZ, AX0, FZ], sign: [-13.25, FZ], slots: [[-10.9, 2.7], [-7.1, 2.7], [-10.9, 5.4]], front: [[-10.9, SF], [-7.1, SF]], growRows: [2.7, 5.4, SF], pitch: 3.8 },
+  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub', accent: 0xea580c, row: 's', box: [AX1, MZ, 4.5, FZ], sign: [AX1 + 0.25, FZ], slots: [[-2.3, 2.7], [1.5, 2.7], [-2.3, 5.4], [1.5, 5.4]], front: [[-2.3, SF]], growRows: [2.7, 5.4, SF], pitch: 3.8 },
+  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, row: 'g', box: [4.5, -8.5, 13.5, 8.5], sign: [6.55, 8.5], slots: [[6.1, -6.1], [8.1, -6.1], [10.1, -6.1], [12.1, -6.1]], front: [], growRows: [-6.1], pitch: 2 },
 ]
 
 export const dept = Object.fromEntries(depts.map((d) => [d.id, d])) as Record<DeptId, DeptDef>
@@ -39,18 +42,23 @@ export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
 
 export type Demand = Partial<Record<DeptId, number>>
 
+const inZone = (id: DeptId) => dept[id].slots.length + dept[id].front.length
+
 export function columnsFor(id: DeptId, desks: number): number {
-  const d = dept[id]
-  return Math.max(0, Math.ceil((desks - d.slots.length) / d.growRows.length))
+  return Math.max(0, Math.ceil((desks - inZone(id)) / dept[id].growRows.length))
 }
 
-export const capacityOf = (id: DeptId, desks: number) => dept[id].slots.length + columnsFor(id, desks) * dept[id].growRows.length
+export function capacityOf(id: DeptId, desks: number): number {
+  const d = dept[id]
+  const columns = columnsFor(id, desks)
+  return columns ? inZone(id) + columns * d.growRows.length : Math.max(d.slots.length, desks)
+}
 
 export function baseSlots(id: DeptId, desks: number): [number, number][] {
   const d = dept[id]
-  const slots = d.slots.map(([x, z]) => [x, z] as [number, number])
+  const slots = [...d.slots, ...d.front].map(([x, z]) => [x, z] as [number, number])
   for (let c = 0; c < columnsFor(id, desks); c++) for (const z of d.growRows) slots.push([d.box[2] + d.pitch * (c + 0.5), z])
-  return slots
+  return slots.slice(0, capacityOf(id, desks))
 }
 
 export const widthOf = (id: DeptId, desks: number) => dept[id].box[2] - dept[id].box[0] + columnsFor(id, desks) * dept[id].pitch

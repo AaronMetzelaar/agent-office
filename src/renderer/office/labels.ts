@@ -115,6 +115,7 @@ export interface Chip {
   bubble: HTMLSpanElement
   number: HTMLSpanElement
   extra: HTMLSpanElement
+  badge: HTMLSpanElement
   key: string
   dx: number
   lift: number
@@ -147,10 +148,28 @@ export function createChip(on: { click(): void; enter(): void; leave(): void }):
   const title = span('tt', tx)
   const caption = span('dn', tx)
   const extra = span('ex', el)
+  const badge = span('ab', el)
   const obj = new CSS2DObject(el)
   obj.center.set(0.5, 1)
   obj.visible = false
-  return { el, obj, title, caption, dot, bubble, number, extra, key: '', dx: 0, lift: 0, mini: false }
+  return { el, obj, title, caption, dot, bubble, number, extra, badge, key: '', dx: 0, lift: 0, mini: false }
+}
+
+export function createDeskChip(label: string, click: () => void): CSS2DObject {
+  const el = document.createElement('div')
+  el.className = 'chip new'
+  el.setAttribute('role', 'button')
+  el.setAttribute('aria-label', label)
+  el.title = label
+  el.append('+', Object.assign(document.createElement('span'), { textContent: ' New agent' }))
+  el.addEventListener('click', (event) => {
+    event.stopPropagation()
+    click()
+  })
+  const obj = new CSS2DObject(el)
+  obj.center.set(0.5, 1)
+  obj.visible = false
+  return obj
 }
 
 export interface ChipView {
@@ -163,6 +182,7 @@ export interface ChipView {
   selected: boolean
   dim: boolean
   subs: number
+  badge?: string
 }
 
 export function renderChip(chip: Chip, v: ChipView) {
@@ -181,6 +201,8 @@ export function renderChip(chip: Chip, v: ChipView) {
   chip.caption.textContent = v.caption
   chip.extra.hidden = !extra
   chip.extra.textContent = extra ? `+${v.subs}` : ''
+  chip.badge.hidden = !v.badge
+  chip.badge.textContent = v.badge ?? ''
   chip.el.setAttribute('aria-label', `${v.title}, ${queued ? `number ${v.queueIndex + 1} at your door, ` : ''}${v.caption}`)
   return true
 }
