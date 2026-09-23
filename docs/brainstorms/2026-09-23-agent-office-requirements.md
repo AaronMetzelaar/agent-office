@@ -148,7 +148,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R19. A native Mac app with three parts:
   - The office window.
   - A menu bar strip showing state dots and the needs-you count. Clicking it opens the office on the inbox.
-  - Push notifications that say who needs help with what (the agent, its department, and the request), with Allow, Deny and Open. They go to the Mac and to his phone. Approving from the phone can come later.
+  - Push notifications that say who needs help with what (the agent, its department, and the request), with Allow, Deny and Open. They go to the Mac and to his phone. On both, the notification carries the choice itself: Allow once and Deny act on that exact request. On the phone, risky requests offer only Deny, with a note to allow from the Mac.
 - R20. Sessions keep running with the window closed, the menu bar stays live, and the app can start at login.
 
 ## Success Criteria

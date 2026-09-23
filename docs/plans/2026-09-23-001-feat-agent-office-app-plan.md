@@ -575,7 +575,10 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - **Phone push via ntfy:** every notification also goes to one private ntfy topic, read from `~/.config/agent-office/ntfy-topic` (0600, generated 2026-09-23; Aaron is subscribed on his iPhone).
   - ntfy priorities set the phone behaviour: needs you and stuck are high, done and review requests normal, housekeeping low.
   - Payloads are redacted summaries: agent, department, tool and a short request, never full commands or file contents.
-  - Tapping one opens nothing yet; approving from the phone comes later.
+  - **Decisions from the phone:** permission notifications carry ntfy `http` action buttons, Allow once and Deny. Tapping one POSTs a signed decision to a second private reply topic (`~/.config/agent-office/ntfy-reply-topic`). The office subscribes to it via ntfy's JSON stream and applies the decision through `resolveRequest`, so no inbound port is opened on the Mac.
+  - Each decision carries the request id, the decision, an expiry (30 minutes) and an HMAC-SHA256 signature. The key is stored in `~/.config/agent-office/ntfy-hmac-key` (0600) and moves into `safeStorage` in the app.
+  - Unsigned, expired, replayed or already-answered decisions are ignored and logged.
+  - Dangerous requests get only a Deny button, plus "Allow from your Mac".
 - **The menu bar strip** is a template image redrawn from the store: the needs-you count plus dots. Clicking it opens the window on the inbox; its menu has Quit.
 
 **Test scenarios:**
@@ -585,6 +588,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - Happy path: ⌘N starts a chat in a chosen folder on the chosen account, and it appears in the office and the inbox.
 - Edge case: j past the last queued chat stays on the last one. Esc from a chat returns to the inbox.
 - Error path: a notification action for a request already answered in the app does nothing, and the app shows no duplicate.
+- Happy path: tapping Allow once on the phone posts a signed decision to the reply topic; the office verifies it and resolves the request within a few seconds.
+- Error path: a decision with a bad signature, a past expiry, or a request id that is already answered is ignored and logged. A dangerous request's phone notification has no Allow button.
 - Integration (end-to-end): the fake engine emits a request; clicking inbox Allow resolves it, the character walks back, and the tray count drops.
 
 **Verification:**
@@ -972,6 +977,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | Anthropic's terms bar third-party products from offering claude.ai logins | Keep the app strictly personal: no distribution. Recorded in Scope Boundaries. |
 | Linear API key and `gh` polling | The key is stored like the tokens and is optional. `gh` reuses his login, polled every ~5 minutes and on focus, to stay within GitHub rate limits. |
 | Ship-it actions call skills that only exist in some repos | Offered only when the session's `supportedCommands()` includes them. |
+| Someone who learns the reply topic could post decisions | Every decision is HMAC-signed with a local key, bound to one request id, expires in 30 minutes and resolves at most once. Dangerous requests can't be allowed from the phone. |
 | Phone push sends work details off the machine | Redacted payloads (agent, department, tool, short summary), ntfy with one private topic, and an off switch. |
 | Cleanup deletes work Aaron still needed | Worktree removal only when clean, or fully pushed with the PR merged; never forced; a preview before bulk cleanup; unknown git state counts as unsafe. |
 | Notification actions don't show (unsigned build, or Banners style) | Build with a stable self-signed identity; onboarding links to the notification settings. |
