@@ -22,7 +22,7 @@ The Electron binary downloads on first launch.
 | `pnpm dev` | Runs the app against the Vite dev server with hot reload |
 | `pnpm build` | Builds main, preload and renderer into `out/` |
 | `pnpm typecheck` | Type-checks the main side and the Vue renderer |
-| `pnpm test` | Runs the Vitest unit tests in `tests/main` |
+| `pnpm test` | Runs the Vitest unit tests in `tests/main` and `tests/renderer` |
 | `pnpm test:e2e` | Builds, then launches the app with Playwright and runs `tests/e2e` |
 
 To run the built app without the dev server: `pnpm build && pnpm exec electron .`
@@ -72,6 +72,7 @@ Sessions run in Auto mode, so Claude only asks when Auto mode escalates. Each as
 
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, and one containing `[ask]` asks to run `pnpm test` first. Packaged builds ignore it.
+- `RENDERER_VITE_OFFICE_DEMO=1 pnpm dev` runs the office on the prototype's sample chats instead of your accounts: working, waiting, stuck and parked agents, with Admin folded until its first agent walks in after 10 seconds. The flag is read at build time, so a normal `pnpm build` leaves the demo out. The Playwright demo check builds its own copy into `out-demo/` and reads the fps probe on `window.__fps`, which only dev and demo builds expose.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
 ## Packaging and signing

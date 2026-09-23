@@ -1,6 +1,7 @@
 node_modules/
 dist/
 out/
+out-demo/
 .DS_Store
 *.env
 .context/

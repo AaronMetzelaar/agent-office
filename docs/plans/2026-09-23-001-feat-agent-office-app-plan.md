@@ -485,7 +485,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Every surface can resolve a request exactly once, and rules survive worktree deletion and app restart.
 
-- [ ] **Unit 6: Office scene**
+- [x] **Unit 6: Office scene**
 
 **Goal:** Port the chosen prototype to a TresJS scene, driven by the store projection.
 
