@@ -83,7 +83,7 @@ async function start(): Promise<void> {
     return picked.canceled ? undefined : picked.filePaths[0]
   })
 
-  const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest })
+  const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest, onOpen: () => console.info('[ntfy] listening for phone decisions') })
   const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true })
   handle('getSettings', win, appUrl, settings)
   handle('setSetting', win, appUrl, (name: SettingName, value: boolean) => {
