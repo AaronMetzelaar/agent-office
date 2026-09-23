@@ -1,6 +1,7 @@
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
+import type { CiLog, Editor, Review } from './review'
 
 export interface AppInfo {
   name: string
@@ -40,9 +41,10 @@ export interface Settings {
   phonePush: boolean
   phonePushAvailable: boolean
   alertsHintSeen: boolean
+  editor: Editor
 }
 
-export type SettingName = 'phonePush' | 'alertsHintSeen'
+export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor'
 
 export interface Commands {
   getAppInfo(): AppInfo
@@ -75,8 +77,11 @@ export interface Commands {
   recentFolders(): string[]
   pickFolder(): Promise<string | undefined>
   getSettings(): Settings
-  setSetting(name: SettingName, value: boolean): Settings
+  setSetting(name: SettingName, value: boolean | string): Settings
   openNotificationSettings(): void
+  getReview(chatId: string): Promise<Review>
+  getCiLog(chatId: string, checkId: string): Promise<CiLog>
+  openInEditor(chatId: string, path: string, line?: number): Promise<{ error: string } | undefined>
 }
 
 export interface Events {

@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
 import { version } from '../../package.json'
 import { departmentOf, deptNames, isResearch } from '../shared/office'
 import type { Navigate, SettingName } from '../shared/ipc'
+import { isEditor } from '../shared/review'
 import { createAccounts, fakeValidator, validateWithSdk } from './accounts/health'
 import { openVault } from './accounts/tokens'
 import { createPlacement, loadRules } from './departments/classifier'
@@ -13,6 +14,7 @@ import { createNotifier } from './notify'
 import { configDir, createPhonePush } from './notify/ntfy'
 import { createBroker, windowResolver } from './permissions/registry'
 import { createRules } from './permissions/rules'
+import { wireReview } from './review'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createSessionManager, type Engine } from './sessions/manager'
 import { createChatStore } from './store/chats'
@@ -88,9 +90,15 @@ async function start(): Promise<void> {
   })
 
   const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest, onOpen: () => console.info('[ntfy] listening for phone decisions') })
-  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true })
+  const editor = () => {
+    const saved = db.setting('editor')
+    return isEditor(saved) ? saved : 'code'
+  }
+  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor() })
   handle('getSettings', win, appUrl, settings)
-  handle('setSetting', win, appUrl, (name: SettingName, value: boolean) => {
+  wireReview(win, appUrl, store, editor)
+  handle('setSetting', win, appUrl, (name: SettingName, value: boolean | string) => {
+    if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if (typeof value !== 'boolean') return settings()
     if (name === 'phonePush') phone.set(value)
     if (name === 'alertsHintSeen') db.saveSetting(name, value)

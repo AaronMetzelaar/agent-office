@@ -664,7 +664,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 3 — Review
 
-- [ ] **Unit 10: Review panel**
+- [x] **Unit 10: Review panel**
 
 **Goal:** See what each chat changed, and its branch, PR and CI.
 

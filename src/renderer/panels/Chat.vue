@@ -10,6 +10,7 @@ import PlanCard from './chat/PlanCard.vue'
 import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
 import Transcript from './chat/Transcript.vue'
+import Review from './Review.vue'
 
 const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[] }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: [] }>()
@@ -121,9 +122,7 @@ onUnmounted(() => {
     <template v-if="tab === 'chat'">
       <Transcript v-if="chat" :chat="chat" @resume="resume" @relogin="emit('accounts')" />
     </template>
-    <div v-else class="review">
-      <p>The diff, branch, PR and CI status for this chat will show here.</p>
-    </div>
+    <Review v-else-if="chat" :chat="chat" />
     <div v-if="chat && (pending.length || elsewhere.length)" class="cards">
       <template v-for="(request, index) in pending" :key="request.id">
         <PlanCard v-if="request.tool === 'ExitPlanMode'" :request="request" :first="index === 0" @decide="decide(request, $event)" />
@@ -249,13 +248,6 @@ onUnmounted(() => {
 
 .chatp .doing {
   margin: 8px 16px 0;
-}
-
-.chatp .review {
-  flex: 1;
-  padding: 16px;
-  font-size: 13px;
-  color: var(--muted);
 }
 
 .chatp .cards {

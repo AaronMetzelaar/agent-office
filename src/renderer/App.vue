@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import type { AccountView, Settings } from '../shared/ipc'
+import { editors } from '../shared/review'
 import Office from './office/Office.vue'
 import Accounts from './panels/Accounts.vue'
 import Onboarding from './panels/Onboarding.vue'
@@ -22,6 +23,10 @@ function openAccounts() {
 
 async function togglePhonePush() {
   if (settings.value) settings.value = await window.office.setSetting('phonePush', !settings.value.phonePush)
+}
+
+async function setEditor(event: Event) {
+  settings.value = await window.office.setSetting('editor', (event.target as HTMLSelectElement).value)
 }
 
 onMounted(async () => {
@@ -64,6 +69,12 @@ onUnmounted(() => unsubscribe())
             >
               Phone push<span class="state">{{ settings?.phonePush ? 'On' : 'Off' }}</span>
             </button>
+            <label class="pick">
+              Editor
+              <select :value="settings?.editor ?? 'code'" @change="setEditor">
+                <option v-for="(label, id) in editors" :key="id" :value="id">{{ label }}</option>
+              </select>
+            </label>
           </div>
         </div>
       </Office>
@@ -117,6 +128,25 @@ onUnmounted(() => unsubscribe())
   margin-left: 16px;
   font: 11px var(--mono);
   color: var(--muted);
+}
+
+.menu .pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 6px 5px 10px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.menu .pick select {
+  font: 11px var(--mono);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px 4px;
+  background: #fff;
 }
 
 .menu button:disabled {
