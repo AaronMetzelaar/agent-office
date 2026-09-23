@@ -80,6 +80,22 @@ describe('validateWithSdk', () => {
     expect(await validateWithSdk('token')).toEqual({ status: 'needs-login' })
   })
 
+  it('treats a rate limit during validation as ok but limited, keeping the reset time', async () => {
+    sdk.messages = [
+      { type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: 'five_hour', resetsAt: 1_790_000_000 } },
+      { type: 'assistant', error: 'rate_limit', message: { content: [] } },
+      { ...result, is_error: true, result: 'You’ve hit your usage limit' },
+    ]
+
+    expect(await validateWithSdk('token')).toEqual({ status: 'ok', headroom: { fiveHour: { utilization: 100, resetsAt: 1_790_000_000_000 } } })
+  })
+
+  it('treats a thrown rate limit error as ok but limited', async () => {
+    sdk.thrown = new Error('Claude Code returned an error result: API Error: 429 rate_limit_error')
+
+    expect(await validateWithSdk('token')).toEqual({ status: 'ok', headroom: {} })
+  })
+
   it('surfaces other failures as errors', async () => {
     sdk.messages = [{ ...result, is_error: true, result: 'API Error: 529 overloaded' }]
 

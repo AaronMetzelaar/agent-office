@@ -1,5 +1,11 @@
+interface QuitEvent {
+  preventDefault(): void
+  defaultPrevented: boolean
+}
+
 interface Quittable {
-  on(event: 'before-quit', listener: () => void): unknown
+  on(event: 'before-quit', listener: (event: QuitEvent) => void): unknown
+  quit(): void
 }
 
 interface Closable {
@@ -13,10 +19,26 @@ interface Revealable {
   focus(): void
 }
 
+export function confirmQuitWhileBusy(app: Quittable, busy: () => boolean, confirm: () => Promise<boolean>, beforeQuit: () => void): void {
+  let confirmed = false
+  app.on('before-quit', (event) => {
+    if (!confirmed && busy()) {
+      event.preventDefault()
+      void confirm().then((ok) => {
+        if (!ok) return
+        confirmed = true
+        app.quit()
+      })
+      return
+    }
+    beforeQuit()
+  })
+}
+
 export function hideOnClose(app: Quittable, win: Closable, hide: () => void): void {
   let quitting = false
-  app.on('before-quit', () => {
-    quitting = true
+  app.on('before-quit', (event) => {
+    quitting = !event.defaultPrevented
   })
   win.on('close', (event) => {
     if (quitting) return

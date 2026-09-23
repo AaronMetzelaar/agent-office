@@ -400,7 +400,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Both accounts can be added and survive restart, and the token plaintext appears nowhere on disk or in logs.
 
-- [ ] **Unit 4: Session engine and chat store**
+- [x] **Unit 4: Session engine and chat store**
 
 **Goal:** Start, drive, persist and recover chats. Every SDK event becomes chat state.
 

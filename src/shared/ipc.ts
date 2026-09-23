@@ -1,3 +1,5 @@
+import type { ChatPatchBatch, ChatSnapshot, Effort, StartChatResult } from './chat'
+
 export interface AppInfo {
   name: string
   version: string
@@ -39,11 +41,21 @@ export interface Commands {
   setLinearKey(key: string): void
   clearLinearKey(): void
   hasLinearKey(): boolean
+  getSnapshot(): ChatSnapshot
+  startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort): StartChatResult
+  sendMessage(chatId: string, text: string): void
+  interruptChat(chatId: string): Promise<void>
+  stopChat(chatId: string): void
+  setModel(chatId: string, model: string): Promise<void>
+  setEffort(chatId: string, effort: Effort): Promise<void>
+  resumeChat(chatId: string): void
+  markRead(chatId: string): void
 }
 
 export interface Events {
   windowVisibility: { visible: boolean }
   accountsChanged: AccountView[]
+  chatPatches: ChatPatchBatch
 }
 
 export type OfficeApi = {
@@ -51,4 +63,5 @@ export type OfficeApi = {
 } & {
   onWindowVisibility(listener: (payload: Events['windowVisibility']) => void): () => void
   onAccountsChanged(listener: (payload: Events['accountsChanged']) => void): () => void
+  onChatPatches(listener: (payload: Events['chatPatches']) => void): () => void
 }

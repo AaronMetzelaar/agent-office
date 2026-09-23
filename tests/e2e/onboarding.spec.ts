@@ -74,7 +74,7 @@ test('settings opens Accounts, shows headroom and adds the second account withou
   await page.getByRole('menuitem', { name: 'Accounts' }).click()
   const drawer = page.getByRole('complementary', { name: 'Accounts' })
   const main = drawer.locator('[data-account="main"]')
-  await expect(main).toContainText('Not checked')
+  await expect(main).toContainText('OK')
 
   await main.getByRole('button', { name: 'Check now' }).click()
   await expect(main).toContainText('OK')
@@ -91,13 +91,13 @@ test('settings opens Accounts, shows headroom and adds the second account withou
   await app.close()
 })
 
-test('a restart keeps both accounts, listing only labels and health', async () => {
+test('a restart keeps both accounts and their last health, listing only labels and health', async () => {
   const { app, page } = await launch()
   await expect(page.locator('canvas')).toBeVisible()
   const accounts = await page.evaluate(() => window.office.listAccounts())
   expect(accounts.map(({ label, health }) => ({ label, status: health.status }))).toEqual([
-    { label: 'main', status: 'unknown' },
-    { label: 'research', status: 'unknown' },
+    { label: 'main', status: 'ok' },
+    { label: 'research', status: 'ok' },
   ])
   expect(Object.keys(accounts[0] ?? {}).sort()).toEqual(['createdAt', 'health', 'id', 'label'])
   await captureRendererState(page)

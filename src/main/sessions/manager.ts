@@ -1,0 +1,163 @@
+import { spawn } from 'node:child_process'
+import { EventEmitter } from 'node:events'
+import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { Effort } from '../../shared/chat'
+
+export interface StartOptions {
+  accountId: string
+  cwd: string
+  model?: string
+  effort?: Effort
+  permissionMode?: PermissionMode
+  resume?: string
+  forkSession?: boolean
+}
+
+export type EngineEvents = { message: [chatId: string, message: SDKMessage]; end: [chatId: string, error?: string] }
+
+export interface Engine {
+  events: EventEmitter<EngineEvents>
+  start(chatId: string, options: StartOptions): void
+  send(chatId: string, text: string): void
+  interrupt(chatId: string): Promise<void>
+  stop(chatId: string): void
+  setModel(chatId: string, model: string): Promise<void>
+  setEffort(chatId: string, effort: Effort): Promise<void>
+  setPermissionMode(chatId: string, mode: PermissionMode): Promise<void>
+  running(chatId: string): boolean
+  pid(chatId: string): number | undefined
+}
+
+export type ChatCanUseTool = (chatId: string, ...args: Parameters<CanUseTool>) => ReturnType<CanUseTool>
+
+interface Session {
+  input: ReturnType<typeof inputQueue>
+  ready: Promise<Query>
+  spawned: { pid?: number }
+  stopped: boolean
+}
+
+export function sessionEnv(token: string): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const [key, value] of Object.entries(process.env)) if (value !== undefined) env[key] = value
+  delete env.ANTHROPIC_API_KEY
+  delete env.CLAUDE_CONFIG_DIR
+  env.CLAUDE_CODE_OAUTH_TOKEN = token
+  return env
+}
+
+function inputQueue() {
+  const pending: SDKUserMessage[] = []
+  let wake = () => {}
+  let done = false
+  async function* messages(): AsyncGenerator<SDKUserMessage> {
+    while (true) {
+      const next = pending.shift()
+      if (next) yield next
+      else if (done) return
+      else await new Promise<void>((resolve) => (wake = resolve))
+    }
+  }
+  return {
+    messages: messages(),
+    push(text: string) {
+      pending.push({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null })
+      wake()
+    },
+    end() {
+      done = true
+      wake()
+    },
+  }
+}
+
+export function createSessionManager(tokenFor: (accountId: string) => string | undefined, canUseTool: ChatCanUseTool): Engine {
+  const events = new EventEmitter<EngineEvents>()
+  const sessions = new Map<string, Session>()
+
+  const live = (chatId: string) => {
+    const session = sessions.get(chatId)
+    if (!session) throw new Error('This chat has no running session')
+    return session.ready
+  }
+
+  async function consume(chatId: string, session: Session, token: string) {
+    let error: string | undefined
+    try {
+      for await (const message of await session.ready) {
+        if (session.stopped) return
+        events.emit('message', chatId, message)
+      }
+    } catch (thrown) {
+      error = (thrown instanceof Error ? thrown.message : String(thrown)).split(token).join('[token]')
+    }
+    if (session.stopped) return
+    if (sessions.get(chatId) === session) sessions.delete(chatId)
+    events.emit('end', chatId, error)
+  }
+
+  function stop(chatId: string) {
+    const session = sessions.get(chatId)
+    if (!session) return
+    session.stopped = true
+    sessions.delete(chatId)
+    session.input.end()
+    void session.ready.then((query) => query.close(), () => {})
+  }
+
+  return {
+    events,
+    start(chatId, options) {
+      stop(chatId)
+      const token = tokenFor(options.accountId)
+      if (!token) throw new Error('401: no token is stored for this account')
+      const input = inputQueue()
+      const spawned: { pid?: number } = {}
+      const ready = import('@anthropic-ai/claude-agent-sdk').then(({ query }) =>
+        query({
+          prompt: input.messages,
+          options: {
+            cwd: options.cwd,
+            env: sessionEnv(token),
+            permissionMode: options.permissionMode ?? 'auto',
+            model: options.model,
+            effort: options.effort,
+            resume: options.resume,
+            forkSession: options.forkSession,
+            includePartialMessages: true,
+            canUseTool: (...args) => canUseTool(chatId, ...args),
+            spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
+              const child = spawn(command, args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
+              child.stderr.resume()
+              spawned.pid = child.pid
+              return child
+            },
+          },
+        }),
+      )
+      const session: Session = { input, ready, spawned, stopped: false }
+      sessions.set(chatId, session)
+      void consume(chatId, session, token)
+    },
+    send(chatId, text) {
+      const session = sessions.get(chatId)
+      if (!session) throw new Error('This chat has no running session')
+      session.input.push(text)
+    },
+    async interrupt(chatId) {
+      await (await live(chatId)).interrupt()
+    },
+    stop,
+    async setModel(chatId, model) {
+      await (await live(chatId)).setModel(model)
+    },
+    async setEffort(chatId, effort) {
+      await (await live(chatId)).applyFlagSettings({ effortLevel: effort })
+    },
+    async setPermissionMode(chatId, mode) {
+      await (await live(chatId)).setPermissionMode(mode)
+    },
+    running: (chatId) => sessions.has(chatId),
+    pid: (chatId) => sessions.get(chatId)?.spawned.pid,
+  }
+}

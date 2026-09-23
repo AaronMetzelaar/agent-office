@@ -16,8 +16,18 @@ const office: OfficeApi = {
   setLinearKey: (key) => ipcRenderer.invoke('setLinearKey', key),
   clearLinearKey: () => ipcRenderer.invoke('clearLinearKey'),
   hasLinearKey: () => ipcRenderer.invoke('hasLinearKey'),
+  getSnapshot: () => ipcRenderer.invoke('getSnapshot'),
+  startChat: (accountId, cwd, prompt, model, effort) => ipcRenderer.invoke('startChat', accountId, cwd, prompt, model, effort),
+  sendMessage: (chatId, text) => ipcRenderer.invoke('sendMessage', chatId, text),
+  interruptChat: (chatId) => ipcRenderer.invoke('interruptChat', chatId),
+  stopChat: (chatId) => ipcRenderer.invoke('stopChat', chatId),
+  setModel: (chatId, model) => ipcRenderer.invoke('setModel', chatId, model),
+  setEffort: (chatId, effort) => ipcRenderer.invoke('setEffort', chatId, effort),
+  resumeChat: (chatId) => ipcRenderer.invoke('resumeChat', chatId),
+  markRead: (chatId) => ipcRenderer.invoke('markRead', chatId),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
   onAccountsChanged: (listener) => subscribe('accountsChanged', listener),
+  onChatPatches: (listener) => subscribe('chatPatches', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

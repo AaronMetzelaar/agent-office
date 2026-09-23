@@ -33,7 +33,14 @@ Closing the window hides it, and the app keeps running in the menu bar. Click th
 
 ## Where data lives
 
-The app keeps its data in `~/Library/Application Support/Agent Office`. Accounts are listed in `accounts.json` (id, label, created at). Each account token, and the optional Linear key, is its own file in `secrets/`, encrypted with Electron `safeStorage` under a key held in the macOS Keychain. Later units add the metadata database and the search index there. Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office doesn't touch `~/.claude`, apart from the optional hook entry Unit 13 adds with your consent.
+The app keeps its data in `~/Library/Application Support/Agent Office`:
+- `accounts.json` lists accounts (id, label, created at).
+- `secrets/` holds each account token, and the optional Linear key, as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
+- `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, state, read state, usage, wait timestamps), composer drafts encrypted with `safeStorage`, and each account's last health. It never holds message text.
+
+Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and doesn't touch `~/.claude` otherwise, apart from the optional hook entry Unit 13 adds with your consent.
+
+`better-sqlite3` 13 ships N-API prebuilt binaries, so the same binary loads in Node (Vitest) and in Electron. There is no native rebuild step, and `package.json` lists it under `ignoredBuiltDependencies` so pnpm skips its node-gyp script.
 
 Set `AGENT_OFFICE_USER_DATA` to use a different folder. The end-to-end tests use a temporary one, so they can run while your own copy is open.
 
@@ -41,9 +48,21 @@ Set `AGENT_OFFICE_USER_DATA` to use a different folder. The end-to-end tests use
 
 On first run the office stays hidden until one account validates. Run `claude setup-token` once per account (tokens last one year), paste the token and give it a label. Validation is a one-turn Haiku query with no tools and no settings, and it reads the 5-hour and weekly usage. Settings → Accounts adds the second account, shows usage, and takes a new token for an account that needs login: adding a token under an existing label replaces that account's token.
 
-Two environment flags exist for tests:
+Account health (status and usage) is saved in `office.db`, so it survives a restart. A rate limit during validation counts as a valid token that is out of headroom, not a failed login. Each running chat's rate limit events keep the usage figures current. Removing an account stops its chats and marks them Stuck (needs login).
+
+## Chats
+
+Each chat runs as one streaming Agent SDK session in the main process, with its account's token, its folder as the working directory, and Auto mode. Main owns the chat state. The renderer asks for a snapshot on mount and whenever the window shows, then applies per-chat patches, flushed at most once per 16ms. While the window is hidden, only state changes are pushed.
+
+A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck carries a reason: needs login, rate limited (with the retry time when Claude sends one), crashed, interrupted or error. An exception in one chat only marks that chat Stuck. Until Unit 5's broker lands, permission requests are denied and noted in the chat.
+
+Quitting while a chat is mid-turn asks first, then interrupts its turn. After a restart, or a crash, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
+
+## Test flags
+
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
-- `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false` validates the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It prints labels, status and usage only, and is skipped otherwise.
+- `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working. Packaged builds ignore it.
+- `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
 ## Packaging and signing
 

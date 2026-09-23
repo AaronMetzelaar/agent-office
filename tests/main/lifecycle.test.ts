@@ -11,6 +11,19 @@ function fakeWindow(minimized = false) {
   })
 }
 
+function fakeApp() {
+  return Object.assign(new EventEmitter(), { quit: vi.fn() })
+}
+
+function quitEvent() {
+  return {
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+}
+
 function close(win: EventEmitter) {
   const event = { preventDefault: vi.fn() }
   win.emit('close', event)
@@ -19,7 +32,7 @@ function close(win: EventEmitter) {
 
 describe('hideOnClose', () => {
   it('hides the window instead of closing it', () => {
-    const app = new EventEmitter()
+    const app = fakeApp()
     const win = fakeWindow()
     const hide = vi.fn()
     hideOnClose(app, win, hide)
@@ -29,12 +42,12 @@ describe('hideOnClose', () => {
   })
 
   it('lets the window close once the app is quitting', () => {
-    const app = new EventEmitter()
+    const app = fakeApp()
     const win = fakeWindow()
     const hide = vi.fn()
     hideOnClose(app, win, hide)
 
-    app.emit('before-quit')
+    app.emit('before-quit', quitEvent())
 
     expect(close(win).preventDefault).not.toHaveBeenCalled()
     expect(hide).not.toHaveBeenCalled()

@@ -1,8 +1,15 @@
-import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { validateWithSdk } from '../../src/main/accounts/health'
+import { createSessionManager } from '../../src/main/sessions/manager'
+import { createChatStore, type ChatStore } from '../../src/main/store/chats'
+import { openDb } from '../../src/main/store/db'
+
+vi.mock('electron', () => import('../fakes/electron'))
+
+const enabled = process.env.AGENT_OFFICE_REAL_TOKENS === '1'
 
 function spikeTokens(): [string, string][] {
   const raw = readFileSync(join(homedir(), '.config', 'agent-office', 'spike.env'), 'utf8')
@@ -19,7 +26,7 @@ function spikeTokens(): [string, string][] {
   ]
 }
 
-describe.skipIf(process.env.AGENT_OFFICE_REAL_TOKENS !== '1')('real token validation', () => {
+describe.skipIf(!enabled)('real token validation', () => {
   it('validates both accounts and reads their headroom', { timeout: 180_000 }, async () => {
     const results = await Promise.all(
       spikeTokens().map(async ([label, token]) => ({
@@ -32,5 +39,40 @@ describe.skipIf(process.env.AGENT_OFFICE_REAL_TOKENS !== '1')('real token valida
       { label: 'main', status: 'ok' },
       { label: 'research', status: 'ok' },
     ])
+  })
+})
+
+describe.skipIf(!enabled)('real session smoke', () => {
+  it('runs a one-turn chat on each account through the manager and store', { timeout: 180_000 }, async () => {
+    const tokens = new Map(spikeTokens())
+    const dir = mkdtempSync(join(tmpdir(), 'agent-office-smoke-'))
+    const db = openDb(join(dir, 'office.db'))
+    let store: ChatStore | undefined
+    const engine = createSessionManager((id) => tokens.get(id), (...args) => store!.canUseTool(...args))
+    store = createChatStore(engine, db, { exists: (id) => tokens.has(id), loginFailed: () => {}, recordHeadroom: () => {} })
+    const states = new Map<string, string[]>()
+    const pidTracked = new Map<string, boolean>()
+    store.events.on('patch', ({ id, fields }) => {
+      if (!fields?.state) return
+      states.set(id, [...(states.get(id) ?? []), fields.state])
+      if (fields.state === 'working') pidTracked.set(id, typeof engine.pid(id) === 'number')
+    })
+
+    const chats = [...tokens.keys()].map((label) => {
+      const started = store!.start(label, dir, 'Reply with exactly: ok', 'haiku')
+      if ('error' in started) throw new Error(started.error)
+      return [label, started.chatId] as const
+    })
+    await vi.waitFor(() => expect(store!.snapshot().every((chat) => chat.state === 'done' || chat.state === 'stuck')).toBe(true), { timeout: 150_000, interval: 500 })
+
+    const report = chats.map(([label, id]) => {
+      const chat = store!.snapshot().find((view) => view.id === id)!
+      return { label, states: states.get(id), stuck: chat.stuck?.reason, pidTracked: pidTracked.get(id), usage: chat.usage }
+    })
+    console.log(JSON.stringify(report, null, 2))
+    store.shutdown()
+    db.close()
+    rmSync(dir, { recursive: true, force: true })
+    expect(report.map((entry) => entry.states?.at(-1))).toEqual(['done', 'done'])
   })
 })

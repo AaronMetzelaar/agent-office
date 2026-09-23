@@ -4,17 +4,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAccounts, type Validator } from '../../src/main/accounts/health'
 import { openVault } from '../../src/main/accounts/tokens'
+import { openDb } from '../../src/main/store/db'
 
-vi.mock('electron', () => {
-  const scramble = (bytes: Uint8Array) => Buffer.from(bytes.map((byte) => byte ^ 0x5a))
-  return {
-    safeStorage: {
-      isEncryptionAvailable: () => true,
-      encryptString: (text: string) => scramble(Buffer.from(`enc:${text}`)),
-      decryptString: (bytes: Buffer) => scramble(bytes).toString().replace(/^enc:/, ''),
-    },
-  }
-})
+vi.mock('electron', () => import('../fakes/electron'))
 
 const goodToken = 'sk-ant-oat01-GOOD-7f3a9c2e1b'
 const badToken = 'sk-ant-oat01-BAD-4d8e6f0a2c'
@@ -146,6 +138,43 @@ describe('accounts', () => {
     await accounts.revalidate(account.id)
     expect(accounts.list()[0]?.health.status).toBe('needs-login')
     expect(needsLogin).toEqual(['main'])
+  })
+
+  it('persists health in the metadata database so it survives a restart', async () => {
+    const db = openDb(join(dir, 'office.db'))
+    const first = createAccounts(openVault(dir), validator, db)
+    const added = await first.add('main', goodToken)
+    if (!('account' in added)) throw new Error(added.error)
+
+    const restarted = createAccounts(openVault(dir), validator, db)
+    expect(restarted.list()[0]?.health).toEqual({ status: 'ok', headroom, lastCheckedAt: expect.any(Number) })
+
+    restarted.remove(added.account.id)
+    expect(db.loadHealth().size).toBe(0)
+    db.close()
+  })
+
+  it('records headroom from a session’s rate limit events without touching login state', async () => {
+    const { accounts, changes } = start()
+    const account = await addMain(accounts)
+    const before = changes.length
+
+    accounts.recordHeadroom(account.id, { status: 'allowed_warning', rateLimitType: 'seven_day', utilization: 0.91, resetsAt: 1_790_500_000 })
+    accounts.recordHeadroom(account.id, { status: 'allowed', rateLimitType: 'overage' })
+
+    expect(accounts.list()[0]?.health).toMatchObject({ status: 'ok', headroom: { ...headroom, sevenDay: { utilization: 91, resetsAt: 1_790_500_000_000 } } })
+    expect(changes).toHaveLength(before + 1)
+  })
+
+  it('announces a removed account so its chats can go Stuck', async () => {
+    const { accounts } = start()
+    const account = await addMain(accounts)
+    const removed: string[] = []
+    accounts.events.on('removed', (id) => removed.push(id))
+
+    accounts.remove(account.id)
+
+    expect(removed).toEqual([account.id])
   })
 
   it('keeps the Linear key encrypted and removable', () => {
