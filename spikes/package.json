@@ -1,0 +1,18 @@
+{
+  "name": "agent-office-spikes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dual": "tsx dual-account.ts",
+    "controls": "tsx controls.ts",
+    "fork": "tsx fork-adopt.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.280",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
+  }
+}
