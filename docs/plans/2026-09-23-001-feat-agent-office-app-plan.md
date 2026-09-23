@@ -949,6 +949,19 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - His seeded presets start the right skills, and the briefing matches the day's actual activity.
 
+## Follow-ups from implementation
+
+Gaps reported by the unit builders. Each is assigned to the unit that will close it.
+
+- [ ] Save each chat's permission mode in office.db, so it survives a relaunch (the chat returns to Auto today). Unit 15.
+- [ ] "Continue on the other account" should fork into a new chat and park the original, and the chat panel's Stuck banner should offer it too. Today it switches the same chat, from the inbox only. Unit 15, which adds parking.
+- [ ] Transcript gap when more than 200 new rows arrive after loading older history. Unit 12.
+- [ ] Department moves are held by polling the open panel once a second, and `departments.json` is only read at startup. Watch the file and use the open-chat IPC. Unit 12.
+- [ ] Tune the classifier thresholds (60% over two evaluations) against real transcripts. After a week of real use.
+- [ ] Marketplace and Side projects fit only one front desk each, because props block the second. Unit 14 (layout pass).
+- [ ] Mac notifications need the self-signed "Agent Office Local" certificate, which Aaron creates (steps in the README). Then build signed and verify the actions on screen.
+- [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
+
 ## System-Wide Impact
 
 - **Interaction graph:**
