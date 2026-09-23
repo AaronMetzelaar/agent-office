@@ -34,6 +34,10 @@ sdk: "@anthropic-ai/claude-agent-sdk 0.3.280 (CLI 2.1.280)"
 - **Slash commands:** `supportedCommands()` lists at least 60 in a scratch folder. Repository skills add more in real repositories.
 - **Cost:** the plan-mode step cost $0.50 alone (Sonnet started subagents). Keep future spikes minimal.
 
+## Phone decisions (added 2026-09-23)
+
+`spikes/phone-decision.ts` sent an ntfy notification to Aaron's topic with two `http` action buttons, Allow once and Deny, each posting an HMAC-signed `{request id, decision, expiry}` to a private reply topic. On his iPhone he tapped Allow once, and the script received and verified `allow` through `/<reply-topic>/json?poll=1`. Decisions from the phone work with no inbound port on the Mac. The app should use ntfy's streaming subscribe instead of polling.
+
 ## Scripts
 
-`spikes/dual-account.ts`, `spikes/account-identity.ts`, `spikes/controls.ts` and `spikes/fork-adopt.ts`. They read `~/.config/agent-office/spike.env` (0600) and never print tokens. Results go to the git-ignored `spikes/results/`.
+`spikes/dual-account.ts`, `spikes/account-identity.ts`, `spikes/controls.ts`, `spikes/fork-adopt.ts` and `spikes/phone-decision.ts`. They read `~/.config/agent-office/spike.env` (0600) and never print tokens. Results go to the git-ignored `spikes/results/`.
