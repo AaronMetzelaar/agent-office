@@ -505,6 +505,10 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - queue: spot assignment and move-up
   - pose: which pose each state and location maps to
   The scene only reads their outputs.
+- **Adaptive floor** (origin R3):
+  - Only departments with active (non-parked) agents are shown, re-packed in a fixed order.
+  - Folding and unfolding animate over ~400ms, and re-layout is deferred while he's hovering or zoomed in.
+  - The layout function is pure (visible departments and desk counts in, zone rectangles out) and unit-tested.
 - **Clear sections** (origin R3):
   - each department gets a subtle floor tint from its accent, with a crisp edge inlay
   - low partitions or planters, with an opening onto the main aisle
@@ -535,6 +539,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - Happy path: three chats in Needs you get queue spots 1–3 in order of their oldest pending request. Releasing spot 1 moves the others up.
 - Edge case: a Stuck chat joins the queue with the warning variant, and an account-login item appears once, however many chats it affects.
 - Edge case: a department with more chats than desks grows a row, and when the zone is full it borrows the adjacent zone. No two agents share a desk.
+- Happy path: when Admin's last agent is parked, Admin folds away and the remaining sections keep their relative order. Starting an agent in Admin brings the section back before the agent walks in.
+- Edge case: a department emptying while he hovers over the floor doesn't re-layout until the pointer leaves, or the camera returns to the overview.
 - Happy path: state-to-pose mapping (desk and gym columns of the origin doc's R5 table).
 - Integration: a store diff moving a chat to Needs you starts its walk to the next free queue spot within one frame.
 - Happy path: each department's sign shows its name, folder and live counts; a new needs-you updates the count in amber within one store diff.

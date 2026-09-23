@@ -19,9 +19,15 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R1. A 3D office in the style of Aaron's reference image (`docs/reference.png`): colourful glossy blob characters with big eyes, white walls, wooden desks, plants, soft daylight. Cute, but professional and legible. Characters are matte (no glossy or refractive materials), and the office must feel fast.
 - R2. One character per chat, with a colour that stays stable for the life of the chat and a name tag showing the chat title.
 - R3. Departments reflect where the work happens:
-  - A Monorepo wing with **Marketplace** (`frontend/marketplace`), **Mobile** (`frontend/mobile`), and **Backend / infra**: services, API, workers and infra, plus anything else in the monorepo, including admin.
+  - A Monorepo wing:
+    - **Marketplace** (`frontend/marketplace`)
+    - a small **Admin** section (`frontend/admin`)
+    - **Mobile** (`frontend/mobile`)
+    - **Backend / infra**: services, API, workers and infra, plus anything else in the monorepo
   - A **Research gym** holding every chat on the research account.
   - A **Side projects** area for the main account's other folders.
+
+  A section only appears while it has active agents (parked chats don't count). Empty sections fold away, and the rest close up in a fixed order: Marketplace, Admin, Mobile, Backend / infra, Side projects, Research gym. Re-layout waits while he's hovering or zoomed in. Starting an agent in a hidden department brings its section back. ⌘N, the job board and the review queue can still target hidden departments.
 
   Each department is a clearly bounded section:
   - its own subtle floor tint
@@ -32,6 +38,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 
   Sections look like the projects they hold. For MWS (mws.com, match-worn football shirts):
   - Marketplace: a shirt showroom with framed shirts, a hanger rail, an auction podium and pitch turf.
+  - Admin: a compact back office with filing cabinets and a small ops dashboard.
   - Mobile: a device-testing wall.
   - Backend / infra: server racks and monitoring screens.
   - Side projects: a corner per project.
