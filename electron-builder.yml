@@ -1,0 +1,10 @@
+appId: com.aaronmetzelaar.agentoffice
+productName: Agent Office
+directories:
+  output: dist
+files:
+  - out/**
+mac:
+  category: public.app-category.developer-tools
+  target: dir
+  identity: null

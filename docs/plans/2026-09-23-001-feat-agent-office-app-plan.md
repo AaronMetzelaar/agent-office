@@ -334,7 +334,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 1 — Sessions, state, queue, approvals
 
-- [ ] **Unit 2: App scaffold and shell**
+- [x] **Unit 2: App scaffold and shell**
 
 **Goal:** A running Electron app with the chosen stack, a typed IPC contract, a tray icon, and correct background behaviour.
 

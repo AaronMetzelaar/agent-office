@@ -5,3 +5,5 @@ out/
 *.env
 .context/
 spikes/results/
+test-results/
+playwright-report/
