@@ -38,6 +38,15 @@ sdk: "@anthropic-ai/claude-agent-sdk 0.3.280 (CLI 2.1.280)"
 
 `spikes/phone-decision.ts` sent an ntfy notification to Aaron's topic with two `http` action buttons, Allow once and Deny, each posting an HMAC-signed `{request id, decision, expiry}` to a private reply topic. On his iPhone he tapped Allow once, and the script received and verified `allow` through `/<reply-topic>/json?poll=1`. Decisions from the phone work with no inbound port on the Mac. The app should use ntfy's streaming subscribe instead of polling.
 
+## Always-allow rules in live sessions (added 2026-09-23)
+
+`spikes/rules-live.ts` ran `touch agent-office-rule-marker` in default mode three times:
+- With no rule, `canUseTool` fired.
+- After `applyFlagSettings({ permissions: { allow: ['Bash(touch agent-office-rule-marker)'] } })` it ran without asking.
+- After setting `allow: []` it asked again.
+
+This is how Unit 5 applies and revokes rules. Note that read-only commands like `echo` never ask, so use a write command to test permissions.
+
 ## Scripts
 
-`spikes/dual-account.ts`, `spikes/account-identity.ts`, `spikes/controls.ts`, `spikes/fork-adopt.ts` and `spikes/phone-decision.ts`. They read `~/.config/agent-office/spike.env` (0600) and never print tokens. Results go to the git-ignored `spikes/results/`.
+`spikes/dual-account.ts`, `spikes/account-identity.ts`, `spikes/controls.ts`, `spikes/fork-adopt.ts`, `spikes/phone-decision.ts` and `spikes/rules-live.ts`. They read `~/.config/agent-office/spike.env` (0600) and never print tokens. Results go to the git-ignored `spikes/results/`.

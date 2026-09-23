@@ -143,7 +143,7 @@ Two more, added during planning:
 - **The office owns "Always allow" per account and repository, not per worktree.**
   - A rule is the literal suggestion string from the SDK (e.g. `Bash(pnpm test:*)`), never widened by the UI.
   - It's stored in the office database against the account and the repository root, found through git's common directory, so worktrees map to their repository.
-  - It's applied to new sessions at start, and to live sessions via `updatedPermissions` with destination `session`.
+  - It's applied to new and live sessions through the SDK's flag-settings layer (`applyFlagSettings({ permissions: { allow } })`), which also supports revoking in a running session. Verified live on 2026-09-23: no rule asks, an added rule runs without asking, and a revoked rule asks again.
   - WebFetch and WebSearch are never offered Always allow, because their results are the main prompt-injection vector (see Open Questions).
   - Rejected alternative: letting the SDK write to `localSettings` or `projectSettings`. Those land in the worktree's `.claude/` folder and vanish with it, or would change the desktop app's and terminal's behaviour too.
   - Consequence: office rules don't apply to terminal or desktop sessions (see Risks).
