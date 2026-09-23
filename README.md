@@ -33,9 +33,17 @@ Closing the window hides it, and the app keeps running in the menu bar. Click th
 
 ## Where data lives
 
-The app keeps its data in `~/Library/Application Support/Agent Office`. Later units add the metadata database, the search index and the encrypted account tokens there. Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office doesn't touch `~/.claude`, apart from the optional hook entry Unit 13 adds with your consent.
+The app keeps its data in `~/Library/Application Support/Agent Office`. Accounts are listed in `accounts.json` (id, label, created at). Each account token, and the optional Linear key, is its own file in `secrets/`, encrypted with Electron `safeStorage` under a key held in the macOS Keychain. Later units add the metadata database and the search index there. Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office doesn't touch `~/.claude`, apart from the optional hook entry Unit 13 adds with your consent.
 
 Set `AGENT_OFFICE_USER_DATA` to use a different folder. The end-to-end tests use a temporary one, so they can run while your own copy is open.
+
+## Accounts
+
+On first run the office stays hidden until one account validates. Run `claude setup-token` once per account (tokens last one year), paste the token and give it a label. Validation is a one-turn Haiku query with no tools and no settings, and it reads the 5-hour and weekly usage. Settings → Accounts adds the second account, shows usage, and takes a new token for an account that needs login: adding a token under an existing label replaces that account's token.
+
+Two environment flags exist for tests:
+- `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
+- `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false` validates the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It prints labels, status and usage only, and is skipped otherwise.
 
 ## Packaging and signing
 

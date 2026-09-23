@@ -10,5 +10,5 @@ export function handle<K extends keyof Commands>(name: K, win: BrowserWindow, ap
 }
 
 export function send<K extends keyof Events>(win: BrowserWindow, name: K, payload: Events[K]): void {
-  win.webContents.send(name, payload)
+  if (!win.isDestroyed()) win.webContents.send(name, payload)
 }

@@ -369,7 +369,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - The app runs from the tray with the window closed, and relaunching focuses the existing instance.
 
-- [ ] **Unit 3: Accounts and onboarding**
+- [x] **Unit 3: Accounts and onboarding**
 
 **Goal:** Add, label, validate, store and re-login both accounts.
 

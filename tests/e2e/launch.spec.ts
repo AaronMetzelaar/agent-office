@@ -22,7 +22,7 @@ interface Recorded {
 
 const root = resolve(__dirname, '../..')
 const userData = mkdtempSync(join(tmpdir(), 'agent-office-e2e-'))
-const env = { ...process.env, AGENT_OFFICE_USER_DATA: userData }
+const env = { ...process.env, AGENT_OFFICE_USER_DATA: userData, AGENT_OFFICE_FAKE_VALIDATOR: '1' }
 
 let app: ElectronApplication
 let page: Page
@@ -35,8 +35,9 @@ const recorded = <K extends keyof Recorded>(key: K) =>
 test.describe.configure({ mode: 'serial' })
 
 test.beforeAll(async () => {
-  app = await electron.launch({ args: [root], env })
+  app = await electron.launch({ args: ['--use-mock-keychain', root], env })
   page = await app.firstWindow()
+  await page.evaluate(() => window.office.addAccount('main', 'sk-ant-oat01-fake-ok'))
 })
 
 test.afterAll(async () => {
