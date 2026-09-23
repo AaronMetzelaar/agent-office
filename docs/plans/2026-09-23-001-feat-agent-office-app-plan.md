@@ -597,7 +597,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 2 — Conversation
 
-- [ ] **Unit 8: Conversation panel**
+- [x] **Unit 8: Conversation panel**
 
 **Goal:** A full chat view at desktop Code tab parity.
 

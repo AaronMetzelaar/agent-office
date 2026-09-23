@@ -1,7 +1,11 @@
-import type { PendingRequestView } from './permissions'
+import type { Decision, PendingRequestView, RequestSource } from './permissions'
 
 export const efforts = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type Effort = (typeof efforts)[number]
+export const effortLabels: Record<Effort, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max' }
+
+export const chatModes = ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk', 'auto'] as const
+export type ChatMode = (typeof chatModes)[number]
 
 export type ChatState = 'starting' | 'working' | 'needs-you' | 'done' | 'idle' | 'stuck'
 export type StuckReason = 'needs-login' | 'rate-limited' | 'crashed' | 'interrupted' | 'error'
@@ -26,6 +30,17 @@ export type ChatRow =
   | { kind: 'tool'; id: string; name: string; input: unknown; parentToolUseId?: string; result?: { text: string; isError: boolean } }
   | { kind: 'other'; id: string; label: string }
 
+export interface Answered {
+  id: string
+  source: RequestSource
+  decision: Decision['kind']
+}
+
+export interface OlderRows {
+  rows: ChatRow[]
+  more: boolean
+}
+
 export interface ChatFields {
   id: string
   accountId: string
@@ -34,6 +49,7 @@ export interface ChatFields {
   sessionId?: string
   model?: string
   effort?: Effort
+  permissionMode?: ChatMode
   worktree?: string
   colour?: string
   department?: string
@@ -46,6 +62,8 @@ export interface ChatFields {
   pending: { id: string; toolName: string }[]
   pendingRequests: PendingRequestView[]
   oldestPendingAt?: number
+  answered?: Answered[]
+  earlier?: boolean
   subagents: { id: string; description: string }[]
   usage: Usage
   partial: string

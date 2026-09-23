@@ -1,8 +1,9 @@
-import type { SDKAssistantMessageError, SDKMessage, SDKRateLimitInfo, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { PermissionMode, SDKAssistantMessageError, SDKMessage, SDKRateLimitInfo, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk'
 import { emptyUsage, type Usage } from '../../shared/chat'
 
 export type ChatEvent =
   | { type: 'session'; sessionId: string; model: string }
+  | { type: 'mode'; mode: PermissionMode }
   | { type: 'text-delta'; text: string }
   | { type: 'text'; id: string; text: string; parentToolUseId?: string }
   | { type: 'tool-use'; id: string; name: string; input: unknown; parentToolUseId?: string }
@@ -23,7 +24,6 @@ const quietSystem = new Set([
   'hook_started',
   'hook_progress',
   'hook_response',
-  'status',
   'task_started',
   'task_updated',
   'task_progress',
@@ -114,7 +114,8 @@ export function normalize(message: SDKMessage): ChatEvent[] {
       return events
     }
     case 'system':
-      if (message.subtype === 'init') return [{ type: 'session', sessionId: message.session_id, model: message.model }]
+      if (message.subtype === 'init') return [{ type: 'session', sessionId: message.session_id, model: message.model }, ...(message.permissionMode ? [{ type: 'mode' as const, mode: message.permissionMode }] : [])]
+      if (message.subtype === 'status') return message.permissionMode ? [{ type: 'mode', mode: message.permissionMode }] : []
       if (message.subtype === 'task_notification') return message.tool_use_id ? [{ type: 'subagent-stop', id: message.tool_use_id }] : []
       if (message.subtype === 'api_retry') return message.error === 'rate_limit' ? [{ type: 'retry-at', at: Date.now() + message.retry_delay_ms }] : []
       return quietSystem.has(message.subtype) ? [] : [{ type: 'other', label: `system:${message.subtype}` }]

@@ -79,6 +79,7 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
 
 export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) {
   const sync = createPatchSync(store, (batch) => send(win, 'chatPatches', batch))
+  let openChat: string | undefined
   handle('getSnapshot', win, appUrl, sync.snapshot)
   handle('startChat', win, appUrl, store.start)
   handle('sendMessage', win, appUrl, store.sendMessage)
@@ -86,7 +87,15 @@ export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) 
   handle('stopChat', win, appUrl, store.stopChat)
   handle('setModel', win, appUrl, store.setModel)
   handle('setEffort', win, appUrl, store.setEffort)
+  handle('setPlanMode', win, appUrl, store.setPlanMode)
+  handle('olderRows', win, appUrl, store.olderRows)
+  handle('getDraft', win, appUrl, store.draft)
+  handle('saveDraft', win, appUrl, store.saveDraft)
+  handle('setOpenChat', win, appUrl, (chatId) => {
+    openChat = typeof chatId === 'string' ? chatId : undefined
+    if (openChat) void store.restore(openChat)
+  })
   handle('resumeChat', win, appUrl, store.resumeChat)
   handle('markRead', win, appUrl, store.markRead)
-  return sync
+  return Object.assign(sync, { openChat: () => openChat })
 }

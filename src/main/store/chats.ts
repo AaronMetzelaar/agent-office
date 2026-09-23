@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { efforts, emptyUsage, maxRows, type ChatFields, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { efforts, emptyUsage, maxRows, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
@@ -27,6 +27,8 @@ interface Chat {
   lastError?: string
   doneAt?: number
   readAt?: number
+  previousMode?: ChatMode
+  restoring?: Promise<void>
 }
 
 export type ChatStore = ReturnType<typeof createChatStore>
@@ -35,6 +37,8 @@ const midTurn = new Set<ChatState>(['starting', 'working', 'needs-you'])
 const resumePrompt = 'Continue where you left off.'
 const modelPattern = /^[\w.:[\]-]{1,80}$/
 const noPending = { pending: [], pendingRequests: [], oldestPendingAt: undefined }
+const olderPage = 100
+const maxDraft = 100_000
 const needsLogin: Refusal = { error: 'This account needs a new login. Add its token again in Accounts, then try again.', code: 'needs-login' }
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
@@ -84,10 +88,20 @@ function rowFor(rows: ChatRow[], event: ChatEvent): ChatRow | undefined {
   }
 }
 
-function upsert(rows: ChatRow[], row: ChatRow): void {
+function upsert(rows: ChatRow[], row: ChatRow, cap = maxRows): void {
   const index = rows.findLastIndex((existing) => existing.id === row.id)
   if (index !== -1) rows[index] = row
-  else if (rows.push(row) > maxRows) rows.splice(0, rows.length - maxRows)
+  else if (rows.push(row) > cap) rows.splice(0, rows.length - cap)
+}
+
+async function transcriptRows(sessionId: string): Promise<ChatRow[]> {
+  const { events } = await readHistory(sessionId, { limit: Infinity }).catch(() => ({ events: [] }))
+  const rows: ChatRow[] = []
+  for (const event of events) {
+    const row = rowFor(rows, event)
+    if (row) upsert(rows, row, Infinity)
+  }
+  return rows
 }
 
 function fromRecord(record: ChatRecord): Chat {
@@ -97,7 +111,7 @@ function fromRecord(record: ChatRecord): Chat {
 }
 
 function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
-  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, ...fields } = view
+  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, permissionMode: _m, answered: _n, earlier: _e, ...fields } = view
   return { ...fields, doneAt, readAt }
 }
 
@@ -157,6 +171,11 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         set(chat, { sessionId: event.sessionId, model: event.model })
         if (view.state === 'starting') transition(chat, 'working')
         else save(chat)
+        break
+      case 'mode':
+        if (event.mode === view.permissionMode) break
+        if (event.mode === 'plan') chat.previousMode = view.permissionMode ?? 'auto'
+        set(chat, { permissionMode: event.mode })
         break
       case 'text-delta':
         view.partial += event.text
@@ -221,7 +240,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     addRow(chat, { kind: 'user', id: randomUUID(), text })
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId })
+      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId })
       engine.send(view.id, text)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
@@ -248,29 +267,66 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     save(chat)
   }
 
-  const restored = Promise.all(
-    [...chats.values()].map(async (chat) => {
-      if (!chat.view.sessionId || chat.view.archived) return
-      const { events: history } = await readHistory(chat.view.sessionId).catch(() => ({ events: [] }))
-      const rows: ChatRow[] = []
-      for (const event of history) {
-        const row = rowFor(rows, event)
-        if (row) upsert(rows, row)
-      }
-      const known = new Set(rows.map((row) => row.id))
-      chat.view.rows = [...rows, ...chat.view.rows.filter((row) => !known.has(row.id))].slice(-maxRows)
-      emit({ id: chat.view.id, rows: chat.view.rows, replaceRows: true })
-    }),
-  )
+  async function replay(chat: Chat, sessionId: string) {
+    const rows = await transcriptRows(sessionId)
+    const known = new Set(rows.map((row) => row.id))
+    const asked = new Set(rows.flatMap((row) => (row.kind === 'user' ? [row.text] : [])))
+    const merged = [...rows, ...chat.view.rows.filter((row) => !known.has(row.id) && !(row.kind === 'user' && asked.has(row.text)))]
+    chat.view.rows = merged.slice(-maxRows)
+    emit({ id: chat.view.id, rows: chat.view.rows, replaceRows: true })
+    if (merged.length > maxRows) set(chat, { earlier: true })
+  }
 
   return {
     events,
-    restored,
     snapshot: (): ChatView[] => [...chats.values()].map((chat) => structuredClone(chat.view)),
     view: (chatId: string): Readonly<ChatView> | undefined => chats.get(chatId)?.view,
     views: (): readonly Readonly<ChatView>[] => [...chats.values()].map((chat) => chat.view),
     recentFolders: (): string[] => [...new Set([...chats.values()].sort((a, b) => b.view.lastActivityAt - a.view.lastActivityAt).map((chat) => chat.view.cwd))].slice(0, 8),
     busy: () => [...chats.values()].some((chat) => midTurn.has(chat.view.state)),
+
+    restore(chatId: unknown): Promise<void> {
+      const chat = find(chatId)
+      const sessionId = chat?.view.sessionId
+      if (!chat || !sessionId || chat.view.archived) return Promise.resolve()
+      return (chat.restoring ??= replay(chat, sessionId))
+    },
+
+    async olderRows(chatId: unknown, beforeId?: unknown): Promise<OlderRows> {
+      const chat = find(chatId)
+      const sessionId = chat?.view.sessionId
+      if (!chat || !sessionId) return { rows: [], more: false }
+      const rows = await transcriptRows(sessionId)
+      const anchors = new Set(typeof beforeId === 'string' ? [beforeId] : chat.view.rows.map((row) => row.id))
+      const end = rows.findIndex((row) => anchors.has(row.id))
+      if (end === -1) return { rows: [], more: false }
+      const start = Math.max(0, end - olderPage)
+      return { rows: rows.slice(start, end), more: start > 0 }
+    },
+
+    draft(chatId: unknown): string {
+      if (!find(chatId)) return ''
+      try {
+        return db.draft(chatId as string) ?? ''
+      } catch {
+        return ''
+      }
+    },
+
+    saveDraft(chatId: unknown, text: unknown): void {
+      if (find(chatId) && typeof text === 'string') db.saveDraft(chatId as string, text.slice(0, maxDraft))
+    },
+
+    async setPlanMode(chatId: unknown, on: unknown): Promise<void> {
+      const chat = find(chatId)
+      if (!chat || typeof on !== 'boolean') return
+      const current = chat.view.permissionMode ?? 'auto'
+      if (on && current === 'plan') return
+      if (on) chat.previousMode = current
+      const mode = on ? 'plan' : current === 'plan' ? (chat.previousMode ?? 'auto') : current
+      set(chat, { permissionMode: mode })
+      if (engine.running(chat.view.id)) await engine.setPermissionMode(chat.view.id, mode)
+    },
 
     start(accountId: unknown, cwd: unknown, prompt: unknown, model?: unknown, effort?: unknown): StartChatResult {
       if (typeof accountId !== 'string' || !accounts.exists(accountId)) return { error: 'Pick an account first.' }
@@ -382,11 +438,12 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       else set(chat, fields)
     },
 
-    resolvePending(chatId: string, requestId: string): void {
+    resolvePending(chatId: string, requestId: string, answer?: Omit<Answered, 'id'>): void {
       const chat = chats.get(chatId)
       if (!chat?.view.pendingRequests.some((request) => request.id === requestId)) return
       const pendingRequests = chat.view.pendingRequests.filter((request) => request.id !== requestId)
-      const fields = { pending: chat.view.pending.filter((request) => request.id !== requestId), pendingRequests, oldestPendingAt: pendingRequests[0]?.createdAt }
+      const answered = answer ? { answered: [...(chat.view.answered ?? []), { id: requestId, ...answer }].slice(-5) } : {}
+      const fields = { pending: chat.view.pending.filter((request) => request.id !== requestId), pendingRequests, oldestPendingAt: pendingRequests[0]?.createdAt, ...answered }
       if (chat.view.state === 'needs-you' && pendingRequests.length === 0) transition(chat, 'working', fields)
       else set(chat, fields)
     },

@@ -1,30 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { ago, type ChatView } from '../../shared/chat'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
-import type { AgentEntry } from '../office/world'
-import { lastReply, type Inbox, type WaitingItem } from '../state/inbox'
+import type { Inbox, WaitingItem } from '../state/inbox'
 
-const props = defineProps<{ inbox: Inbox; open?: AgentEntry; chat?: ChatView }>()
+const props = defineProps<{ inbox: Inbox }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: [] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
 const drafts = reactive<Record<string, string>>({})
-const choices = reactive<Record<string, Record<string, string>>>({})
 const flash = ref('')
 const alertsHint = ref(false)
-const reply = computed(() => lastReply(props.chat))
 let flashTimer: ReturnType<typeof setTimeout> | undefined
 const clock = setInterval(() => (now.value = Date.now()), 30_000)
 
-type Question = { question: string; options?: { label: string }[] }
-const questionsOf = (request: PendingRequestView) => (Array.isArray(request.input.questions) ? (request.input.questions as Question[]) : [])
 const quick = (request: PendingRequestView) => !request.dangerous && request.tool !== 'AskUserQuestion'
-const allowLabel = (request: PendingRequestView) => (request.tool === 'ExitPlanMode' ? 'Approve plan' : 'Allow once')
 const command = (request: PendingRequestView) => (request.tool === 'Bash' ? `$ ${request.summary}` : request.summary)
 const since = (at: number) => ago(now.value - at)
-const pending = (chat?: ChatView) => chat?.pendingRequests[0]
 
 function say(message: string) {
   flash.value = message
@@ -37,16 +30,10 @@ async function decide(requestId: string, decision: Decision, source: WindowSourc
   if ('error' in result) say(result.error)
 }
 
-function choose(request: PendingRequestView, question: string, label: string) {
-  const answers = (choices[request.id] ??= {})
-  answers[question] = label
-  if (questionsOf(request).every((q) => answers[q.question])) void decide(request.id, { kind: 'answer', answers: { ...answers } }, 'chat')
-}
-
 async function send(chatId: string, source: WindowSource) {
   const text = drafts[chatId]?.trim()
   if (!text) return
-  const request = chatId === props.chat?.id ? pending(props.chat) : props.inbox.waiting.find((item) => item.chatId === chatId)?.requests[0]
+  const request = props.inbox.waiting.find((item) => item.chatId === chatId)?.requests[0]
   drafts[chatId] = ''
   if (request) return decide(request.id, { kind: 'deny', message: text }, source)
   const refused = await window.office.sendMessage(chatId, text)
@@ -82,137 +69,80 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <template v-if="open">
-    <div class="dh">
-      <span class="av" :style="{ background: open.colour }" />
-      <div>
-        <h2>{{ open.title }}</h2>
-        <p class="meta">{{ open.dept }}<template v-if="chat"> · {{ chat.model ?? 'default model' }}</template></p>
-      </div>
-      <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
+  <div class="ih">
+    <div>
+      <h2><i :class="{ clear: !inbox.waiting.length }" />Waiting for you · {{ inbox.waiting.length }}</h2>
+      <p>{{ inbox.waiting.length ? 'Auto mode handles the rest. These need a yes or no from you.' : 'Nobody is at your door right now.' }}</p>
     </div>
-    <p :class="['doing', open.state]">{{ open.caption }}</p>
-    <div class="ibx chat">
-      <section v-for="(request, index) in chat?.pendingRequests ?? []" :key="request.id" :class="['ask', { danger: request.dangerous }]" role="group" aria-label="Auto mode needs you to confirm">
-        <div class="ah">
-          <span class="ai" aria-hidden="true">!</span>
-          <div>
-            <div class="q">{{ request.tool === 'AskUserQuestion' ? 'Claude has a question' : request.tool === 'ExitPlanMode' ? 'Plan ready for review' : 'Auto mode needs you to confirm' }}</div>
-            <div class="qs">{{ request.dangerous ? `${request.dangerReason} · only a click allows this` : `${request.tool} in ${chat?.cwd}` }}</div>
-          </div>
-        </div>
-        <template v-if="request.tool === 'AskUserQuestion'">
-          <div v-for="q in questionsOf(request)" :key="q.question" class="question">
-            <p>{{ q.question }}</p>
-            <div class="btns">
-              <button v-for="option in q.options ?? []" :key="option.label" type="button" class="btn" :aria-pressed="choices[request.id]?.[q.question] === option.label" @click="choose(request, q.question, option.label)">{{ option.label }}</button>
-            </div>
-          </div>
-        </template>
-        <pre v-else-if="request.tool === 'ExitPlanMode' && typeof request.input.plan === 'string'" class="plan">{{ request.input.plan }}</pre>
-        <code v-else class="cmd">{{ command(request) }}</code>
-        <div class="btns">
-          <button v-if="request.tool !== 'AskUserQuestion'" type="button" class="btn primary" @click="decide(request.id, { kind: 'allow' }, 'chat')">{{ allowLabel(request) }}<kbd v-if="index === 0 && !request.dangerous">1</kbd></button>
-          <button v-if="request.alwaysAllow" type="button" class="btn" @click="decide(request.id, { kind: 'always' }, 'chat')">Always allow<kbd v-if="index === 0">2</kbd></button>
-          <button type="button" class="btn" @click="decide(request.id, { kind: 'deny' }, 'chat')">Deny<kbd v-if="index === 0 && !request.dangerous">3</kbd></button>
-        </div>
-      </section>
-      <div v-if="chat?.state === 'stuck'" class="stuckbox">
-        <span>{{ chat.stuck?.detail ?? open.caption }}</span>
-        <button type="button" class="btn sm" @click="resume(chat.id)">Resume</button>
-      </div>
-      <section v-if="reply" class="last">
-        <h3 class="sec">Last reply</h3>
-        <p>{{ reply }}</p>
-      </section>
-      <p v-else-if="!chat?.pendingRequests.length" class="none">No reply yet.</p>
+    <button type="button" class="btn sm" title="New agent (⌘N)" @click="emit('new')">New agent</button>
+  </div>
+  <div v-if="alertsHint" class="hintcard">
+    <p>Set Agent Office notifications to <b>Alerts</b> in System Settings, so Allow and Deny stay on screen until you answer.</p>
+    <div class="btns">
+      <button type="button" class="btn sm" @click="dismissHint(true)">Open Settings</button>
+      <button type="button" class="btn sm" @click="dismissHint(false)">Got it</button>
     </div>
-    <p v-if="flash" class="flash" role="status">{{ flash }}</p>
-    <div class="comp">
-      <textarea v-model="drafts[open.id]" rows="2" :placeholder="pending(chat) ? 'Or tell Claude what to do instead…' : `Reply to ${open.title}…`" aria-label="Reply" @keydown.meta.enter.prevent="send(open.id, 'chat')" />
-      <div class="crow">
-        <span class="hint"><span>Auto mode</span></span>
-        <span class="sp" />
-        <button type="button" class="btn accent" @click="send(open.id, 'chat')">Send <kbd>⌘↵</kbd></button>
-      </div>
-    </div>
-  </template>
-  <template v-else>
-    <div class="ih">
-      <div>
-        <h2><i :class="{ clear: !inbox.waiting.length }" />Waiting for you · {{ inbox.waiting.length }}</h2>
-        <p>{{ inbox.waiting.length ? 'Auto mode handles the rest. These need a yes or no from you.' : 'Nobody is at your door right now.' }}</p>
-      </div>
-      <button type="button" class="btn sm" title="New agent (⌘N)" @click="emit('new')">New agent</button>
-    </div>
-    <div v-if="alertsHint" class="hintcard">
-      <p>Set Agent Office notifications to <b>Alerts</b> in System Settings, so Allow and Deny stay on screen until you answer.</p>
-      <div class="btns">
-        <button type="button" class="btn sm" @click="dismissHint(true)">Open Settings</button>
-        <button type="button" class="btn sm" @click="dismissHint(false)">Got it</button>
-      </div>
-    </div>
-    <p v-if="flash" class="flash" role="status">{{ flash }}</p>
-    <div class="ibx">
-      <article v-for="(item, index) in inbox.waiting" :key="item.key" :class="['qi', { first: index === 0, stuck: item.kind !== 'request', danger: item.requests[0]?.dangerous }]" :data-chat="item.chatId">
-        <span class="av" :style="{ background: item.colour }" />
-        <button type="button" class="t" :aria-expanded="item.kind === 'login' ? undefined : expanded.has(item.key)" @click="toggle(item)">
-          <span class="n">{{ index + 1 }}</span><b>{{ item.title }}</b>
-        </button>
-        <div class="qa">
-          <template v-if="item.requests[0]">
-            <button v-if="quick(item.requests[0])" type="button" class="btn primary sm" @click="decide(item.requests[0].id, { kind: 'allow' }, 'inbox')">{{ item.requests[0].tool === 'ExitPlanMode' ? 'Approve' : 'Allow' }}</button>
-            <button v-else type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
-            <button type="button" class="btn sm" @click="decide(item.requests[0].id, { kind: 'deny' }, 'inbox')">Deny</button>
-          </template>
-          <template v-else-if="item.kind === 'stuck' && item.chatId">
-            <button type="button" class="btn sm" @click="resume(item.chatId)">Resume</button>
-            <button type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
-          </template>
-          <button v-else type="button" class="btn sm" @click="emit('accounts')">Log in</button>
-        </div>
-        <div class="m">
-          <template v-if="item.dept"><span class="dd" :style="{ background: item.accent }" /><span>{{ item.dept }}</span><span>·</span></template>
-          <span>{{ item.requests[0] ? `Auto mode · ${item.requests[0].tool}` : item.detail }}</span>
-          <template v-if="item.kind !== 'login'"><span>·</span><span>{{ since(item.since) }}</span></template>
-        </div>
+  </div>
+  <p v-if="flash" class="flash" role="status">{{ flash }}</p>
+  <div class="ibx">
+    <article v-for="(item, index) in inbox.waiting" :key="item.key" :class="['qi', { first: index === 0, stuck: item.kind !== 'request', danger: item.requests[0]?.dangerous }]" :data-chat="item.chatId">
+      <span class="av" :style="{ background: item.colour }" />
+      <button type="button" class="t" :aria-expanded="item.kind === 'login' ? undefined : expanded.has(item.key)" @click="toggle(item)">
+        <span class="n">{{ index + 1 }}</span><b>{{ item.title }}</b>
+      </button>
+      <div class="qa">
         <template v-if="item.requests[0]">
-          <code class="cmd">{{ command(item.requests[0]) }}</code>
-          <p v-if="item.requests[0].dangerous" class="why">{{ item.requests[0].dangerReason }}. Open it to allow with a click.</p>
-          <p v-if="item.requests.length > 1" class="more">+{{ item.requests.length - 1 }} more from this agent</p>
+          <button v-if="quick(item.requests[0])" type="button" class="btn primary sm" @click="decide(item.requests[0].id, { kind: 'allow' }, 'inbox')">{{ item.requests[0].tool === 'ExitPlanMode' ? 'Approve' : 'Allow' }}</button>
+          <button v-else type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
+          <button type="button" class="btn sm" @click="decide(item.requests[0].id, { kind: 'deny' }, 'inbox')">Deny</button>
         </template>
-        <div v-if="expanded.has(item.key) && item.chatId" class="xp">
-          <p class="last">{{ item.lastReply ?? 'No reply yet.' }}</p>
-          <textarea v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.meta.enter.prevent="send(item.chatId, 'inbox')" />
-          <div class="crow">
-            <span class="sp" />
-            <button type="button" class="btn accent sm" @click="send(item.chatId, 'inbox')">Send <kbd>⌘↵</kbd></button>
-          </div>
+        <template v-else-if="item.kind === 'stuck' && item.chatId">
+          <button type="button" class="btn sm" @click="resume(item.chatId)">Resume</button>
+          <button type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
+        </template>
+        <button v-else type="button" class="btn sm" @click="emit('accounts')">Log in</button>
+      </div>
+      <div class="m">
+        <template v-if="item.dept"><span class="dd" :style="{ background: item.accent }" /><span>{{ item.dept }}</span><span>·</span></template>
+        <span>{{ item.requests[0] ? `Auto mode · ${item.requests[0].tool}` : item.detail }}</span>
+        <template v-if="item.kind !== 'login'"><span>·</span><span>{{ since(item.since) }}</span></template>
+      </div>
+      <template v-if="item.requests[0]">
+        <code class="cmd">{{ command(item.requests[0]) }}</code>
+        <p v-if="item.requests[0].dangerous" class="why">{{ item.requests[0].dangerReason }}. Open it to allow with a click.</p>
+        <p v-if="item.requests.length > 1" class="more">+{{ item.requests.length - 1 }} more from this agent</p>
+      </template>
+      <div v-if="expanded.has(item.key) && item.chatId" class="xp">
+        <p class="last">{{ item.lastReply ?? 'No reply yet.' }}</p>
+        <textarea v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.meta.enter.prevent="send(item.chatId, 'inbox')" />
+        <div class="crow">
+          <span class="sp" />
+          <button type="button" class="btn accent sm" @click="send(item.chatId, 'inbox')">Send <kbd>⌘↵</kbd></button>
         </div>
-      </article>
-      <p v-if="!inbox.waiting.length" class="none">When Auto mode needs a decision, the agent walks to your door and waits here.</p>
-      <h3 class="sec">Everyone else</h3>
-      <section v-for="group in inbox.board" :key="group.id" class="grp" :data-dept="group.id">
-        <h4>
-          <span class="dd" :style="{ background: group.accent }" />{{ group.name }}
-          <span class="cts"><span v-for="count in group.counts" :key="count.key" :class="count.key"><i :class="['sd', count.key]" />{{ count.n }}</span></span>
-        </h4>
-        <button v-for="row in group.rows" :key="row.id" type="button" class="brow" @click="emit('select', row.id)">
-          <i :class="['sd', row.state]" />
-          <span class="bt">{{ row.title }}</span>
-          <span class="bm">{{ since(row.since) }}</span>
-          <span :class="['bd', row.state]">{{ row.caption }}</span>
-        </button>
-      </section>
-      <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
-      <p v-if="inbox.parked" class="pfoot"><b>{{ inbox.parked }} parked</b> · quiet for a day or more</p>
-    </div>
-    <div class="ifoot">
-      <span><kbd>1</kbd> opens the first in line, then <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answer</span>
-      <span><kbd>j</kbd><kbd>k</kbd> step through</span>
-      <span><kbd>⌘N</kbd> new agent</span>
-    </div>
-  </template>
+      </div>
+    </article>
+    <p v-if="!inbox.waiting.length" class="none">When Auto mode needs a decision, the agent walks to your door and waits here.</p>
+    <h3 class="sec">Everyone else</h3>
+    <section v-for="group in inbox.board" :key="group.id" class="grp" :data-dept="group.id">
+      <h4>
+        <span class="dd" :style="{ background: group.accent }" />{{ group.name }}
+        <span class="cts"><span v-for="count in group.counts" :key="count.key" :class="count.key"><i :class="['sd', count.key]" />{{ count.n }}</span></span>
+      </h4>
+      <button v-for="row in group.rows" :key="row.id" type="button" class="brow" @click="emit('select', row.id)">
+        <i :class="['sd', row.state]" />
+        <span class="bt">{{ row.title }}</span>
+        <span class="bm">{{ since(row.since) }}</span>
+        <span :class="['bd', row.state]">{{ row.caption }}</span>
+      </button>
+    </section>
+    <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
+    <p v-if="inbox.parked" class="pfoot"><b>{{ inbox.parked }} parked</b> · quiet for a day or more</p>
+  </div>
+  <div class="ifoot">
+    <span><kbd>1</kbd> opens the first in line, then <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answer</span>
+    <span><kbd>j</kbd><kbd>k</kbd> step through</span>
+    <span><kbd>⌘N</kbd> new agent</span>
+  </div>
 </template>
 
 <style>

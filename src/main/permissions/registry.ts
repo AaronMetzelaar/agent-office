@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk'
+import type { Answered } from '../../shared/chat'
 import { windowSources, type Decision, type PendingRequestView, type RequestSource, type ResolveResult } from '../../shared/permissions'
 import type { WaitMetrics } from '../metrics/wait'
 import type { ChatCanUseTool, Engine } from '../sessions/manager'
@@ -58,16 +59,16 @@ function refusal(entry: Entry, decision: Decision, source: RequestSource): strin
   return undefined
 }
 
-export function createBroker(engine: Pick<Engine, 'running' | 'setPermissionMode'>, store: ChatStore, rules: Rules, waits: WaitMetrics) {
+export function createBroker(engine: Pick<Engine, 'running'>, store: ChatStore, rules: Rules, waits: WaitMetrics) {
   const open = new Map<string, Entry>()
   const closed = new Map<string, string>()
 
-  function close(requestId: string, outcome: string): Entry | undefined {
+  function close(requestId: string, outcome: string, answer?: Omit<Answered, 'id'>): Entry | undefined {
     const entry = open.get(requestId)
     if (!entry) return undefined
     open.delete(requestId)
     closed.set(requestId, outcome)
-    store.resolvePending(entry.chatId, requestId)
+    store.resolvePending(entry.chatId, requestId, answer)
     return entry
   }
 
@@ -112,12 +113,12 @@ export function createBroker(engine: Pick<Engine, 'running' | 'setPermissionMode
       store.stopChat(entry.chatId)
       return { error: sessionEnded }
     }
-    close(requestId, `already answered (${String(source)})`)
+    close(requestId, `already answered (${String(source)})`, { source: source as RequestSource, decision: decision.kind })
     waits.record('request', entry.chatId, entry.view.createdAt, Date.now())
     const allow: PermissionResult = { behavior: 'allow', updatedInput: entry.view.input }
     switch (decision.kind) {
       case 'allow':
-        if (entry.view.tool === 'ExitPlanMode') void engine.setPermissionMode(entry.chatId, 'auto').catch(() => {})
+        if (entry.view.tool === 'ExitPlanMode') void store.setPlanMode(entry.chatId, false).catch(() => {})
         entry.settle(allow)
         break
       case 'always':

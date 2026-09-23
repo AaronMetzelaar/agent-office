@@ -138,6 +138,38 @@ describe('permission broker', () => {
     expect(office.chat(id).state).toBe('working')
   })
 
+  it('plan approval restores the mode the chat was in before planning, not always Auto', async () => {
+    const id = office.start()
+    office.engine.emit(id, sdk.init(office.engine.sessionId(id)!, 'claude-fake-1', 'acceptEdits'))
+    expect(office.chat(id).permissionMode).toBe('acceptEdits')
+    office.engine.emit(id, sdk.status('plan'))
+    expect(office.chat(id).permissionMode).toBe('plan')
+
+    const approved = office.engine.ask(id, 'ExitPlanMode', { plan: '1. Fix the bid flow' })
+    office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'allow' }, 'chat')
+    expect(await approved).toMatchObject({ behavior: 'allow' })
+    expect(office.engine.calls.at(-1)).toBe(`setPermissionMode:${id}:acceptEdits`)
+    expect(office.chat(id).permissionMode).toBe('acceptEdits')
+
+    await office.store.setPlanMode(id, true)
+    expect(office.engine.calls.at(-1)).toBe(`setPermissionMode:${id}:plan`)
+    await office.store.setPlanMode(id, false)
+    expect(office.engine.calls.at(-1)).toBe(`setPermissionMode:${id}:acceptEdits`)
+  })
+
+  it('records where each request was answered, so the chat can say so', () => {
+    const id = working()
+    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.ask(id, 'Bash', { command: 'pnpm lint' })
+    const [first, second] = requests(id)
+    office.broker.resolveRequest(first!.id, { kind: 'allow' }, 'phone')
+    office.broker.resolveRequest(second!.id, { kind: 'deny', message: 'Not now' }, 'chat')
+    expect(office.chat(id).answered).toEqual([
+      { id: first!.id, source: 'phone', decision: 'allow' },
+      { id: second!.id, source: 'chat', decision: 'deny' },
+    ])
+  })
+
   it('answers AskUserQuestion through updatedInput', async () => {
     const id = working()
     const questions = [{ question: 'Which date library?', header: 'Library', multiSelect: false, options: [{ label: 'date-fns', description: '' }, { label: 'dayjs', description: '' }] }]

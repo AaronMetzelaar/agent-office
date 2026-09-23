@@ -166,7 +166,7 @@ describe('relaunch', () => {
     writeTranscript(sessionId)
 
     const after = openOffice(dir)
-    await after.store.restored
+    await after.store.restore(id)
 
     expect(after.chat(id).rows).toEqual([
       { kind: 'user', id: 'u1', text: 'Fix the bid flow' },

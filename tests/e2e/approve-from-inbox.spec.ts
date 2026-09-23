@@ -110,9 +110,9 @@ test('⌘N quick start runs a chat in the chosen folder and account; Allow in th
   expect((await notes()).map((note) => note.title)).toEqual(['Run the tests [ask] is done'])
 
   await drawer().locator('.brow', { hasText: 'Run the tests [ask]' }).click()
-  await expect(drawer().locator('.last p')).toHaveText('Sure, done.')
+  await expect(drawer().getByRole('log', { name: 'Transcript' })).toContainText('Sure, done.')
   await expect.poll(async () => (await snapshotChat(chat.id))?.state).toBe('idle')
-  await drawer().getByLabel('Reply').fill('Thanks [hang]')
+  await drawer().getByLabel('Message').fill('Thanks [hang]')
   await drawer().getByRole('button', { name: /^Send/ }).click()
   await expect.poll(async () => (await snapshotChat(chat.id))?.state).toBe('working')
   await page.getByRole('button', { name: 'Back to inbox' }).click()

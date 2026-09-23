@@ -103,6 +103,7 @@ async function start(): Promise<void> {
     open: show,
     notification: (options) => new Notification(options),
     push: phone.post,
+    shown: (chatId) => win.isVisible() && win.isFocused() && sync.openChat() === chatId,
   })
   const strip = createTray(() => show({ to: 'inbox' }), () => stripState(store.views(), loginItems(accounts.list()), Date.now()))
   store.events.on('patch', (patch) => {

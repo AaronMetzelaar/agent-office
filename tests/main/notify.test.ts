@@ -33,6 +33,7 @@ let pushes: Push[]
 let opened: Navigate[]
 let logs: string[]
 let notifier: ReturnType<typeof createNotifier>
+let onScreen: string | undefined
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'agent-office-notify-'))
@@ -54,8 +55,10 @@ beforeEach(() => {
       return note
     },
     push: (push) => pushes.push(push),
+    shown: (chatId) => chatId === onScreen,
     log: (message) => logs.push(message),
   })
+  onScreen = undefined
 })
 
 afterEach(() => {
@@ -157,6 +160,27 @@ describe('notifications', () => {
     expect(notes.at(-1)!.options).toMatchObject({ title: 'main needs login' })
     notes.at(-1)!.emit('action', { actionIndex: 0 }, 0)
     expect(opened.at(-1)).toEqual({ to: 'accounts' })
+  })
+
+  it('skips the Mac notification and phone push when the chat is open in a focused window, and posts it otherwise', async () => {
+    const id = office.start('Run the tests')
+    office.engine.init(id)
+    onScreen = id
+    const quiet = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    expect(notes).toHaveLength(0)
+    expect(pushes).toHaveLength(0)
+    office.broker.resolveRequest(office.chat(id).pendingRequests[0]!.id, { kind: 'allow' }, 'chat')
+    await quiet
+
+    void office.engine.ask(id, 'Bash', { command: 'pnpm lint' })
+    const shownRequest = office.chat(id).pendingRequests[0]!
+    expect(notes).toHaveLength(0)
+
+    onScreen = undefined
+    void office.engine.ask(id, 'Bash', { command: 'pnpm build' })
+    expect(notes.map((note) => note.options.body)).toEqual(['Auto mode wants to run: pnpm build'])
+    expect(pushes).toHaveLength(1)
+    expect(notifier.live.has(shownRequest.id)).toBe(false)
   })
 
   it('summaries stay short and never carry whole commands, secrets or file contents', () => {

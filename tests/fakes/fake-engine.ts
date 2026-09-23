@@ -6,7 +6,8 @@ import type { ChatCanUseTool, Engine, EngineEvents, SessionPermissions, StartOpt
 const message = (fields: Record<string, unknown>) => ({ uuid: randomUUID(), session_id: 'fake', ...fields }) as unknown as SDKMessage
 
 export const sdk = {
-  init: (sessionId: string, model = 'claude-fake-1') => message({ type: 'system', subtype: 'init', session_id: sessionId, model }),
+  init: (sessionId: string, model = 'claude-fake-1', permissionMode?: string) => message({ type: 'system', subtype: 'init', session_id: sessionId, model, ...(permissionMode ? { permissionMode } : {}) }),
+  status: (permissionMode: string) => message({ type: 'system', subtype: 'status', status: null, permissionMode }),
   delta: (text: string) => message({ type: 'stream_event', parent_tool_use_id: null, event: { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } } }),
   text: (text: string, parent: string | null = null) => message({ type: 'assistant', parent_tool_use_id: parent, message: { content: [{ type: 'text', text }] } }),
   toolUse: (tools: { id: string; name: string; input: unknown }[], parent: string | null = null) =>
@@ -85,6 +86,11 @@ export function createFakeEngine({ auto = false } = {}) {
       if (!still()) return
       emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Tests pass.' : 'Skipped the tests.'))
     }
+    if (text.includes('[plan]')) {
+      const decision = await ask(chatId, 'ExitPlanMode', { plan: '## Plan\n\n1. Read `BidFlow.vue`\n2. Fix the rounding\n3. Run the tests' })
+      if (!still()) return
+      emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Plan approved, starting.' : `Back to planning: ${decision?.behavior === 'deny' ? decision.message : ''}`))
+    }
     for (const piece of ['Sure', ', ', 'done', '.']) {
       await tick()
       if (!still()) return
@@ -107,6 +113,7 @@ export function createFakeEngine({ auto = false } = {}) {
     },
     async interrupt(chatId) {
       calls.push(`interrupt:${chatId}`)
+      if (auto && live.has(chatId)) emit(chatId, sdk.errorResult('[Request interrupted by user]'))
     },
     stop(chatId) {
       live.delete(chatId)

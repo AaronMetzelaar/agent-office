@@ -1,4 +1,4 @@
-import type { ChatPatchBatch, ChatSnapshot, Effort, Refusal, StartChatResult } from './chat'
+import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 
 export interface AppInfo {
@@ -59,6 +59,11 @@ export interface Commands {
   stopChat(chatId: string): void
   setModel(chatId: string, model: string): Promise<void>
   setEffort(chatId: string, effort: Effort): Promise<void>
+  setPlanMode(chatId: string, on: boolean): Promise<void>
+  setOpenChat(chatId?: string): void
+  olderRows(chatId: string, beforeId?: string): Promise<OlderRows>
+  getDraft(chatId: string): string
+  saveDraft(chatId: string, text: string): void
   resumeChat(chatId: string): Refusal | undefined
   markRead(chatId: string): void
   resolveRequest(requestId: string, decision: Decision, source: WindowSource): ResolveResult

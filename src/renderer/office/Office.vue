@@ -3,6 +3,7 @@ import { TresCanvas, useLoop, useTres } from '@tresjs/core'
 import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import type { AccountView, Navigate } from '../../shared/ipc'
+import Chat from '../panels/Chat.vue'
 import Inbox from '../panels/Inbox.vue'
 import QuickStart from '../panels/QuickStart.vue'
 import { buildInbox, emptyInbox } from '../state/inbox'
@@ -195,7 +196,8 @@ onUnmounted(() => {
   </header>
   <aside class="inbox" aria-label="Inbox">
     <QuickStart v-if="mode === 'new'" :accounts="accounts" @close="mode = 'inbox'" @started="select" />
-    <Inbox v-else :inbox="inbox" :open="ui.selected" :chat="openChat" @select="select" @accounts="emit('accounts')" @new="mode = 'new'" />
+    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" @select="select" @accounts="emit('accounts')" />
+    <Inbox v-else :inbox="inbox" @select="select" @accounts="emit('accounts')" @new="mode = 'new'" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">

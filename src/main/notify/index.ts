@@ -23,6 +23,7 @@ export interface NotifierOptions {
   open(to: Navigate): void
   notification(options: NotificationConstructorOptions): NotificationLike
   push(push: Push): unknown
+  shown?: (chatId: string) => boolean
   log?: (message: string) => void
 }
 
@@ -72,7 +73,7 @@ export function wants(request: Pick<PendingRequestView, 'tool' | 'input'>): stri
   }
 }
 
-export function createNotifier({ store, department, resolve, sendMessage, open, notification, push, log = (message) => console.warn(`[notify] ${message}`) }: NotifierOptions) {
+export function createNotifier({ store, department, resolve, sendMessage, open, notification, push, shown = () => false, log = (message) => console.warn(`[notify] ${message}`) }: NotifierOptions) {
   const live = new Map<string, NotificationLike>()
   const requests = new Map<string, string>()
   let warned = false
@@ -154,7 +155,11 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
         requests.delete(requestId)
         close(requestId)
       }
-      for (const pending of fields.pendingRequests) if (!requests.has(pending.id)) request(chat, pending)
+      for (const pending of fields.pendingRequests) {
+        if (requests.has(pending.id)) continue
+        if (shown(chat.id)) requests.set(pending.id, chat.id)
+        else request(chat, pending)
+      }
     }
     if (!fields.state) return
     if (fields.state !== 'done') close(`done:${chat.id}`)
