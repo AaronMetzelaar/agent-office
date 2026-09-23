@@ -1,0 +1,146 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPatchSync } from '../../src/main/store/ipc-sync'
+import { stripState } from '../../src/main/tray/strip'
+import { buildInbox } from '../../src/renderer/state/inbox'
+import { createProjection, toAgents, type ChatSource } from '../../src/renderer/state/projection'
+import { emptyUsage, type ChatPatchBatch, type ChatView } from '../../src/shared/chat'
+import type { AccountView } from '../../src/shared/ipc'
+import { parkAfterMs } from '../../src/shared/office'
+import { buildQueue } from '../../src/shared/queue'
+import { sdk } from '../fakes/fake-engine'
+import { openOffice } from '../fakes/office'
+
+vi.mock('electron', () => import('../fakes/electron'))
+
+const accounts: AccountView[] = [
+  { id: 'main', label: 'main', createdAt: 0, health: { status: 'ok' } },
+  { id: 'research', label: 'research', createdAt: 0, health: { status: 'ok' } },
+]
+
+let dir: string
+let office: ReturnType<typeof openOffice>
+let source: ChatSource & { flush(): Promise<void>; batches: number }
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  dir = mkdtempSync(join(tmpdir(), 'agent-office-inbox-'))
+  vi.stubEnv('CLAUDE_CONFIG_DIR', dir)
+  office = openOffice(dir)
+  const listeners = new Set<(batch: ChatPatchBatch) => void>()
+  const sync = createPatchSync(office.store, (batch) => {
+    source.batches++
+    listeners.forEach((listener) => listener(batch))
+  })
+  sync.setVisible(true)
+  source = {
+    batches: 0,
+    getSnapshot: async () => sync.snapshot(),
+    onChatPatches: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    flush: async () => void (await vi.advanceTimersByTimeAsync(20)),
+  }
+})
+
+afterEach(() => {
+  office.db.close()
+  rmSync(dir, { recursive: true, force: true })
+  vi.unstubAllEnvs()
+  vi.useRealTimers()
+})
+
+const inboxOf = (projection: ReturnType<typeof createProjection>) => {
+  const agents = toAgents(projection.chats.values(), accounts, Date.now(), new Map())
+  return { agents, inbox: buildInbox(projection.chats, agents, projection.logins) }
+}
+
+function view(id: string, fields: Partial<ChatView> = {}): ChatView {
+  const now = Date.now()
+  return { id, accountId: 'main', cwd: '/Users/a/Documents/GitHub/monorepo/frontend/marketplace', title: id, archived: false, state: 'working', stateSince: now, unread: false, activity: 'Thinking', pending: [], pendingRequests: [], subagents: [], usage: emptyUsage(), partial: '', createdAt: now, lastActivityAt: now, rows: [], ...fields }
+}
+
+describe('inbox', () => {
+  it('a new pending request appears in the inbox, the door queue and the tray count within one store diff', async () => {
+    const projection = createProjection(source)
+    await projection.ready
+    const id = office.start('Run the tests')
+    office.engine.init(id)
+    await source.flush()
+    expect(inboxOf(projection).inbox.waiting).toEqual([])
+
+    const before = source.batches
+    const command = 'pnpm test --filter marketplace -- --reporter=verbose --coverage --run tests/components/BidFlow.test.ts'
+    void office.engine.ask(id, 'Bash', { command })
+    await source.flush()
+
+    expect(source.batches).toBe(before + 1)
+    const { agents, inbox } = inboxOf(projection)
+    expect(inbox.waiting).toHaveLength(1)
+    expect(inbox.waiting[0]).toMatchObject({ kind: 'request', chatId: id, title: 'Run the tests', dept: 'Side projects' })
+    expect(inbox.waiting[0]!.requests[0]!.summary).toBe(command)
+    expect(buildQueue(agents).map((item) => item.chatId)).toEqual([id])
+    expect(stripState(office.store.views(), [], Date.now()).needs).toBe(1)
+  })
+
+  it('lists waiting items in queue order and shows the last reply of each', async () => {
+    const projection = createProjection(source)
+    await projection.ready
+    const first = office.start('First in line')
+    office.engine.init(first)
+    office.engine.emit(first, sdk.text('I looked at the flaky test.'))
+    void office.engine.ask(first, 'Bash', { command: 'git status' })
+    await vi.advanceTimersByTimeAsync(5)
+    const second = office.start('Second in line')
+    office.engine.init(second)
+    void office.engine.ask(second, 'Edit', { file_path: join(dir, 'a.ts') })
+    await source.flush()
+
+    const { inbox } = inboxOf(projection)
+    expect(inbox.waiting.map((item) => item.chatId)).toEqual([first, second])
+    expect(inbox.waiting[0]!.lastReply).toBe('I looked at the flaky test.')
+    expect(inbox.waiting[1]!.lastReply).toBeUndefined()
+  })
+
+  it('shows one login item per account and keeps its chats off the board', () => {
+    const chats = new Map([
+      ['a', view('a', { state: 'stuck', stuck: { reason: 'needs-login' } })],
+      ['b', view('b', { state: 'stuck', stuck: { reason: 'needs-login' } })],
+      ['c', view('c')],
+    ])
+    const agents = toAgents(chats.values(), accounts, Date.now(), new Map())
+    const inbox = buildInbox(chats, agents, [{ accountId: 'main', label: 'main' }])
+    expect(inbox.waiting).toMatchObject([{ kind: 'login', title: 'main needs login', detail: '2 chats waiting · log in again', requests: [] }])
+    expect(inbox.board.flatMap((group) => group.rows.map((row) => row.id))).toEqual(['c'])
+  })
+
+  it('groups everyone else by department in floor order, with counts, time in state and a parked tally', () => {
+    const now = Date.now()
+    const chats = new Map([
+      ['side', view('side', { cwd: '/Users/a/Documents/GitHub/portfolio', createdAt: now - 10, activity: 'Editing DotField.tsx' })],
+      ['mkt-late', view('mkt-late', { state: 'done', createdAt: now - 5 })],
+      ['mkt-early', view('mkt-early', { createdAt: now - 20, stateSince: now - 5 * 60_000 })],
+      ['mkt-waiting', view('mkt-waiting', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })],
+      ['gym', view('gym', { accountId: 'research' })],
+      ['old', view('old', { state: 'idle', lastActivityAt: now - 2 * parkAfterMs })],
+    ])
+    const agents = toAgents(chats.values(), accounts, now, new Map())
+    const { board, parked } = buildInbox(chats, agents, [])
+    expect(board.map((group) => group.name)).toEqual(['Marketplace', 'Side projects', 'Research gym'])
+    expect(board[0]!.rows.map((row) => [row.id, row.state])).toEqual([
+      ['mkt-early', 'working'],
+      ['mkt-late', 'done'],
+    ])
+    expect(board[0]!.counts).toEqual([
+      { key: 'needs', label: 'needs you', n: 1 },
+      { key: 'working', label: 'working', n: 1 },
+      { key: 'done', label: 'done', n: 1 },
+    ])
+    expect(board[0]!.rows[0]!.since).toBe(now - 5 * 60_000)
+    expect(board[1]!.rows[0]!.caption).toBe('Editing DotField.tsx')
+    expect(parked).toBe(1)
+  })
+})

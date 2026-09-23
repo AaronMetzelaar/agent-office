@@ -10,7 +10,7 @@ import { createFakeEngine } from './fake-engine'
 export function openOffice(dir: string, engine = createFakeEngine()) {
   const db = openDb(join(dir, 'office.db'))
   const loggedOut = new Set<string>()
-  const accounts = { exists: (id: string) => id === 'main' || id === 'research', needsLogin: (id: string) => loggedOut.has(id), loginFailed: vi.fn(), recordHeadroom: vi.fn() }
+  const accounts = { exists: (id: string) => id === 'main' || id === 'research', label: (id: string) => id, needsLogin: (id: string) => loggedOut.has(id), loginFailed: vi.fn(), recordHeadroom: vi.fn() }
   const rules = createRules(db.sql, engine)
   const store = createChatStore(engine, db, accounts, rules.forSession)
   const waits = createWaitMetrics(db.sql, store)

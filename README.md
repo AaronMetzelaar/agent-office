@@ -29,14 +29,16 @@ To run the built app without the dev server: `pnpm build && pnpm exec electron .
 
 ## Running in the background
 
-Closing the window hides it, and the app keeps running in the menu bar. Click the menu bar icon to bring the window back. Right-click it for Show Agent Office, Open at Login and Quit. Open at Login starts off. ⌘Q also quits. Launching the app again focuses the running one.
+Closing the window hides it, and the app keeps running in the menu bar. Launching the app again focuses the running one. ⌘Q also quits.
+
+The menu bar icon is a live strip. The ring fills and a number appears next to it while anyone waits at your door (requests, stuck chats and accounts that need login, the same count as the inbox). Small dots to its right show agents at work: a solid dot per working agent and a hollow one per unread reply, up to eight. Clicking it opens the window on the inbox. Right-click it for Show Agent Office, Open at Login and Quit. Open at Login starts off.
 
 ## Where data lives
 
 The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `accounts.json` lists accounts (id, label, created at).
-- `secrets/` holds each account token, and the optional Linear key, as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
-- `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, and each account's last health. It never holds message text.
+- `secrets/` holds each account token, the optional Linear key and the ntfy signing key, each as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
+- `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, colour, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, each account's last health, and settings (phone push, whether you've seen the Alerts hint). It never holds message text.
 
 Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and doesn't touch `~/.claude` otherwise, apart from the optional hook entry Unit 13 adds with your consent.
 
@@ -68,13 +70,65 @@ Sessions run in Auto mode, so Claude only asks when Auto mode escalates. Each as
 - **Wait metrics** in `office.db` record how long each request waited and how long a Done reply waited to be read.
 - **Needs login:** while an account needs a new token, the office refuses new turns on it, and the snapshot lists one login item per account.
 
+## Inbox and keys
+
+The drawer opens on the inbox. "Waiting for you" lists every request in door-queue order, with the full command and quick Allow and Deny. Dangerous requests show Open instead of Allow, plus the reason. Stuck chats offer Resume, and an account that needs login shows up once, with a button to Accounts. Click an item's title to see the chat's last reply and a reply box. On a waiting request the reply denies it and passes your text to Claude as the reason; anywhere else it sends a message. Below the queue, the board lists everyone else by department, in floor order, with state, title, what each agent is doing and how long it has been in that state.
+
+Clicking an agent in the office, a chip, or a board row opens that chat in the drawer, with its request cards oldest first. Keys only act on a card you can see:
+
+- `1` Allow once, `2` Always allow (when offered), `3` Deny, on the open chat's oldest card.
+- With no chat open, `1` opens the first queued card. Press it again to decide.
+- `j` and `k` step through the queue and stop at either end. Esc goes back to the inbox.
+- Dangerous requests ignore all three keys. Only a click in the app allows them.
+
+## Quick start
+
+⌘N (File → New Agent…) or the New agent button opens a form in the drawer: a recent folder or one from the folder picker, the account with its 5-hour and weekly usage, the prompt, the model and the effort. It warns when the chosen account is past 80% of its 5-hour window and the other one has room. Sessions always start in Auto mode. Worktrees come with the full new-agent flow in Unit 9.
+
+Each chat gets a colour from a 22-colour palette when it starts, never one already used in its department. The colour lives in `office.db`, so a reload never reshuffles it.
+
+## Notifications
+
+Every new permission request raises a macOS notification within the same event loop tick. It names the agent and its department, and says what Auto mode wants, as a short summary ("Auto mode wants to run: pnpm test …"). Its actions are Allow once, Deny and Open, plus an inline reply that denies with your text. Dangerous requests get Deny and Open only. Stuck chats and finished chats notify too; a reply to a finished chat is sent to it. An account that needs login raises one notification, whatever number of chats it stops. When a request is answered anywhere else, the office withdraws its notification, and a late tap on it does nothing.
+
+On first run the inbox asks you to switch Agent Office to the Alerts style in System Settings → Notifications, so Allow and Deny stay on screen. Signed builds already ask macOS for Alerts through `NSUserNotificationAlertStyle`.
+
+macOS only delivers notifications from signed apps. In `pnpm dev` and the unsigned build, the office still creates every notification and wires its actions (the tests check them), but macOS drops them with `UNErrorDomain error 1`. See Packaging and signing.
+
+## Phone push
+
+Every notification also goes to a private [ntfy](https://ntfy.sh) topic, so the phone buzzes when you're away. The office reads three files in `~/.config/agent-office/`:
+
+| File | What it holds |
+|---|---|
+| `ntfy-topic` | The topic your phone subscribes to |
+| `ntfy-reply-topic` | A second topic where the phone posts decisions |
+| `ntfy-hmac-key` | The key that signs decisions, in hex |
+
+On first run the office copies the key into `safeStorage` (`secrets/ntfy-hmac.bin`) and uses that copy afterwards. Phone push is on whenever the topic files exist. Settings → Phone push turns it off.
+
+Needs-you and stuck messages go out at high priority, finished chats at default. Payloads carry the agent, department, tool and a short summary. They never carry the full command or file contents; secrets and anything after the second word of a command are cut.
+
+Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{r, d, e, s}` to the reply topic: the request id, the decision, an expiry 30 minutes out, and an HMAC-SHA256 over `r.d.e`. The office listens to the reply topic over ntfy's JSON stream, starting from the time it launched, and reconnects with backoff. It checks the signature with `timingSafeEqual` and the expiry, then answers through `resolveRequest` as the phone. It logs and ignores anything unsigned, expired, replayed or already answered. Dangerous requests only get Deny on the phone, and the message says to allow them from your Mac. No port opens on the Mac.
+
 ## Test flags
 
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
-- `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, and one containing `[ask]` asks to run `pnpm test` first. Packaged builds ignore it.
+- `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, one containing `[ask]` asks to run `pnpm test` first, and one containing `[danger]` asks to run `rm -rf dist`. Packaged builds ignore it.
+- `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads the ntfy files from. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.
 - `RENDERER_VITE_OFFICE_DEMO=1 pnpm dev` runs the office on the prototype's sample chats instead of your accounts: working, waiting, stuck and parked agents, with Admin folded until its first agent walks in after 10 seconds. The flag is read at build time, so a normal `pnpm build` leaves the demo out. The Playwright demo check builds its own copy into `out-demo/` and reads the fps probe on `window.__fps`, which only dev and demo builds expose.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
 ## Packaging and signing
 
-`electron-builder.yml` uses the app id `com.aaronmetzelaar.agentoffice`. For an unsigned local build, run `pnpm build && pnpm exec electron-builder --mac --dir`. Signing is off for now. Unit 7 adds a stable self-signed identity, since macOS only keeps notification permissions across builds signed by the same identity.
+`electron-builder.yml` uses the app id `com.aaronmetzelaar.agentoffice`. Build with `pnpm build && pnpm exec electron-builder --mac --dir`. Without a signing identity the app comes out ad-hoc signed, runs fine, and gets no notifications.
+
+Notifications need a stable signature, and a self-signed certificate is enough. macOS also keys notification permissions to that identity, so every build must use the same one. One-time setup:
+
+1. Open Keychain Access, then Keychain Access → Certificate Assistant → Create a Certificate…
+2. Name it `Agent Office Local`, set Identity Type to Self Signed Root and Certificate Type to Code Signing, and create it in the login keychain.
+3. Double-click the new certificate, open Trust, and set Code Signing to Always Trust. `security find-identity -v -p codesigning` should now list it.
+4. Build signed: `pnpm build && CSC_NAME="Agent Office Local" pnpm exec electron-builder --mac --dir`.
+5. Open `dist/mac-arm64/Agent Office.app`, allow notifications when macOS asks, and check that System Settings → Notifications → Agent Office uses Alerts.
+
+The builder config turns hardened runtime off, because library validation rejects a self-signed app's own frameworks, and asks macOS for the Alerts style. Once the certificate exists, electron-builder finds it without `CSC_NAME` too.

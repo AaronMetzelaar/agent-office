@@ -28,9 +28,15 @@ const office: OfficeApi = {
   resolveRequest: (requestId, decision, source) => ipcRenderer.invoke('resolveRequest', requestId, decision, source),
   listRules: () => ipcRenderer.invoke('listRules'),
   revokeRule: (id) => ipcRenderer.invoke('revokeRule', id),
+  recentFolders: () => ipcRenderer.invoke('recentFolders'),
+  pickFolder: () => ipcRenderer.invoke('pickFolder'),
+  getSettings: () => ipcRenderer.invoke('getSettings'),
+  setSetting: (name, value) => ipcRenderer.invoke('setSetting', name, value),
+  openNotificationSettings: () => ipcRenderer.invoke('openNotificationSettings'),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
   onAccountsChanged: (listener) => subscribe('accountsChanged', listener),
   onChatPatches: (listener) => subscribe('chatPatches', listener),
+  onNavigate: (listener) => subscribe('navigate', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

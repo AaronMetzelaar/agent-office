@@ -2,13 +2,18 @@
 import { TresCanvas, useLoop, useTres } from '@tresjs/core'
 import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
-import type { AccountView } from '../../shared/ipc'
+import type { AccountView, Navigate } from '../../shared/ipc'
+import Inbox from '../panels/Inbox.vue'
+import QuickStart from '../panels/QuickStart.vue'
+import { buildInbox, emptyInbox } from '../state/inbox'
+import { keyAction } from '../state/keys'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
 import { createCamera } from './camera'
 import type { StateKey } from './labels'
 import { createWorld, type World, type WorldUi } from './world'
 
 const props = defineProps<{ accounts: AccountView[]; source: ChatSource }>()
+const emit = defineEmits<{ accounts: [] }>()
 
 const probeEnabled = import.meta.env.DEV || import.meta.env.RENDERER_VITE_OFFICE_DEMO === '1'
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -21,6 +26,11 @@ const world = shallowRef<World>()
 const projection = createProjection(props.source)
 const colours = new Map<string, number>()
 const palette = reactive({ open: false, query: '' })
+const inbox = shallowRef(emptyInbox)
+const mode = ref<'inbox' | 'new'>('inbox')
+const tick = ref(0)
+const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
+let pendingSelect: string | undefined
 const tallyLabels: [StateKey, string][] = [
   ['needs', 'need you'],
   ['stuck', 'stuck'],
@@ -39,8 +49,31 @@ function push() {
   if (!w) return
   const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours)
   for (const a of agents) colours.set(a.id, a.colour)
+  inbox.value = buildInbox(projection.chats, agents, projection.logins)
   w.sync(agents, projection.logins)
+  tick.value++
+  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect)
 }
+
+function select(chatId: string | undefined) {
+  mode.value = 'inbox'
+  pendingSelect = chatId && !projection.chats.has(chatId) ? chatId : undefined
+  if (!pendingSelect) world.value?.select(chatId, !!chatId)
+}
+
+function navigate(to: Navigate) {
+  if (to.to === 'accounts') return emit('accounts')
+  if (to.to === 'new') return void (mode.value = 'new')
+  select(to.to === 'chat' ? to.chatId : undefined)
+}
+
+watch(
+  () => [openChat.value?.id, openChat.value?.state],
+  () => {
+    const chat = openChat.value
+    if (chat?.state === 'done' && !document.hidden) void window.office.markRead(chat.id)
+  },
+)
 const offProjection = projection.subscribe(push)
 watch(() => props.accounts, push)
 const captions = setInterval(push, 60_000)
@@ -116,14 +149,26 @@ function onKey(event: KeyboardEvent) {
     event.preventDefault()
     return void (palette.open ? (palette.open = false) : openPalette())
   }
-  if (event.key !== 'Escape') return
-  if (palette.open) palette.open = false
-  else if (!(event.target as HTMLElement).closest?.('input,textarea,select')) world.value?.escape()
+  const typing = !!(event.target as HTMLElement).closest?.('input,textarea,select')
+  if (event.key === 'Escape') {
+    if (palette.open) palette.open = false
+    else if (mode.value === 'new') mode.value = 'inbox'
+    else if (!typing) world.value?.escape()
+    return
+  }
+  if (typing || palette.open || mode.value === 'new' || event.metaKey || event.ctrlKey || event.altKey) return
+  const action = keyAction(event.key, { open: ui.selected?.id, queue: inbox.value.waiting, card: openChat.value?.pendingRequests[0] })
+  if (!action) return
+  event.preventDefault()
+  if (action.kind === 'open') select(action.chatId)
+  else void window.office.resolveRequest(action.requestId, action.decision, 'keyboard')
 }
 
+const offNavigate = window.office.onNavigate(navigate)
 onMounted(() => addEventListener('keydown', onKey))
 onUnmounted(() => {
   removeEventListener('keydown', onKey)
+  offNavigate()
   clearInterval(captions)
   offProjection()
   projection.stop()
@@ -149,32 +194,8 @@ onUnmounted(() => {
     <slot />
   </header>
   <aside class="inbox" aria-label="Inbox">
-    <template v-if="ui.selected">
-      <div class="dh">
-        <span class="av" :style="{ background: ui.selected.colour }" />
-        <div>
-          <h2>{{ ui.selected.title }}</h2>
-          <p class="meta">{{ ui.selected.dept }}</p>
-        </div>
-        <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="world?.select(undefined, false)">×</button>
-      </div>
-      <p :class="['doing', ui.selected.state]">{{ ui.selected.caption }}</p>
-    </template>
-    <template v-else>
-      <div class="ih">
-        <h2><i :class="{ clear: !ui.queue.length }" />Waiting for you · {{ ui.queue.length }}</h2>
-        <p>{{ ui.queue.length ? 'Auto mode handles the rest. These need a yes or no from you.' : 'Nobody is at your door right now.' }}</p>
-      </div>
-      <div class="ibx">
-        <button v-for="q in ui.queue" :key="q.key" type="button" :class="['qi', { first: q.index === 0, stuck: q.kind !== 'request' }]" @click="q.chatId && world?.select(q.chatId, true)">
-          <span class="n">{{ q.index + 1 }}</span>
-          <span class="av" :style="{ background: q.colour }" />
-          <span class="t">{{ q.title }}</span>
-          <span class="m">{{ q.detail }}</span>
-        </button>
-        <p v-if="!ui.queue.length" class="none">When Auto mode needs a decision, the agent walks to your door and waits here.</p>
-      </div>
-    </template>
+    <QuickStart v-if="mode === 'new'" :accounts="accounts" @close="mode = 'inbox'" @started="select" />
+    <Inbox v-else :inbox="inbox" :open="ui.selected" :chat="openChat" @select="select" @accounts="emit('accounts')" @new="mode = 'new'" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">
@@ -644,120 +665,12 @@ kbd {
   overflow: hidden;
 }
 
-.inbox .ih {
-  padding: 16px 16px 13px;
-  border-bottom: 1px solid var(--line);
-}
-
-.inbox h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.inbox .ih h2 i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--needs);
-}
-
-.inbox .ih h2 i.clear {
-  background: var(--ok);
-}
-
-.inbox .ih p {
-  margin: 3px 0 0;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.inbox .ibx {
-  flex: 1;
-  overflow: auto;
-  padding: 2px 12px 14px;
-}
-
 .av {
   width: 22px;
   height: 22px;
   border-radius: 50%;
   flex: none;
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.12), inset 0 2px 0 rgba(255, 255, 255, 0.25);
-}
-
-.qi {
-  all: unset;
-  box-sizing: border-box;
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto 22px minmax(0, 1fr);
-  grid-template-areas: 'n av t' '. . m';
-  gap: 2px 10px;
-  align-items: center;
-  padding: 11px 12px;
-  margin-top: 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.qi:hover {
-  border-color: #cbd0d8;
-}
-
-.qi:focus-visible {
-  outline: 2px solid var(--accent);
-}
-
-.qi.first {
-  border-color: #f5c66b;
-  background: var(--needs-bg);
-}
-
-.qi.stuck {
-  border-color: #f2b8b5;
-  background: #fff;
-}
-
-.qi .n {
-  grid-area: n;
-  font: 500 10px/1 var(--mono);
-  color: var(--needs-ink);
-  background: var(--needs-bg);
-  border: 1px solid #f3d9a6;
-  border-radius: 5px;
-  padding: 2px 4px;
-}
-
-.qi .av {
-  grid-area: av;
-}
-
-.qi .t {
-  grid-area: t;
-  font-size: 13.5px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.qi .m {
-  grid-area: m;
-  font: 11px var(--mono);
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .none {
@@ -770,67 +683,18 @@ kbd {
   text-align: center;
 }
 
-.inbox .dh {
-  padding: 14px 12px 10px 16px;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-}
-
-.inbox .dh .av {
-  width: 34px;
-  height: 34px;
-}
-
-.inbox .dh .meta {
-  margin: 2px 0 0;
-}
-
-.ib {
-  all: unset;
-  cursor: pointer;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-  font-size: 18px;
-}
-
-.ib:hover {
-  color: var(--ink);
-  background: var(--soft);
-}
-
-.ib:focus-visible {
-  outline: 2px solid var(--accent);
-}
-
-.doing {
-  margin: 14px 16px;
-  font: 12px var(--mono);
-  color: var(--muted);
-}
-
-.doing.working,
 .pd.working {
   color: var(--accent);
 }
 
-.doing.needs,
 .pd.needs {
   color: var(--needs-ink);
 }
 
-.doing.stuck,
 .pd.stuck {
   color: var(--danger);
 }
 
-.doing.done,
 .pd.done {
   color: #0f7a38;
 }

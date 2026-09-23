@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildQueue, queuePositions, type Queueable } from '../../src/renderer/office/queue'
+import { buildQueue, queuePositions, type Queueable } from '../../src/shared/queue'
 
 const needs = (id: string, since: number, accountId = 'main'): Queueable => ({ id, accountId, state: 'needs-you', since })
 const stuck = (id: string, since: number, reason: Queueable['stuckReason'], accountId = 'main'): Queueable => ({ id, accountId, state: 'stuck', since, stuckReason: reason })

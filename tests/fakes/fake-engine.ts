@@ -78,9 +78,10 @@ export function createFakeEngine({ auto = false } = {}) {
     if (!still()) return
     if (!session?.initialized) init(chatId)
     if (text.includes('[hang]')) return
-    if (text.includes('[ask]')) {
-      const suggestions = [{ type: 'addRules' as const, rules: [{ toolName: 'Bash', ruleContent: 'pnpm test' }], behavior: 'allow' as const, destination: 'localSettings' as const }]
-      const decision = await ask(chatId, 'Bash', { command: 'pnpm test' }, { suggestions })
+    if (text.includes('[ask]') || text.includes('[danger]')) {
+      const command = text.includes('[danger]') ? 'rm -rf dist' : 'pnpm test'
+      const suggestions = [{ type: 'addRules' as const, rules: [{ toolName: 'Bash', ruleContent: command }], behavior: 'allow' as const, destination: 'localSettings' as const }]
+      const decision = await ask(chatId, 'Bash', { command }, { suggestions })
       if (!still()) return
       emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Tests pass.' : 'Skipped the tests.'))
     }

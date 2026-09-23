@@ -51,6 +51,7 @@ create table if not exists chats (
 );
 create table if not exists drafts (chat_id text primary key, body blob not null, updated_at integer not null);
 create table if not exists account_health (account_id text primary key, health text not null);
+create table if not exists settings (key text primary key, value text not null);
 `
 
 const columns: [keyof ChatRecord, string][] = [
@@ -112,6 +113,8 @@ export function openDb(file: string) {
   const saveHealth = db.prepare('insert or replace into account_health (account_id, health) values (?, ?)')
   const deleteHealth = db.prepare('delete from account_health where account_id = ?')
   const listHealth = db.prepare('select account_id, health from account_health')
+  const readSetting = db.prepare('select value from settings where key = ?')
+  const saveSetting = db.prepare('insert or replace into settings (key, value) values (?, ?)')
 
   return {
     sql: db,
@@ -130,6 +133,11 @@ export function openDb(file: string) {
       else deleteHealth.run(accountId)
     },
     loadHealth: () => new Map((listHealth.all() as { account_id: string; health: string }[]).map((row) => [row.account_id, JSON.parse(row.health) as AccountHealth])),
+    setting: (key: string): unknown => {
+      const row = readSetting.get(key) as { value: string } | undefined
+      return row ? JSON.parse(row.value) : undefined
+    },
+    saveSetting: (key: string, value: unknown) => void saveSetting.run(key, JSON.stringify(value)),
     close: () => db.close(),
   }
 }

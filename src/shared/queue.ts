@@ -1,4 +1,4 @@
-import type { ChatState, StuckReason } from '../../shared/chat'
+import type { ChatState, StuckReason } from './chat'
 
 export interface Queueable {
   id: string

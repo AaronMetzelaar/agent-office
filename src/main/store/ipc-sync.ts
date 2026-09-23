@@ -6,6 +6,8 @@ import type { ChatStore } from './chats'
 
 const tickMs = 16
 
+export const loginItems = (accounts: readonly AccountView[]): LoginItem[] => accounts.filter((account) => account.health.status === 'needs-login').map((account) => ({ accountId: account.id, label: account.label }))
+
 function upsertRows(rows: ChatRow[], incoming: ChatRow[]): void {
   for (const row of incoming) {
     const index = rows.findIndex((existing) => existing.id === row.id)
@@ -58,12 +60,12 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
 
   return {
     snapshot(): ChatSnapshot {
-      pending.clear()
-      loginsChanged = false
+      clearTimeout(timer)
+      flush()
       return { seq, chats: store.snapshot(), logins }
     },
     setAccounts(accounts: AccountView[]) {
-      const next = accounts.filter((account) => account.health.status === 'needs-login').map((account) => ({ accountId: account.id, label: account.label }))
+      const next = loginItems(accounts)
       if (JSON.stringify(next) === JSON.stringify(logins)) return
       logins = next
       loginsChanged = true

@@ -1,7 +1,7 @@
 import { Color } from 'three'
-import { applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
+import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
-import { isDeptId, type DeptId } from '../office/layout'
+import { departmentOf, isResearch, palette, parkAfterMs, type DeptId } from '../../shared/office'
 
 export interface ChatSource {
   getSnapshot(): Promise<ChatSnapshot>
@@ -80,8 +80,6 @@ export function createProjection(source: ChatSource) {
   }
 }
 
-export const parkAfterMs = 24 * 60 * 60 * 1000
-
 export interface Agent {
   id: string
   title: string
@@ -100,32 +98,10 @@ export interface Agent {
   request?: { tool: string; summary: string; dangerous: boolean }
 }
 
-export function isResearch(account: Pick<AccountView, 'label'>): boolean {
-  return /research/i.test(account.label)
-}
-
-export function departmentOf(chat: Pick<ChatFields, 'cwd' | 'accountId' | 'department'>, researchAccounts: ReadonlySet<string>): DeptId {
-  if (isDeptId(chat.department)) return chat.department
-  if (researchAccounts.has(chat.accountId)) return 'gym'
-  const path = chat.cwd.replaceAll('\\', '/')
-  if (!/\/monorepo(\/|$)/.test(path)) return 'side'
-  if (/\/frontend\/marketplace(\/|$)/.test(path)) return 'mkt'
-  if (/\/frontend\/admin(\/|$)/.test(path)) return 'adm'
-  if (/\/frontend\/mobile(\/|$)/.test(path)) return 'mob'
-  return 'plat'
-}
-
 export function projectOf(cwd: string): string {
   const path = cwd.replaceAll('\\', '/').replace(/\/+$/, '')
   const repo = /^(.*?)\/\.claude\/worktrees\/[^/]+/.exec(path)?.[1] ?? path
   return repo.split('/').pop() || repo
-}
-
-function ago(ms: number): string {
-  const minutes = Math.floor(ms / 60_000)
-  if (minutes < 60) return `${Math.max(1, minutes)}m`
-  const hours = Math.floor(minutes / 60)
-  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
 }
 
 export function captionOf(chat: ChatView, parked: boolean, now: number): string {
@@ -133,11 +109,6 @@ export function captionOf(chat: ChatView, parked: boolean, now: number): string 
   if (parked) return `Parked · ${ago(now - chat.lastActivityAt)}`
   return doingNow(chat, now)
 }
-
-export const palette = [
-  0xf0463c, 0x3b7bff, 0x2fb344, 0xffc21a, 0x8b5cf6, 0xff7a59, 0x14b8a6, 0xf25ca2, 0x38bdf8, 0x84cc16, 0xfb923c,
-  0x5b5bd6, 0xe879f9, 0x0e7490, 0x10b981, 0xfda4af, 0x9f1239, 0x6ee7b7, 0xc2410c, 0x1e40af, 0xa3a3ff, 0xfdba74,
-] as const
 
 function hueFallback(id: string, avoid: readonly number[]): number {
   let hash = 0
@@ -179,7 +150,7 @@ const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.tes
 export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
   const research = new Set(accounts.filter(isResearch).map((account) => account.id))
   const live = [...chats].filter((chat) => !chat.archived)
-  const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research) }))
+  const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research.has(chat.accountId)) }))
   const colours = assignColours(
     placed.map(({ chat, dept }) => ({ id: chat.id, dept, createdAt: chat.createdAt, fixed: hexColour(chat.colour) })),
     prevColours,

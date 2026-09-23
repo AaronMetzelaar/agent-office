@@ -552,7 +552,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - With the fake engine running the prototype's sample chats, the scene matches `prototypes/combined.html` visually. Queue and state changes animate correctly.
 
-- [ ] **Unit 7: Inbox, notifications and menu bar strip**
+- [x] **Unit 7: Inbox, notifications and menu bar strip**
 
 **Goal:** The fast path for "who needs me?", whether the window is open, hidden or closed.
 

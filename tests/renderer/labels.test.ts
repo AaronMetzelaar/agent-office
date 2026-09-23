@@ -5,7 +5,7 @@ import { applyRegion, fitOverview, VIEW } from '../../src/renderer/office/camera
 import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
 import { anchorsFor, assignDesks, capacityOf, dept, deptIds, kindOf, layoutFloor, parkedZone, queueSpots, type Demand, type DeptId } from '../../src/renderer/office/layout'
 import { placementFor } from '../../src/renderer/office/pose'
-import { buildQueue, queuePositions } from '../../src/renderer/office/queue'
+import { buildQueue, queuePositions } from '../../src/shared/queue'
 
 interface Sample {
   id: string

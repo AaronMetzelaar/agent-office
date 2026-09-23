@@ -61,5 +61,7 @@ export function openVault(dir: string) {
     linearKey: () => read('linear'),
     setLinearKey: (key: string) => write('linear', key),
     clearLinearKey: () => erase('linear'),
+    ntfyKey: () => read('ntfy-hmac'),
+    setNtfyKey: (key: string) => write('ntfy-hmac', key),
   }
 }

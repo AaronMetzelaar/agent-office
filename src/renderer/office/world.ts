@@ -11,7 +11,7 @@ import { assignDesks, baseSlots, benchSeats, capacityOf, dept, depts, door, kind
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type DeptScene, type Slot } from './props'
-import { buildQueue, queuePositions, type QueueItem } from './queue'
+import { buildQueue, queuePositions, type QueueItem } from '../../shared/queue'
 
 export interface QueueEntry {
   key: string

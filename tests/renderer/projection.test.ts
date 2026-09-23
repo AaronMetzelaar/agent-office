@@ -8,8 +8,9 @@ import { countsFor } from '../../src/renderer/office/labels'
 import { anchorsFor, layoutFloor, queueSpots, type DeptId } from '../../src/renderer/office/layout'
 import { createNav, newWalker, stepWalker } from '../../src/renderer/office/nav'
 import { placementFor } from '../../src/renderer/office/pose'
-import { buildQueue, queuePositions } from '../../src/renderer/office/queue'
-import { assignColours, createProjection, departmentOf, parkAfterMs, projectOf, toAgents, type ChatSource } from '../../src/renderer/state/projection'
+import { buildQueue, queuePositions } from '../../src/shared/queue'
+import { assignColours, createProjection, projectOf, toAgents, type ChatSource } from '../../src/renderer/state/projection'
+import { departmentOf, parkAfterMs } from '../../src/shared/office'
 import type { ChatPatchBatch, ChatView } from '../../src/shared/chat'
 import type { AccountView } from '../../src/shared/ipc'
 import { sdk } from '../fakes/fake-engine'
@@ -131,7 +132,7 @@ describe('placement and colour', () => {
   const research = new Set(['research'])
 
   it('maps folders to departments with the placeholder rules', () => {
-    const at = (cwd: string, accountId = 'main') => departmentOf({ cwd, accountId }, research)
+    const at = (cwd: string, accountId = 'main') => departmentOf({ cwd }, research.has(accountId))
     expect(at('/Users/a/Documents/GitHub/monorepo/frontend/marketplace/components')).toBe('mkt')
     expect(at('/Users/a/Documents/GitHub/monorepo/frontend/admin')).toBe('adm')
     expect(at('/Users/a/Documents/GitHub/monorepo/frontend/mobile')).toBe('mob')
@@ -139,7 +140,7 @@ describe('placement and colour', () => {
     expect(at('/Users/a/Documents/GitHub/monorepo/.claude/worktrees/auc-1302')).toBe('plat')
     expect(at('/Users/a/Documents/GitHub/portfolio')).toBe('side')
     expect(at('/Users/a/Documents/GitHub/monorepo/frontend/marketplace', 'research')).toBe('gym')
-    expect(departmentOf({ cwd: '/x', accountId: 'main', department: 'mob' }, research)).toBe('mob')
+    expect(departmentOf({ cwd: '/x', department: 'mob' }, false)).toBe('mob')
     expect(projectOf('/Users/a/Documents/GitHub/cookbook/.claude/worktrees/pages')).toBe('cookbook')
   })
 

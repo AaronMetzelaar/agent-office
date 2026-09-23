@@ -7,4 +7,6 @@ files:
 mac:
   category: public.app-category.developer-tools
   target: dir
-  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    NSUserNotificationAlertStyle: alert

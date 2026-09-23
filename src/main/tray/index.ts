@@ -1,11 +1,23 @@
 import { app, Menu, nativeImage, Tray } from 'electron'
+import { stripBitmap, type StripState } from './strip'
 
-export function createTray(show: () => void): Tray {
-  const tray = new Tray(glyph())
+export function createTray(show: () => void, read: () => StripState) {
+  const tray = new Tray(image({ needs: 0, dots: [] }))
   tray.setToolTip('Agent Office')
   tray.on('click', show)
   tray.on('right-click', () => tray.popUpContextMenu(menu(show)))
-  return tray
+  let last = ''
+  const update = () => {
+    const state = read()
+    const key = JSON.stringify(state)
+    if (key === last || tray.isDestroyed()) return
+    last = key
+    tray.setImage(image(state))
+    tray.setTitle(state.needs ? String(state.needs) : '', { fontType: 'monospacedDigit' })
+    tray.setToolTip(state.needs ? `Agent Office · ${state.needs} waiting for you` : 'Agent Office')
+  }
+  update()
+  return { tray, update }
 }
 
 function menu(show: () => void): Menu {
@@ -22,20 +34,9 @@ function menu(show: () => void): Menu {
   ])
 }
 
-function glyph(): Electron.NativeImage {
-  const size = 32
-  const pixels = Buffer.alloc(size * size * 4)
-  const center = size / 2
-  const radius = size * 0.32
-  const stroke = size * 0.14
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const distance = Math.hypot(x + 0.5 - center, y + 0.5 - center)
-      const coverage = Math.min(1, Math.max(0, stroke / 2 - Math.abs(distance - radius) + 0.5))
-      pixels[(y * size + x) * 4 + 3] = Math.round(coverage * 255)
-    }
-  }
-  const image = nativeImage.createFromBitmap(pixels, { width: size, height: size, scaleFactor: 2 })
-  image.setTemplateImage(true)
-  return image
+function image(state: StripState): Electron.NativeImage {
+  const { pixels, width, height } = stripBitmap(state)
+  const icon = nativeImage.createFromBitmap(pixels, { width, height, scaleFactor: 2 })
+  icon.setTemplateImage(true)
+  return icon
 }

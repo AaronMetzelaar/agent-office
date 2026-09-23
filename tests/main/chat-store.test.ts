@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { doingNow, usageByAccount } from '../../src/shared/chat'
+import { palette, hexOf } from '../../src/shared/office'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
 
@@ -242,5 +243,19 @@ describe('chat store', () => {
     expect(chat(mine).stuck?.reason).toBe('needs-login')
     expect(engine.running(mine)).toBe(false)
     expect(chat(theirs).state).toBe('working')
+  })
+
+  it('gives each chat a palette colour at creation, never repeats one in a department, and keeps it across a reload', () => {
+    const ids = Array.from({ length: palette.length + 3 }, (_, i) => office.start(`Chat ${i}`))
+    const colours = ids.map((id) => office.chat(id).colour)
+    expect(colours.slice(0, palette.length)).toEqual(palette.map(hexOf))
+    expect(new Set(colours.filter(Boolean)).size).toBe(palette.length)
+    expect(colours.slice(palette.length)).toEqual([undefined, undefined, undefined])
+    const research = office.start('In the gym', 'research')
+    expect(office.chat(research).colour).toBe(hexOf(palette[0]))
+
+    office.db.close()
+    office = openOffice(dir)
+    expect(ids.map((id) => office.chat(id).colour)).toEqual(colours)
   })
 })

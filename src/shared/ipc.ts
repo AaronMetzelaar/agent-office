@@ -33,6 +33,16 @@ export interface AccountView {
 
 export type AddAccountResult = { account: AccountView } | { error: string }
 
+export type Navigate = { to: 'inbox' } | { to: 'chat'; chatId: string } | { to: 'new' } | { to: 'accounts' }
+
+export interface Settings {
+  phonePush: boolean
+  phonePushAvailable: boolean
+  alertsHintSeen: boolean
+}
+
+export type SettingName = 'phonePush' | 'alertsHintSeen'
+
 export interface Commands {
   getAppInfo(): AppInfo
   listAccounts(): AccountView[]
@@ -54,12 +64,18 @@ export interface Commands {
   resolveRequest(requestId: string, decision: Decision, source: WindowSource): ResolveResult
   listRules(): RuleView[]
   revokeRule(id: number): Promise<void>
+  recentFolders(): string[]
+  pickFolder(): Promise<string | undefined>
+  getSettings(): Settings
+  setSetting(name: SettingName, value: boolean): Settings
+  openNotificationSettings(): void
 }
 
 export interface Events {
   windowVisibility: { visible: boolean }
   accountsChanged: AccountView[]
   chatPatches: ChatPatchBatch
+  navigate: Navigate
 }
 
 export type OfficeApi = {
@@ -68,4 +84,5 @@ export type OfficeApi = {
   onWindowVisibility(listener: (payload: Events['windowVisibility']) => void): () => void
   onAccountsChanged(listener: (payload: Events['accountsChanged']) => void): () => void
   onChatPatches(listener: (payload: Events['chatPatches']) => void): () => void
+  onNavigate(listener: (payload: Events['navigate']) => void): () => void
 }

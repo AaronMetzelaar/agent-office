@@ -126,7 +126,7 @@ const stuckLabels: Record<StuckReason, string> = {
   error: 'error',
 }
 
-function ago(ms: number): string {
+export function ago(ms: number): string {
   const minutes = Math.floor(ms / 60_000)
   if (minutes < 60) return `${Math.max(1, minutes)}m`
   const hours = Math.floor(minutes / 60)

@@ -1,5 +1,6 @@
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'gym'] as const
-export type DeptId = (typeof deptIds)[number]
+import { deptIds, deptNames, type DeptId } from '../../shared/office'
+
+export { deptIds, isDeptId, type DeptId } from '../../shared/office'
 export type SlotKind = 'desk' | 'gym'
 
 export interface DeptDef {
@@ -25,17 +26,16 @@ const AX1 = -4.1
 const gap = 1
 
 export const depts: readonly DeptDef[] = [
-  { id: 'mkt', name: 'Marketplace', path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, row: 'n', box: [-13.5, -8.5, AX0, MZ], sign: [-13.25, MZ], slots: [[-10.9, -5.5], [-7.1, -5.5], [-10.9, -2.9], [-7.1, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'adm', name: 'Admin', path: 'monorepo/frontend/admin', accent: 0xdb2777, row: 'n', box: [AX1, -8.5, AX1 + 3.8, MZ], sign: [AX1 + 0.25, MZ], slots: [[AX1 + 1.4, -5.5], [AX1 + 1.4, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'mob', name: 'Mobile', path: 'monorepo/frontend/mobile', accent: 0x16a34a, row: 'n', box: [AX1, -8.5, 4.5, MZ], sign: [AX1 + 0.25, MZ], slots: [[-2.3, -5.5], [1.5, -5.5], [-2.3, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
-  { id: 'plat', name: 'Backend / infra', path: 'services · api · workers · infra', accent: 0x7c3aed, row: 's', box: [-13.5, MZ, AX0, FZ], sign: [-13.25, FZ], slots: [[-10.9, 2.7], [-7.1, 2.7], [-10.9, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
-  { id: 'side', name: 'Side projects', path: '~/Documents/GitHub', accent: 0xea580c, row: 's', box: [AX1, MZ, 4.5, FZ], sign: [AX1 + 0.25, FZ], slots: [[-2.3, 2.7], [1.5, 2.7], [-2.3, 5.4], [1.5, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
-  { id: 'gym', name: 'Research gym', path: 'research account', accent: 0x0d9488, row: 'g', box: [4.5, -8.5, 13.5, 8.5], sign: [6.55, 8.5], slots: [[6.1, -6.1], [8.1, -6.1], [10.1, -6.1], [12.1, -6.1]], growRows: [-6.1], pitch: 2 },
+  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, row: 'n', box: [-13.5, -8.5, AX0, MZ], sign: [-13.25, MZ], slots: [[-10.9, -5.5], [-7.1, -5.5], [-10.9, -2.9], [-7.1, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
+  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, row: 'n', box: [AX1, -8.5, AX1 + 3.8, MZ], sign: [AX1 + 0.25, MZ], slots: [[AX1 + 1.4, -5.5], [AX1 + 1.4, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
+  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, row: 'n', box: [AX1, -8.5, 4.5, MZ], sign: [AX1 + 0.25, MZ], slots: [[-2.3, -5.5], [1.5, -5.5], [-2.3, -2.9]], growRows: [-5.5, -2.9], pitch: 3.8 },
+  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, row: 's', box: [-13.5, MZ, AX0, FZ], sign: [-13.25, FZ], slots: [[-10.9, 2.7], [-7.1, 2.7], [-10.9, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
+  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub', accent: 0xea580c, row: 's', box: [AX1, MZ, 4.5, FZ], sign: [AX1 + 0.25, FZ], slots: [[-2.3, 2.7], [1.5, 2.7], [-2.3, 5.4], [1.5, 5.4]], growRows: [2.7, 5.4], pitch: 3.8 },
+  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, row: 'g', box: [4.5, -8.5, 13.5, 8.5], sign: [6.55, 8.5], slots: [[6.1, -6.1], [8.1, -6.1], [10.1, -6.1], [12.1, -6.1]], growRows: [-6.1], pitch: 2 },
 ]
 
 export const dept = Object.fromEntries(depts.map((d) => [d.id, d])) as Record<DeptId, DeptDef>
 export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
-export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
 
 export type Demand = Partial<Record<DeptId, number>>
 

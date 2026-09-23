@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -40,6 +40,8 @@ test('the demo office renders its sections, signs and door queue', async () => {
   await expect(page.locator('.sign', { hasText: 'Admin' })).toBeHidden()
   await expect(page.getByRole('complementary', { name: 'Inbox' })).toContainText('Dialog flow CI fix')
   await expect(page.locator('.chip.q').first()).toBeVisible()
+  const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }
+  await expect(page.getByText(`Agent Office ${version}`, { exact: true })).toBeVisible()
 })
 
 test('Admin unfolds when its first agent starts', async () => {

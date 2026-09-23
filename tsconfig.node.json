@@ -12,6 +12,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true
   },
   "include": ["src/main", "src/preload", "src/shared", "tests/main", "tests/renderer", "tests/fakes", "tests/e2e", "*.config.ts"]

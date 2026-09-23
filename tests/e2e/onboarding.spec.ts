@@ -70,7 +70,7 @@ test('settings opens Accounts, shows headroom and adds the second account withou
   await expect(page.locator('canvas')).toBeVisible()
   await page.locator('canvas').evaluate((canvas) => (canvas.dataset.marker = 'kept'))
 
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Accounts' }).click()
   const drawer = page.getByRole('complementary', { name: 'Accounts' })
   const main = drawer.locator('[data-account="main"]')

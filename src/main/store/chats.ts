@@ -4,6 +4,7 @@ import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { efforts, emptyUsage, maxRows, type ChatFields, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
@@ -12,6 +13,7 @@ import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
   exists(id: string): boolean
+  label(id: string): string | undefined
   needsLogin(id: string): boolean
   loginFailed(id: string): void
   recordHeadroom(id: string, info: SDKRateLimitInfo): void
@@ -227,11 +229,23 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   }
 
   const find = (chatId: unknown) => (typeof chatId === 'string' ? chats.get(chatId) : undefined)
+  const deptOf = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) => departmentOf(chat, isResearch({ label: accounts.label(chat.accountId) ?? '' }))
+  const colourFor = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) =>
+    pickColour(
+      [...chats.values()].filter(({ view }) => !view.archived && view.colour).map(({ view }) => ({ colour: view.colour, dept: deptOf(view) })),
+      deptOf(chat),
+    )
 
   for (const record of db.listChats()) {
     const chat = fromRecord(record)
     chats.set(chat.view.id, chat)
     if (midTurn.has(chat.view.state)) transition(chat, 'stuck', { stuck: { reason: 'interrupted' } })
+  }
+  for (const chat of chats.values()) {
+    const colour = chat.view.colour || chat.view.archived ? undefined : colourFor(chat.view)
+    if (!colour) continue
+    chat.view.colour = colour
+    save(chat)
   }
 
   const restored = Promise.all(
@@ -253,6 +267,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     events,
     restored,
     snapshot: (): ChatView[] => [...chats.values()].map((chat) => structuredClone(chat.view)),
+    view: (chatId: string): Readonly<ChatView> | undefined => chats.get(chatId)?.view,
+    views: (): readonly Readonly<ChatView>[] => [...chats.values()].map((chat) => chat.view),
+    recentFolders: (): string[] => [...new Set([...chats.values()].sort((a, b) => b.view.lastActivityAt - a.view.lastActivityAt).map((chat) => chat.view.cwd))].slice(0, 8),
     busy: () => [...chats.values()].some((chat) => midTurn.has(chat.view.state)),
 
     start(accountId: unknown, cwd: unknown, prompt: unknown, model?: unknown, effort?: unknown): StartChatResult {
@@ -263,10 +280,12 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (model !== undefined && (typeof model !== 'string' || !modelPattern.test(model))) return { error: 'That model name isn’t valid.' }
       if (effort !== undefined && !efforts.includes(effort as Effort)) return { error: 'That effort level isn’t valid.' }
       const now = Date.now()
+      const colour = colourFor({ accountId, cwd })
       const view: ChatView = {
         id: randomUUID(),
         accountId,
         cwd,
+        ...(colour ? { colour } : {}),
         title: prompt.trim().split('\n')[0]!.slice(0, 60),
         ...(model ? { model: model as string } : {}),
         ...(effort ? { effort: effort as Effort } : {}),

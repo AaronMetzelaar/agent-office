@@ -1,18 +1,24 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
+import { version } from '../../package.json'
+import { departmentOf, deptNames, isResearch } from '../shared/office'
+import type { Navigate, SettingName } from '../shared/ipc'
 import { createAccounts, fakeValidator, validateWithSdk } from './accounts/health'
 import { openVault } from './accounts/tokens'
 import { handle, send } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
 import { createWaitMetrics } from './metrics/wait'
+import { createNotifier } from './notify'
+import { configDir, createPhonePush } from './notify/ntfy'
 import { createBroker, windowResolver } from './permissions/registry'
 import { createRules } from './permissions/rules'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createSessionManager, type Engine } from './sessions/manager'
 import { createChatStore } from './store/chats'
 import { openDb } from './store/db'
-import { wireChats } from './store/ipc-sync'
+import { loginItems, wireChats } from './store/ipc-sync'
 import { createTray } from './tray'
+import { stripState } from './tray/strip'
 
 if (process.env.AGENT_OFFICE_USER_DATA) app.setPath('userData', process.env.AGENT_OFFICE_USER_DATA)
 
@@ -45,10 +51,11 @@ async function start(): Promise<void> {
   handle('resolveRequest', win, appUrl, windowResolver(broker, () => win.isFocused()))
   handle('listRules', win, appUrl, rules.list)
   handle('revokeRule', win, appUrl, rules.revoke)
-  const show = () => {
+  const show = (to?: Navigate) => {
     reveal(win)
     sync.setVisible(true)
     send(win, 'windowVisibility', { visible: true })
+    if (to) send(win, 'navigate', to)
   }
   const hide = () => {
     win.hide()
@@ -60,12 +67,7 @@ async function start(): Promise<void> {
   win.once('ready-to-show', () => {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
-  handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version: app.getVersion() }))
-  accounts.events.on('changed', (list) => {
-    send(win, 'accountsChanged', list)
-    sync.setAccounts(list)
-  })
-  accounts.events.on('removed', store.accountRemoved)
+  handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version }))
   handle('listAccounts', win, appUrl, accounts.list)
   handle('addAccount', win, appUrl, accounts.add)
   handle('removeAccount', win, appUrl, accounts.remove)
@@ -75,10 +77,60 @@ async function start(): Promise<void> {
   })
   handle('clearLinearKey', win, appUrl, vault.clearLinearKey)
   handle('hasLinearKey', win, appUrl, () => vault.linearKey() !== undefined)
-  const tray = createTray(show)
-  Object.assign(globalThis, { tray })
-  app.on('second-instance', show)
-  app.on('activate', show)
+  handle('recentFolders', win, appUrl, store.recentFolders)
+  handle('pickFolder', win, appUrl, async () => {
+    const picked = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose' })
+    return picked.canceled ? undefined : picked.filePaths[0]
+  })
+
+  const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest })
+  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true })
+  handle('getSettings', win, appUrl, settings)
+  handle('setSetting', win, appUrl, (name: SettingName, value: boolean) => {
+    if (typeof value !== 'boolean') return settings()
+    if (name === 'phonePush') phone.set(value)
+    if (name === 'alertsHintSeen') db.saveSetting(name, value)
+    return settings()
+  })
+  handle('openNotificationSettings', win, appUrl, () => void shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings.extension'))
+
+  const research = () => new Set(accounts.list().filter(isResearch).map((account) => account.id))
+  const notifier = createNotifier({
+    store,
+    department: (chat) => deptNames[departmentOf(chat, research().has(chat.accountId))],
+    resolve: (requestId, decision) => broker.resolveRequest(requestId, decision, 'notification'),
+    sendMessage: store.sendMessage,
+    open: show,
+    notification: (options) => new Notification(options),
+    push: phone.post,
+  })
+  const strip = createTray(() => show({ to: 'inbox' }), () => stripState(store.views(), loginItems(accounts.list()), Date.now()))
+  store.events.on('patch', (patch) => {
+    if (patch.fields && ('state' in patch.fields || 'pendingRequests' in patch.fields || 'archived' in patch.fields)) strip.update()
+  })
+  setInterval(strip.update, 60_000)
+  accounts.events.on('needs-login', notifier.login)
+  accounts.events.on('changed', (list) => {
+    send(win, 'accountsChanged', list)
+    sync.setAccounts(list)
+    strip.update()
+    for (const account of list) if (account.health.status !== 'needs-login') notifier.loginFixed(account.id)
+  })
+  accounts.events.on('removed', store.accountRemoved)
+  Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
+  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store })
+  app.on('second-instance', () => show())
+  app.on('activate', () => show())
+}
+
+function appMenu(newAgent: () => void): Menu {
+  return Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { label: 'File', submenu: [{ id: 'new-agent', label: 'New Agent…', accelerator: 'CmdOrCtrl+N', click: newAgent }, { type: 'separator' }, { role: 'close' }] },
+    { role: 'editMenu' },
+    ...(app.isPackaged ? [] : [{ role: 'viewMenu' as const }]),
+    { role: 'windowMenu' },
+  ])
 }
 
 async function confirmQuit(win: BrowserWindow): Promise<boolean> {
