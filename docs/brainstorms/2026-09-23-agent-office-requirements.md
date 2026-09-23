@@ -11,12 +11,12 @@ Aaron runs many Claude Code chats at once across two accounts on one MacBook. Ea
 
 Agent Office replaces the desktop client for his daily work. Every chat is a small character at a desk in a cute, colourful but professional 3D office, grouped into departments by the code it works on. It has to be at least as useful as Claude Code: he starts, steers, reviews and approves work from the office, not from the desktop app.
 
-Chosen layout: the **Open floor**, plus the door queue from the **Corner office** prototype (picked from three prototypes; see `prototypes/`).
+Chosen layout: the **Open floor**, plus the door queue from the **Corner office** prototype (picked from three prototypes; the chosen one is `prototypes/combined.html`, and the others are in git history).
 
 ## Requirements
 
 **The office**
-- R1. A 3D office in the style of Aaron's reference image (`docs/reference.png`): colourful glossy blob characters with big eyes, white walls, wooden desks, plants, soft daylight. Cute, but professional and legible.
+- R1. A 3D office in the style of Aaron's reference image (`docs/reference.png`): colourful glossy blob characters with big eyes, white walls, wooden desks, plants, soft daylight. Cute, but professional and legible. Characters are matte (no glossy or refractive materials), and the office must feel fast.
 - R2. One character per chat, with a colour that stays stable for the life of the chat and a name tag showing the chat title.
 - R3. Departments reflect where the work happens:
   - A Monorepo wing with **Marketplace**, **Mobile** and **Platform** (the rest of the monorepo).
@@ -29,6 +29,14 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
   - a sign readable from the overview, with its name, folder and live counts (needs-you in amber)
 
   Inside Side projects and the gym, each desk carries its project's name.
+
+  Sections look like the projects they hold. For MWS (mws.com, match-worn football shirts):
+  - Marketplace: a shirt showroom with framed shirts, a hanger rail, an auction podium and pitch turf.
+  - Mobile: a device-testing wall.
+  - Platform: server racks and monitoring screens.
+  - Side projects: a corner per project.
+  - The gym keeps its gym look.
+  No real club crests or MWS logos.
 - R4. Placement follows the files live. A main-account chat sits in the department whose files it has recently read and edited. It walks to another department only when its work clearly and consistently shifts; one stray file read must not move it. A chat working across departments sits where it has edited the most, and a tie keeps it where it is. Subagent activity counts toward the parent.
 - R5. Each state reads at a glance, and "needs you" is always the loudest:
 
@@ -46,6 +54,8 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 
   Hovering a department highlights it. Clicking a count in the tally highlights those agents.
 
+  The overview stays uncluttered. It shows compact department signs, every agent's status ring, and tags only for agents that need you or are stuck. Other tags appear on hover or when zoomed into a department.
+
 - R6. Subagents appear as mini versions of their parent next to it, labelled with their task. They leave when they finish.
 - R7. Your office, glass-walled, sits at the front of the floor, nearest the default camera. Chats that need you (including stuck ones) queue at your door in arrival order. The order is visual only: you can open any waiting agent. When you release one (allow, deny, reply or restart), it walks back to its desk and the rest move up.
 - R8. The overview shows the whole floor. Clicking an agent glides the camera in and opens its chat, and "Overview" returns. ⌘K jumps to any agent by name. Departments add desks as they fill up; there is no fixed seat count.
@@ -57,12 +67,12 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R10. Start a new agent from an empty desk or a command:
   - Choose the folder, or ask for a fresh worktree.
   - Write the first prompt.
-  - Pick model, effort and permission mode (ask first, auto-accept edits, or plan first).
+  - Pick model and effort. Every agent runs in Claude Code's Auto mode by default, so only what Auto mode escalates reaches the queue. Plan mode stays available per chat.
   - While it starts, the desk shows progress ("setting up worktree…"). A failure shows on the desk and in the chat, with Retry.
 - R11. A full conversation view:
   - Streaming replies, tool calls with their results, and subagent activity.
   - Send messages and stop the agent.
-  - Change model and effort mid-chat; the change applies from the next turn, as in Claude Code.
+  - Change model and effort mid-chat with a visible effort control (low to max); the change applies from the next turn, as in Claude Code.
 
 *Permissions*
 - R12. Handle permission requests with Allow once, Always allow or Deny, from any of:
@@ -100,17 +110,23 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R17. Runs sessions for both accounts side by side. The account shows through location (the Research gym is the research account) and in the chat header, with no extra colour coding, so the per-chat colours in R2 stay unique. Each account's login is stored in the macOS Keychain, separately per account.
 - R18. Chats started outside the office (the desktop app, `claude` in a terminal) appear read-only with live status. A "Move into the office" action resumes that chat inside the office so you can chat and approve there.
 
+**Housekeeping**
+- R21. Parking: a chat with no message for 1 day leaves its desk for a Parked area near the entrance, dimmed and without a tag at the overview. It returns when a message arrives. Thresholds are editable.
+- R22. Resources: the office shows RAM per agent (its session plus the processes it started, such as dev servers and test runners), the number of worktrees and their disk size, and each worktree's git state. A top-bar indicator turns amber when RAM is high.
+- R23. Cleanup: chats with no message for 3 days are suggested for cleanup. The possible actions are stop processes, archive the chat, and remove the worktree. Removing a worktree is blocked, with the reason shown, when it has uncommitted or unpushed changes. One "Clean up safe" action previews, then handles, all the safe candidates, and reports what was freed.
+
 **App shell**
 - R19. A native Mac app with three parts:
   - The office window.
   - A menu bar strip showing state dots and the needs-you count. Clicking it opens the office on the inbox.
-  - Native notifications when a chat needs you (and optionally when one finishes).
+  - Push notifications that say who needs help with what (the agent, its department, and the request), with Allow, Deny and Open. They go to the Mac and to his phone. Approving from the phone can come later.
 - R20. Sessions keep running with the window closed, the menu bar stays live, and the app can start at login.
 
 ## Success Criteria
 - Within two weeks, Aaron no longer opens the Claude desktop app for daily work.
 - "Who needs me?" is answerable in under two seconds, from the menu bar or the office.
 - From the overview, without zooming, he can tell every department's name and counts, and every agent's state.
+- Stale worktrees and their processes stop piling up: one weekly "Clean up safe" leaves no safe candidate older than 3 days.
 - A notification appears within a second of a permission request.
 - With 15 agents running (his busy-day peak is about 10), it stays smooth on his MacBook and every label stays legible.
 - The time a chat waits on him before he acts drops compared with today. The app measures this, since it sees when a chat blocks and when he responds.

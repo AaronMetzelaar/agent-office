@@ -31,6 +31,7 @@ All of R1–R20 in the origin doc, grouped here by where the plan delivers them:
 - **History and inbox (R15–R16):** Units 7 and 12.
 - **Accounts and outside chats (R17–R18):** Units 3, 4 and 13.
 - **App shell (R19–R20):** Units 2, 4 and 7.
+- **Housekeeping (R21–R23):** Units 6 and 15.
 
 Success criteria carried forward:
 
@@ -67,17 +68,13 @@ Two more, added during planning:
 
 ### Relevant Code and Patterns
 
-- `prototypes/open-floor.html` is the source for the office scene:
-  - floor layout, departments and floor decals
-  - blob characters (poses, blinking, walking around furniture)
-  - desk and gym props, the wall status screen
+- `prototypes/combined.html` is the single source for the chosen direction, and the visual acceptance reference for Unit 6:
+  - the Open floor with sectioned departments, signs and live counts
+  - your glass office at the front, with the numbered door queue (waypoint pathing, release and move-up)
+  - blob characters (poses, blinking, walking around furniture), status rings, "doing now" captions
   - chip labels that collapse to dots, the camera overview and glide
-  - the drawer layout and the permission card with 1/2/3 keys
-- `prototypes/corner.html` is the source for the door queue:
-  - waypoint pathing to queue spots
-  - release and move-up behaviour
-  - the queue-ordered "Waiting for you" tabs
-- `prototypes/combined.html` is the chosen direction: the Open floor with your glass office at the front, a numbered door queue, and an inbox-first drawer. It is the visual acceptance reference for Unit 6.
+  - the inbox-first drawer with the department board and the permission card with 1/2/3 keys
+  The earlier directions (Tower, Corner office, standalone Open floor) were removed after the pick; they remain in git history.
 - Machine facts verified on 2026-09-23:
   - Each desktop app instance launches `claude` (v2.1.280) with `--print --input-format stream-json --output-format stream-json`, passes the account's login in `CLAUDE_CODE_OAUTH_TOKEN`, and does not set `CLAUDE_CONFIG_DIR`, so both accounts share `~/.claude`.
   - Each instance keeps per-chat JSON under `~/Library/Application Support/<instance>/claude-code-sessions/**/local_*.json`, with `title`, `cliSessionId`, `lastActivityAt` and `isArchived`.
@@ -136,7 +133,8 @@ Two more, added during planning:
   - With a chat open, they act on its oldest unanswered card.
   - With no chat open, the first press opens the first queued chat and shows its card, and a second press decides.
   The queue is ordered by each chat's oldest pending item; that order is visual only. This refines the key behaviour in the origin's R12 (see Open Questions).
-- **Risky requests always need a click.** Main flags a request as dangerous when it matches a pattern list. Examples:
+- **Every session runs in Auto mode (`permissionMode: 'auto'`) by default,** so `canUseTool` only fires for what Auto mode escalates. Plan mode stays available per chat.
+- **Risky requests always need a click.** The SDK marks requests that mustn't be approved by one stray key (`defaultToNo`) and asks that mustn't offer a persistent rule (`suppressAlwaysAllowRule`); the office honours both. On top of that, main flags a request as dangerous when it matches a pattern list. Examples:
   - destructive shell: `rm -rf`, `sudo`, `curl … | sh`, `git push --force`
   - edits to credential or config paths
   - anything outside the chat's working tree
@@ -203,6 +201,9 @@ Aaron kept these as built. Reverting either one is a small change in Units 5 and
 - *No Always allow for WebFetch and WebSearch*. Fetched content is the easiest way to inject instructions into an agent, so these tools always ask.
 
 ### Deferred to Implementation
+
+- Which phone push service: ntfy (self-hostable topic) or Pushover. Decide in Unit 7. Either way the payload holds the agent, department and a redacted request summary, never full commands or file contents.
+- How to attribute outside chats' processes to a working directory cheaply (batched `lsof` for cwd, or process arguments): decide in Unit 15.
 
 - Exact classifier weights and window size: tune against real transcripts in Unit 9.
 - Does `@tresjs/post-processing` cover ambient occlusion and tilt-shift, or does the scene drop to three.js's composer? Decide when porting the scene in Unit 6.
@@ -409,7 +410,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - Test: `tests/main/normalize.test.ts`, `tests/main/chat-store.test.ts`, `tests/main/relaunch.test.ts`, `tests/main/ipc-sync.test.ts`, `tests/main/replay.test.ts`
 
 **Approach:**
-- **SessionManager** wraps one streaming `query()` per chat, with the account's token env, the working directory, and optional `resume`/`forkSession`. It exposes send, interrupt, set model, set effort, set permission mode, and stop.
+- **SessionManager** wraps one streaming `query()` per chat, with the account's token env, the working directory, and optional `resume`/`forkSession`. It exposes send, interrupt, set model, set effort (`applyFlagSettings({ effortLevel })`), set permission mode, and stop. Sessions default to Auto mode. The subprocess PID is tracked for Unit 15's resource sampling.
 - **The normalizer** maps SDK messages to chat events: text delta, tool use, tool result, subagent start/stop (via `parent_tool_use_id`), turn result with usage, typed error.
 - **Doing now:** from the latest events, the store derives a one-line caption per chat for the office and the board. Examples: "Editing BidFlow.vue", "Running pnpm test", "3 subagents exploring", "Waiting for you · Bash", "Done · ready to review", "Idle 38m".
 - **The ChatStore** runs the state machine from the design section. It persists metadata to SQLite and pushes diffs to the renderer.
@@ -522,9 +523,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - label culling and collapse-to-dot when crowded
 
 **Patterns to follow:**
-- `prototypes/open-floor.html` (scene, characters, labels, drawer framing)
-- `prototypes/corner.html` (queue pathing and release)
-- `prototypes/combined.html` (the chosen composition)
+- `prototypes/combined.html` (scene, characters, labels, queue pathing and release, drawer)
 
 **Test scenarios:**
 - Happy path: three chats in Needs you get queue spots 1–3 in order of their oldest pending request. Releasing spot 1 moves the others up.
@@ -561,7 +560,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Each item expands to show the last reply and a basic reply box, so Phase 1 can drive chats before Unit 8.
 - **Quick start** (⌘N): pick an existing folder and account, write a prompt, start. Phase 1 needs this so it can start sessions before Unit 9's desk flow and worktrees.
 - **Keys:** 1/2/3 act only on a visible request card. With no chat open, the first press opens the first queued card. j/k step through the queue, and Esc returns to the inbox.
-- **Notifications** fire per new pending request, grouped per account for login failures. They carry Allow once (not for dangerous requests), Deny, Open and an inline reply, all routed through `resolveRequest` or send. First run shows how to switch the notification style to Alerts.
+- **Notifications** fire per new pending request, grouped per account for login failures. Each says who needs help with what: the agent title, its department, and the request ("Auto mode wants to run: pnpm test …"). They carry Allow once (not for dangerous requests), Deny, Open and an inline reply, all routed through `resolveRequest` or send. First run shows how to switch the notification style to Alerts.
+- **Phone push:** the same events go to a phone push service configured in settings, with a redacted summary. Tapping one opens nothing yet; approving from the phone is later.
 - **The menu bar strip** is a template image redrawn from the store: the needs-you count plus dots. Clicking it opens the window on the inbox; its menu has Quit.
 
 **Test scenarios:**
@@ -593,7 +593,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - The transcript shows streaming text (partial messages), tool rows with results and diff stats, a subagent card, and Stuck banners with Resume, Retry and Re-login.
 - Markdown renders with raw HTML disabled plus a sanitizer. Links open externally only after a confirmation.
-- The composer keeps a draft per chat, persisted. Send with ⌘↵ and Stop. Pickers for model, effort and permission mode apply from the next turn, as in Claude Code.
+- The composer keeps a draft per chat, persisted. Send with ⌘↵ and Stop. A visible effort control (Low, Medium, High, Extra high, Max) sits next to the model in the chat header, with an Auto-mode chip. Changes apply from the next turn, as in Claude Code.
 - One request card per pending request, stacked oldest first. Plan and question cards are variants.
 - A queue strip at the top steps through waiting chats.
 
@@ -626,7 +626,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - Starting an agent:
   - Choose a recent repository or a folder. Optionally ask for a fresh worktree (`<repo>/.claude/worktrees/<slug>` on a new branch).
-  - Write the prompt, and pick model, effort and permission mode.
+  - Write the prompt, and pick the model and effort. The default effort is remembered, and Auto mode is on by default.
   - The desk shows "setting up worktree…"; a failure shows on the desk and in the chat with Retry.
 - The account defaults to main for main-account folders and research for the gym, and can be overridden.
 - Placement follows the classifier in Key Technical Decisions. A starting chat sits at the desk it was started from until the classifier has evidence. Moves are deferred while queued or open.
@@ -672,6 +672,49 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 **Verification:**
 - For a real chat's worktree, the panel matches `git diff` and `gh pr view` output.
+
+- [ ] **Unit 15: Housekeeping (parking, resources, cleanup)**
+
+**Goal:** Keep worktrees, processes and RAM under control. Park stale chats and clean up what isn't used any more, safely.
+
+**Requirements:** R21, R22, R23, and the success criterion on stale worktrees
+
+**Dependencies:** Units 4, 6 and 10 (git state reuses Unit 10's git helpers)
+
+**Files:**
+- Create: `src/main/housekeeping/resources.ts`, `src/main/housekeeping/cleanup.ts`, `src/main/housekeeping/stale.ts`
+- Create: `src/renderer/panels/Housekeeping.vue`
+- Test: `tests/main/resources.test.ts`, `tests/main/cleanup.test.ts`, `tests/main/stale.test.ts`, `tests/e2e/cleanup.spec.ts`
+
+**Approach:**
+- **Stale:** the last-message time comes from the store for office chats and from transcript mtime for outside chats.
+  - 1 day without a message: the chat is Parked, and its agent walks to the Parked area.
+  - 3 days: it's suggested for cleanup.
+  - Thresholds live in settings.
+- **Resources:** sampled every ~10s.
+  - Each office session's process tree (the `claude` subprocess and its descendants, e.g. vite or vitest), with resident memory per agent.
+  - For outside chats, `claude` processes are matched to their working directory.
+  - Worktrees are listed with `git worktree list` per known repository, with disk size computed lazily and cached.
+- **Git state per worktree:** uncommitted changes, unpushed commits, and PR state (open or merged, via `gh`).
+- **Cleanup actions:**
+  - Stop processes: signal the agent's child processes, never the office itself.
+  - Archive chat.
+  - Remove worktree: `git worktree remove` without force, allowed only when clean, or when fully pushed with the PR merged.
+- "Clean up safe" previews the list, runs the allowed actions, and reports what was freed (GB and worktree count).
+- Everything runs through argument-array process launches. Nothing is deleted when the git state can't be determined.
+
+**Test scenarios:**
+- Happy path: a chat whose last message was 26 hours ago is Parked; one from 4 days ago appears in the cleanup list with its RAM and worktree size.
+- Happy path: "Clean up safe" on three clean worktrees stops their processes, archives the chats, removes the worktrees, and reports freed memory and "removed 3 worktrees".
+- Edge case: a worktree with uncommitted or unpushed changes is listed but blocked, with the reason shown, and "Clean up safe" skips it.
+- Edge case: a message arriving for a Parked chat brings its agent back to a desk.
+- Error path: `gh` unavailable means PR state is unknown, so the worktree counts as not safe unless it's clean and fully pushed.
+- Error path: a process that refuses to exit after the grace period is reported, never force-killed silently.
+- Integration: the resources sample for a session running a dev server attributes the dev server's memory to that agent.
+
+**Verification:**
+- On his machine, the Housekeeping view matches `git worktree list` and Activity Monitor within reason. Cleaning up safe candidates frees their memory and worktrees without touching anything with unpushed work.
+
 
 ### Phase 4 — Rich input
 
@@ -832,6 +875,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | Dual-account headless sessions or fork adoption don't behave as documented | Unit 1 is a go/no-go before any app code. The fallback is jump-and-approve with hook status (origin Key Decisions). |
 | Token-authenticated sessions lack claude.ai connectors (Linear, Slack, Sentry…), a real parity gap for his work | Unit 1 lists exactly what's missing; a follow-up task recreates the important ones as local MCP servers, or keeps those tasks in the desktop app for now. |
 | Anthropic's terms bar third-party products from offering claude.ai logins | Keep the app strictly personal: no distribution. Recorded in Scope Boundaries. |
+| Phone push sends work details off the machine | Redacted payloads (agent, department, tool, short summary), a user-chosen service (ntfy or Pushover), and an off switch. |
+| Cleanup deletes work Aaron still needed | Worktree removal only when clean, or fully pushed with the PR merged; never forced; a preview before bulk cleanup; unknown git state counts as unsafe. |
 | Notification actions don't show (unsigned build, or Banners style) | Build with a stable self-signed identity; onboarding links to the notification settings. |
 | Editing global `~/.claude/settings.json` could break other Claude Code sessions | Consent, backup, a minimal single-entry change, exact uninstall, and a fail-fast hook script. Tested in Unit 13. |
 | Undocumented desktop metadata or JSONL formats change with an app update | The parsers tolerate unknown fields and skip bad lines. Outside chats fall back to showing a folder name instead of a title. |
@@ -849,7 +894,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | 0 | 1 | Go/no-go on the architecture. |
 | 1 | 2–7 | Office, queue, approvals, inbox, menu bar and notifications on real sessions. Chats start via ⌘N quick start and are driven from the inbox reply box. |
 | 2 | 8–9 | Full conversation and new agents in folders or worktrees, with live department placement. |
-| 3 | 10 | Review inside the office. |
+| 3 | 10, 15 | Review inside the office, plus housekeeping: parking, RAM and worktree view, safe cleanup. |
 | 4 | 11 | Rich input. |
 | 5 | 12–14 | History, outside chats with adoption, proven performance and wait-time stats. |
 
@@ -862,7 +907,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 ## Sources & References
 
 - **Origin document:** [docs/brainstorms/2026-09-23-agent-office-requirements.md](../brainstorms/2026-09-23-agent-office-requirements.md)
-- Prototypes: `prototypes/open-floor.html`, `prototypes/corner.html`, `prototypes/tower.html`, `prototypes/combined.html`
+- Prototype: `prototypes/combined.html` (earlier directions are in git history)
 - Reference image: `docs/reference.png`
 - Agent SDK docs: code.claude.com/docs/en/agent-sdk/typescript, /permissions, /sessions, /claude-code-features, /hosting, /skills
 - Electron docs: electronjs.org/docs/latest/api/native-image, /api/safe-storage, /tutorial/notifications
