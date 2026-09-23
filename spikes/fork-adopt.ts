@@ -4,14 +4,15 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { loadTokens, sessionEnv, scratchDir, inputQueue, describe, writeResult } from './lib.ts'
 
-const env = sessionEnv(loadTokens().main)
+const tokens = loadTokens()
+const env = sessionEnv(tokens.main)
 const cwd = scratchDir()
 const log: string[] = []
 const SECRET = `pelican-${Math.floor(Math.random() * 9000 + 1000)}`
 
-function openSession(name: string, extra: Record<string, unknown> = {}) {
+function openSession(name: string, extra: Record<string, unknown> = {}, sessionEnvOverride?: Record<string, string>) {
   const input = inputQueue()
-  const q = query({ prompt: input.iterable, options: { cwd, env, permissionMode: 'default', canUseTool: async () => ({ behavior: 'deny', message: 'no tools' }), ...extra } })
+  const q = query({ prompt: input.iterable, options: { cwd, env: sessionEnvOverride ?? env, permissionMode: 'default', canUseTool: async () => ({ behavior: 'deny', message: 'no tools' }), ...extra } })
   let sessionId: string | undefined
   let lastText = ''
   const pending: { waiting: (() => void) | null } = { waiting: null }
@@ -66,13 +67,20 @@ try {
 }
 const linesAfterPlainResume = lineCount(originalId)
 
-await Promise.allSettled([fork.close(), original.close(), plain.close()])
+const cross = openSession('cross-account', { resume: originalId, forkSession: true }, sessionEnv(tokens.research))
+await cross.say('What was the secret word I gave you? Reply with just the word.')
+
+await Promise.allSettled([fork.close(), original.close(), plain.close(), cross.close()])
 
 const verdict = {
   forkGotNewSessionId: !!fork.id && fork.id !== originalId,
   forkRemembersContext: fork.text.toLowerCase().includes(SECRET),
   forkDidNotTouchOriginal: linesAfterFork === linesBeforeFork,
   originalKeptWorkingAfterFork: original.text.toLowerCase().includes('still here'),
+  crossAccountFork: {
+    newSessionId: !!cross.id && cross.id !== originalId,
+    remembersContext: cross.text.toLowerCase().includes(SECRET)
+  },
   plainResumeWhileOpen: {
     sameSessionId: plain.id === originalId,
     error: plainResumeError ?? null,
