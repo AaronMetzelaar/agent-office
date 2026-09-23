@@ -203,7 +203,6 @@ Aaron kept these as built. Reverting either one is a small change in Units 5 and
 
 ### Deferred to Implementation
 
-- Which phone push service: ntfy (self-hostable topic) or Pushover. Decide in Unit 7. Either way the payload holds the agent, department and a redacted request summary, never full commands or file contents.
 - How to attribute outside chats' processes to a working directory cheaply (batched `lsof` for cwd, or process arguments): decide in Unit 15.
 
 - Exact classifier weights and window size: tune against real transcripts in Unit 9.
@@ -573,7 +572,10 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - **Quick start** (⌘N): pick an existing folder and account, write a prompt, start. Phase 1 needs this so it can start sessions before Unit 9's desk flow and worktrees.
 - **Keys:** 1/2/3 act only on a visible request card. With no chat open, the first press opens the first queued card. j/k step through the queue, and Esc returns to the inbox.
 - **Notifications** fire per new pending request, grouped per account for login failures. Each says who needs help with what: the agent title, its department, and the request ("Auto mode wants to run: pnpm test …"). They carry Allow once (not for dangerous requests), Deny, Open and an inline reply, all routed through `resolveRequest` or send. First run shows how to switch the notification style to Alerts.
-- **Phone push:** the same events go to a phone push service configured in settings, with a redacted summary. Tapping one opens nothing yet; approving from the phone is later.
+- **Phone push via ntfy:** every notification also goes to one private ntfy topic, read from `~/.config/agent-office/ntfy-topic` (0600, generated 2026-09-23; Aaron is subscribed on his iPhone).
+  - ntfy priorities set the phone behaviour: needs you and stuck are high, done and review requests normal, housekeeping low.
+  - Payloads are redacted summaries: agent, department, tool and a short request, never full commands or file contents.
+  - Tapping one opens nothing yet; approving from the phone comes later.
 - **The menu bar strip** is a template image redrawn from the store: the needs-you count plus dots. Clicking it opens the window on the inbox; its menu has Quit.
 
 **Test scenarios:**
@@ -970,7 +972,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 | Anthropic's terms bar third-party products from offering claude.ai logins | Keep the app strictly personal: no distribution. Recorded in Scope Boundaries. |
 | Linear API key and `gh` polling | The key is stored like the tokens and is optional. `gh` reuses his login, polled every ~5 minutes and on focus, to stay within GitHub rate limits. |
 | Ship-it actions call skills that only exist in some repos | Offered only when the session's `supportedCommands()` includes them. |
-| Phone push sends work details off the machine | Redacted payloads (agent, department, tool, short summary), a user-chosen service (ntfy or Pushover), and an off switch. |
+| Phone push sends work details off the machine | Redacted payloads (agent, department, tool, short summary), ntfy with one private topic, and an off switch. |
 | Cleanup deletes work Aaron still needed | Worktree removal only when clean, or fully pushed with the PR merged; never forced; a preview before bulk cleanup; unknown git state counts as unsafe. |
 | Notification actions don't show (unsigned build, or Banners style) | Build with a stable self-signed identity; onboarding links to the notification settings. |
 | Editing global `~/.claude/settings.json` could break other Claude Code sessions | Consent, backup, a minimal single-entry change, exact uninstall, and a fail-fast hook script. Tested in Unit 13. |
