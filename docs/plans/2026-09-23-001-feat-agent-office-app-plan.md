@@ -301,7 +301,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 0 — Go / no-go
 
-- [ ] **Unit 1: Feasibility spike**
+- [x] **Unit 1: Feasibility spike** (GO, see `docs/solutions/2026-09-sdk-dual-account-spike.md`)
 
 **Goal:** Prove, or disprove, the four assumptions the architecture rests on, before building the app.
 
@@ -385,7 +385,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - First run shows onboarding, and it blocks the office until at least one account validates. It explains how to run `claude setup-token` for each account. Aaron pastes each token and gives it a label (main or research). The second account can be added later from settings.
 - Each token is stored as its own `safeStorage`-encrypted entry. Tokens are never logged, sent to the renderer, written in plain text, stored in SQLite, or included in serialized errors.
-- Validation runs a minimal one-turn query on the account.
+- Validation runs a minimal one-turn query on the account. `accountInfo()` returns no email or plan for `setup-token` logins, so the label is the account's identity (spike finding).
 - Account health is ok or needs login, and feeds the queue (see Key Technical Decisions).
 - **Headroom per account** comes from the `rate_limit_event` messages each session streams (status, utilization and reset time per window). It's shown in settings and on the new-agent form, and a warning status suggests the other account.
 - An optional Linear personal API key (for Unit 16) is stored the same way as the tokens.
@@ -423,7 +423,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - **The relaunch contract** (see Key Technical Decisions): a quit confirmation when agents are working; after a restart, interrupted chats come back as Stuck with Resume.
 - **Per-chat replay** reads one chat's JSONL transcript back into the store, for relaunch recovery and for paging older history into the chat panel. Cross-chat search stays in Unit 12.
 - **IPC sync:** snapshot on mount, relaunch and window show; per-chat patches coalesced per frame tick; state transitions only while hidden.
-- **Error isolation:** each chat's event handling runs inside an error boundary. A crash marks that chat Stuck (crashed) and nothing else.
+- **Error isolation:** each chat's event handling runs inside an error boundary. A crash marks that chat Stuck (crashed) and nothing else. The SDK throws error results from the message iterator (e.g. `[ede_diagnostic] result_type=user`, or `401 OAuth access token is invalid`). Wrap every chat's iterator, map thrown errors to Stuck reasons (401 → needs login), and offer Resume (spike finding).
 - **A scripted fake engine** with the same surface drives the tests and end-to-end runs without spending tokens.
 
 **Test scenarios:**
@@ -466,7 +466,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Approve or reject a plan (on approval, switch the permission mode back).
 - New sessions in a repository start with its saved rules for that account. Revoking a rule removes it for live sessions too.
 - `repo-root` resolves a worktree to its repository through git's common directory, independently of Unit 9's worktree creation.
-- `danger` classifies each request against the pattern list and attaches the reason. Approval commands check the sender and, for keyboard approvals, window focus.
+- `danger` classifies each request against the pattern list and attaches the reason. The SDK left `defaultToNo` unset even for `rm -rf`, so this list is required; honour the SDK flags when they are set (spike finding). Approval commands check the sender and, for keyboard approvals, window focus.
 - Wait metrics record created-at and resolved-at per request, plus when a chat entered Done and when it was read.
 
 **Test scenarios:**

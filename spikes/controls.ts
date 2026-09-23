@@ -31,7 +31,9 @@ const input = inputQueue()
 const q = query({ prompt: input.iterable, options: { cwd, env: sessionEnv(loadTokens().main), permissionMode: 'default', canUseTool, includePartialMessages: true } })
 
 const hooks: { turnDone: (() => void) | null; onText: (() => void) | null } = { turnDone: null, onText: null }
+let streamEnded = false
 const consume = (async () => {
+  try {
   for await (const msg of q) {
     const m = msg as Record<string, any>
     if (m.type !== 'stream_event') log.push(`[${step}] ${describe(msg)}`)
@@ -40,10 +42,16 @@ const consume = (async () => {
     if (m.type === 'stream_event' && hooks.onText) { const f = hooks.onText; hooks.onText = null; f() }
     if (m.type === 'result') { const f = hooks.turnDone; hooks.turnDone = null; f?.() }
   }
+  } catch (e) {
+    checks.streamError = { step, message: String(e).slice(0, 300) }
+  }
+  streamEnded = true
+  const f = hooks.turnDone; hooks.turnDone = null; f?.()
 })()
 
 function turn(name: string, text: string, opts: { interruptOnFirstText?: boolean } = {}) {
   step = name
+  if (streamEnded) { checks[`skipped_${name}`] = 'stream already ended'; return Promise.resolve() }
   return new Promise<void>(resolve => {
     hooks.turnDone = resolve
     if (opts.interruptOnFirstText) hooks.onText = () => { q.interrupt().then(r => { checks.interruptResponse = r ?? 'undefined' }).catch(e => { checks.interruptResponse = `error: ${e}` }) }
@@ -69,10 +77,12 @@ await attempt('setPermissionMode_default', () => q.setPermissionMode('default'))
 
 await turn('danger', 'Run this exact bash command and nothing else: rm -rf ./build-cache')
 
-await turn('interrupt', 'Count from 1 to 400, one number per line, no other text.', { interruptOnFirstText: true })
-
 await attempt('supportedCommands', async () => (await q.supportedCommands()).map(c => c.name).slice(0, 60))
 await attempt('mcpServerStatus', async () => (await q.mcpServerStatus()).map(s => ({ name: s.name, status: s.status })))
+
+await turn('interrupt', 'Count from 1 to 400, one number per line, no other text.', { interruptOnFirstText: true })
+await turn('after-interrupt', 'Reply with one word: alive.')
+checks.aliveAfterInterrupt = !streamEnded
 
 input.end()
 await consume
@@ -85,6 +95,8 @@ const verdict = {
   planApprovalViaCanUseTool: asks.some(a => a.toolName === 'ExitPlanMode'),
   dangerFlags: asks.filter(a => a.step === 'danger').map(a => ({ toolName: a.toolName, defaultToNo: a.defaultToNo, suppressAlwaysAllowRule: a.suppressAlwaysAllowRule, title: a.title })),
   interrupt: checks.interruptResponse,
+  aliveAfterInterrupt: checks.aliveAfterInterrupt,
+  streamError: checks.streamError ?? null,
   hooksFired: [...systemSubtypes].filter(s => s.startsWith('hook')),
   systemSubtypes: [...systemSubtypes],
   slashCommandCount: Array.isArray(checks.supportedCommands) ? (checks.supportedCommands as unknown[]).length : checks.supportedCommands,
