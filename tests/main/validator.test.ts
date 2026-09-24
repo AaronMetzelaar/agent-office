@@ -87,7 +87,7 @@ describe('validateWithSdk', () => {
       { ...result, is_error: true, result: 'You’ve hit your usage limit' },
     ]
 
-    expect(await validateWithSdk('token')).toEqual({ status: 'ok', headroom: { fiveHour: { utilization: 100, resetsAt: 1_790_000_000_000 } } })
+    expect(await validateWithSdk('token')).toEqual({ status: 'ok', headroom: { fiveHour: { utilization: 100, resetsAt: 1_790_000_000_000, warn: true } } })
   })
 
   it('treats a thrown rate limit error as ok but limited', async () => {

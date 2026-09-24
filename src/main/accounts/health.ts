@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import type { SDKRateLimitInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import { isWarning, tightest, type Tightest } from '../../shared/guardrails'
 import type { AccountHealth, AccountView, AddAccountResult, Headroom, UsageWindow } from '../../shared/ipc'
 import { sessionEnv, spawnClaude } from '../sessions/manager'
 import { errorReason } from '../sessions/normalize'
@@ -104,6 +105,7 @@ function headroomFromEvent(info: SDKRateLimitInfo): Headroom {
   if (utilization === undefined) return {}
   const window: UsageWindow = { utilization: utilization * 100 }
   if (info.resetsAt !== undefined) window.resetsAt = info.resetsAt * 1000
+  if (info.status !== 'allowed') window.warn = true
   if (info.rateLimitType === 'five_hour') return { fiveHour: window }
   if (info.rateLimitType === 'seven_day') return { sevenDay: window }
   return {}
@@ -133,7 +135,12 @@ const redact = (text: string, secret: string) => text.split(secret).join('[token
 
 export function createAccounts(vault: Vault, validate: Validator, saved?: HealthStore) {
   const health = saved?.loadHealth() ?? new Map<string, AccountHealth>()
-  const events = new EventEmitter<{ changed: [AccountView[]]; 'needs-login': [Account]; removed: [string] }>()
+  const events = new EventEmitter<{ changed: [AccountView[]]; 'needs-login': [Account]; removed: [string]; headroom: [Account, Tightest | undefined] }>()
+  const hot = (next: AccountHealth | undefined) => {
+    const window = tightest(next?.headroom, Date.now())
+    return isWarning(window) ? window : undefined
+  }
+  const warned = new Set([...health].flatMap(([id, saved]) => (hot(saved) ? [id] : [])))
 
   const view = (account: Account): AccountView => ({
     id: account.id,
@@ -148,6 +155,12 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
     health.set(account.id, next)
     saved?.saveHealth(account.id, next)
     if (next.status === 'needs-login' && !wasNeedsLogin) events.emit('needs-login', account)
+    const window = hot(next)
+    if (!!window !== warned.has(account.id)) {
+      if (window) warned.add(account.id)
+      else warned.delete(account.id)
+      events.emit('headroom', account, window)
+    }
     changed()
   }
   const healthFrom = (check: Check): AccountHealth =>
@@ -180,6 +193,7 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
       if (typeof id !== 'string' || !vault.find(id)) return
       vault.remove(id)
       health.delete(id)
+      warned.delete(id)
       saved?.saveHealth(id, undefined)
       events.emit('removed', id)
       changed()

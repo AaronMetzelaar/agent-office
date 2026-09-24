@@ -59,6 +59,8 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   uninstallHook: true,
   moveIntoOffice: true,
   archiveVisitor: true,
+  setPaused: true,
+  setLimits: true,
 }
 
 export const forwarded = Object.keys(names) as (keyof typeof names)[]

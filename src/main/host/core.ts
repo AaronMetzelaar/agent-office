@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { departmentOf, deptNames, isResearch } from '../../shared/office'
 import type { SettingName } from '../../shared/ipc'
+import { limitsOf } from '../../shared/guardrails'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
@@ -80,15 +81,21 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     const saved = db.setting('editor')
     return isEditor(saved) ? saved : 'code'
   }
-  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor(), outsideChats: outside.installed() })
+  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor(), outsideChats: outside.installed(), paused: store.paused(), limits: limitsOf(db.setting('limits')) })
   hub.handle('getSettings', settings)
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
   const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
-  hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
+  hub.handle('setPaused', (on) => {
+    store.setPaused(on)
+    return settings()
+  })
+  hub.handle('setLimits', store.setLimits)
+  hub.handle('setSetting', (name: SettingName, value: boolean | string | object) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
+    if (name === 'limits') db.saveSetting(name, limitsOf(value))
     if (typeof value !== 'boolean') return settings()
     if (name === 'phonePush') phone.set(value)
     if (name === 'alertsHintSeen') db.saveSetting(name, value)
@@ -126,6 +133,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     if (focused) reviews.focus()
   })
   accounts.events.on('needs-login', notifier.login)
+  accounts.events.on('headroom', notifier.headroom)
   accounts.events.on('changed', (list) => {
     hub.send('accountsChanged', list)
     sync.setAccounts(list)

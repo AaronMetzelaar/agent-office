@@ -1,6 +1,7 @@
 import type { CommandList, CommandTarget } from './commands'
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
+import type { Limits } from './guardrails'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
@@ -24,6 +25,7 @@ export type AccountStatus = 'ok' | 'needs-login' | 'unknown'
 export interface UsageWindow {
   utilization: number
   resetsAt?: number
+  warn?: boolean
 }
 
 export interface Headroom {
@@ -58,9 +60,11 @@ export interface Settings {
   alertsHintSeen: boolean
   editor: Editor
   outsideChats: boolean
+  paused: boolean
+  limits: Limits
 }
 
-export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor'
+export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'limits'
 
 export interface HostStatus {
   connected: boolean
@@ -103,7 +107,7 @@ export interface Commands {
   recentFolders(): string[]
   pickFolder(): Promise<string | undefined>
   getSettings(): Settings
-  setSetting(name: SettingName, value: boolean | string): Settings
+  setSetting(name: SettingName, value: boolean | string | Limits): Settings
   openNotificationSettings(): void
   simulatorScreenshot(device: string): Promise<SimulatorShot>
   openArtifact(path: string, url: string): Promise<void>
@@ -134,6 +138,8 @@ export interface Commands {
   installAppUpdate(): void
   restartHost(): void
   stopHost(): Promise<void>
+  setPaused(on: boolean): Settings
+  setLimits(chatId: string, limits: Limits): void
 }
 
 export interface Events {

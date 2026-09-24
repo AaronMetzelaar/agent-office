@@ -166,6 +166,21 @@ describe('accounts', () => {
     expect(changes).toHaveLength(before + 1)
   })
 
+  it('announces headroom once when a window nears its limit, and again when it eases', async () => {
+    const { accounts } = start()
+    const account = await addMain(accounts)
+    const seen: (number | undefined)[] = []
+    accounts.events.on('headroom', (_account, window) => seen.push(window?.utilization))
+    const resetsAt = Math.floor(Date.now() / 1000) + 3600
+
+    accounts.recordHeadroom(account.id, { status: 'allowed', rateLimitType: 'five_hour', utilization: 0.5, resetsAt })
+    accounts.recordHeadroom(account.id, { status: 'allowed_warning', rateLimitType: 'five_hour', utilization: 0.72, resetsAt })
+    accounts.recordHeadroom(account.id, { status: 'allowed', rateLimitType: 'five_hour', utilization: 0.85, resetsAt })
+    accounts.recordHeadroom(account.id, { status: 'allowed', rateLimitType: 'five_hour', utilization: 0.1, resetsAt })
+
+    expect(seen).toEqual([72, undefined])
+  })
+
   it('announces a removed account so its chats can go Stuck', async () => {
     const { accounts } = start()
     const account = await addMain(accounts)

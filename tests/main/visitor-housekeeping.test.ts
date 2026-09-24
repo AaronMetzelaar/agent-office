@@ -252,7 +252,7 @@ describe('visitor IPC', () => {
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
     const confirm = vi.fn(async () => false)
     wireHousekeeping(windowHub(win, appUrl), house)
-    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rules: defaultRules, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false }), confirm })
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rules: defaultRules, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, paused: false, limits: {} }), confirm })
     const trusted = { sender: win.webContents, senderFrame: { url: appUrl } }
     const invoke = (name: string, ...args: unknown[]) => handlers.get(name)!(trusted, ...args)
     const officeChat = office.start('Office work')

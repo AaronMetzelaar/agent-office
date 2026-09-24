@@ -99,7 +99,7 @@ onUnmounted(() => {
           <button v-else type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
           <button type="button" class="btn sm" @click="decide(item.requests[0].id, { kind: 'deny' }, 'inbox')">Deny</button>
         </template>
-        <button v-else-if="item.visitor" type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
+        <button v-else-if="item.visitor || item.kind === 'request'" type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
         <template v-else-if="item.kind === 'stuck' && item.chatId">
           <button type="button" class="btn sm" @click="resume(item.chatId)">Resume</button>
           <button v-if="canSwitch && item.stuckReason === 'rate-limited'" type="button" class="btn sm" title="Continue on the other account" @click="emit('continue', item.chatId)">Other account</button>

@@ -83,6 +83,11 @@ function setEffort(effort: Effort) {
   say(`${effortLabels[effort]} effort applies from the next turn.`)
 }
 
+function setLimit(key: 'turns' | 'costUsd', event: Event) {
+  if (!props.chat) return
+  void window.office.setLimits(props.chat.id, { ...props.chat.limits, [key]: Number((event.target as HTMLInputElement).value) })
+}
+
 watch(
   () => props.agent.id,
   (chatId) => {
@@ -155,6 +160,11 @@ onUnmounted(() => {
     <div v-if="chat && !chat.visitor" class="effort" role="radiogroup" aria-label="Effort" title="Effort applies from the next turn">
       <span class="lbl">Effort</span>
       <button v-for="effort in efforts" :key="effort" type="button" role="radio" :aria-checked="chat.effort === effort" @click="setEffort(effort)">{{ effortLabels[effort] }}</button>
+    </div>
+    <div v-if="chat && !chat.visitor" class="effort limits" title="Stops the agent and waits for you when a run goes past this without your reply. Blank uses the default from Settings.">
+      <span class="lbl">Limits</span>
+      <input type="number" min="1" step="1" placeholder="–" aria-label="Turn limit" :value="chat.limits?.turns" @change="setLimit('turns', $event)" /><span class="lbl">turns</span>
+      <input type="number" min="0" step="0.5" placeholder="–" aria-label="Cost limit in dollars" :value="chat.limits?.costUsd" @change="setLimit('costUsd', $event)" /><span class="lbl">$</span>
     </div>
     <p :class="['doing', agent.state]">{{ agent.caption }}</p>
     <SubagentStrip v-if="chat" :chat="chat" />
@@ -293,6 +303,17 @@ onUnmounted(() => {
 .chatp .effort button[aria-checked='true'] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.chatp .limits input {
+  width: 44px;
+  margin-right: 4px;
+  font: 11px var(--mono);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px 4px;
+  background: #fff;
 }
 
 .chatp .vb {

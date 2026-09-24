@@ -114,7 +114,8 @@ export function projectOf(cwd: string): string {
 
 export function captionOf(chat: ChatView, parked: boolean, now: number): string {
   if (chat.moved) return 'Moved into the office'
-  if (chat.state === 'needs-you') return `Waiting for you · ${chat.pendingRequests[0]?.tool ?? chat.pending[0]?.toolName ?? 'a decision'}`
+  if (chat.state === 'needs-you') return `Waiting for you · ${chat.halt ?? chat.pendingRequests[0]?.tool ?? chat.pending[0]?.toolName ?? 'a decision'}`
+  if (chat.paused && chat.state !== 'stuck') return 'Paused'
   if (parked || chat.state === 'idle') return `${parked ? 'Dozing' : 'Standby'} · done ${ago(now - chat.lastActivityAt)} ago`
   return doingNow(chat, now)
 }

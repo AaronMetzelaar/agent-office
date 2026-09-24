@@ -1,6 +1,7 @@
 import { basename } from 'node:path'
 import type { NotificationConstructorOptions } from 'electron'
-import { doingNow, type ChatPatch, type ChatView } from '../../shared/chat'
+import { ago, doingNow, type ChatPatch, type ChatView } from '../../shared/chat'
+import type { Tightest } from '../../shared/guardrails'
 import type { Navigate } from '../../shared/ipc'
 import type { Decision, PendingRequestView, ResolveResult } from '../../shared/permissions'
 import type { ChatStore } from '../store/chats'
@@ -144,6 +145,13 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
     void push({ kind: 'done', title: clip(`${chat.title} is done`, 60), message: `${dept} · ready to review` })
   }
 
+  function halted(chat: Readonly<ChatView>) {
+    const dept = department(chat)
+    const openChat = () => open({ to: 'chat', chatId: chat.id })
+    show(`halt:${chat.id}`, { title: `${chat.title} needs you`, subtitle: dept, body: chat.halt, groupId: chat.id, replyPlaceholder: `Reply to ${chat.title}` }, [['Open', openChat]], openChat, (text) => sendMessage(chat.id, text))
+    void push({ kind: 'needs', title: clip(`${chat.title} needs you`, 60), message: `${dept} · ${chat.halt}` })
+  }
+
   function onPatch(patch: ChatPatch) {
     const fields = patch.fields
     const chat = fields && store.view(patch.id)
@@ -164,6 +172,8 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
     if (!fields.state) return
     if (fields.state !== 'done') close(`done:${chat.id}`)
     if (fields.state !== 'stuck') close(`stuck:${chat.id}`)
+    if (fields.state !== 'needs-you') close(`halt:${chat.id}`)
+    if (fields.state === 'needs-you' && chat.halt) halted(chat)
     if (fields.state === 'done') done(chat)
     if (fields.state === 'stuck' && chat.stuck?.reason !== 'needs-login') stuck(chat)
   }
@@ -178,6 +188,14 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
       void push({ kind: 'needs', title: clip(`${account.label} needs login`, 60), message: 'Add its token again in Accounts' })
     },
     loginFixed: (accountId: string) => close(`login:${accountId}`),
+    headroom(account: { id: string; label: string }, window: Tightest | undefined) {
+      if (!window) return close(`headroom:${account.id}`)
+      const toAccounts = () => open({ to: 'accounts' })
+      const title = `${account.label} is at ${Math.round(window.utilization)}% of its ${window.window === 'fiveHour' ? '5-hour' : 'weekly'} limit`
+      const body = window.resetsAt ? `Resets in ${ago(window.resetsAt - Date.now())}` : 'Consider the other account for new agents'
+      show(`headroom:${account.id}`, { title, body, silent: true }, [['Open Accounts', toAccounts]], toAccounts)
+      void push({ kind: 'housekeeping', title: clip(title, 60), message: body })
+    },
     cleanup(count: number) {
       const toHousekeeping = () => open({ to: 'housekeeping' })
       const title = `${count} chat${count === 1 ? ' is' : 's are'} ready for cleanup`

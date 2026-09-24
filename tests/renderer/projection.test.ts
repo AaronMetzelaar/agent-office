@@ -151,6 +151,14 @@ describe('placement and colour', () => {
     expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Dozing · done 2d ago' })
   })
 
+  it('captions a paused chat as Paused and a chat stopped at its limit with the reason', () => {
+    const now = Date.now()
+    const base = { accountId: 'main', cwd: '/x/portfolio', title: 'T', archived: false, stateSince: now, lastActivityAt: now, createdAt: 0, pending: [], pendingRequests: [], subagents: [], rows: [] }
+    const paused = { ...base, id: 'a', state: 'idle', paused: true } as unknown as ChatView
+    const halted = { ...base, id: 'b', state: 'needs-you', halt: 'Stopped at its 30-turn limit' } as unknown as ChatView
+    expect(toAgents([paused, halted], accounts, now, new Map()).map((agent) => agent.caption)).toEqual(['Paused', 'Waiting for you · Stopped at its 30-turn limit'])
+  })
+
   it('gives 15 agents 15 different colours and keeps them stable', () => {
     const agents = Array.from({ length: 15 }, (_, i) => ({ id: `a${i}`, dept: (['mkt', 'mob', 'side'] as const)[i % 3] as DeptId, createdAt: i }))
     const colours = assignColours(agents, new Map())

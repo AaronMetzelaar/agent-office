@@ -5,6 +5,7 @@ import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck } from '../../shared/chat'
 import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
+import { limitHit, limitsOf } from '../../shared/guardrails'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
@@ -33,11 +34,15 @@ interface Chat {
   readAt?: number
   previousMode?: ChatMode
   restoring?: Promise<void>
+  turns?: number
+  costBase?: number
+  held?: { text: string; messageId: string; fork: boolean }[]
 }
 
 export type ChatStore = ReturnType<typeof createChatStore>
 
 const midTurn = new Set<ChatState>(['starting', 'working', 'needs-you'])
+const running = (view: ChatFields) => midTurn.has(view.state) && !view.halt
 const resumePrompt = 'Continue where you left off.'
 const modelPattern = /^[\w.:[\]-]{1,80}$/
 const noPending = { pending: [], pendingRequests: [], oldestPendingAt: undefined }
@@ -136,6 +141,7 @@ function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
 export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined, rules: readonly DeptRule[] = defaultRules) {
   const events = new EventEmitter<{ patch: [ChatPatch]; read: [chatId: string, doneAt: number, readAt: number] }>()
   const chats = new Map<string, Chat>()
+  let paused = false
 
   const emit = (patch: ChatPatch) => events.emit('patch', patch)
   const save = (chat: Chat) => db.saveChat(toRecord(chat))
@@ -164,6 +170,24 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     const reason = errorReason(error) ?? fallback
     if (reason === 'needs-login') accounts.loginFailed(chat.view.accountId)
     stuck(chat, { reason, ...(error ? { detail: error } : {}), ...(reason === 'rate-limited' && chat.retryAt ? { retryAt: chat.retryAt } : {}) })
+  }
+
+  const limitsFor = (chat: Chat) => chat.view.limits ?? limitsOf(db.setting('limits'))
+  const spent = (chat: Chat) => {
+    const cost = chat.view.usage.costUsd
+    return cost >= (chat.costBase ?? 0) ? cost - (chat.costBase ?? 0) : cost
+  }
+
+  function interrupt(chat: Chat) {
+    if (!engine.running(chat.view.id)) return Promise.resolve()
+    chat.interrupting = true
+    return engine.interrupt(chat.view.id).catch(() => (chat.interrupting = false))
+  }
+
+  function halt(chat: Chat, reason: string, midRun: boolean) {
+    if (chat.view.partial) addRow(chat, { kind: 'text', id: randomUUID(), text: chat.view.partial })
+    transition(chat, 'needs-you', { halt: reason, activity: '', subagents: [], partial: '' })
+    if (midRun) void interrupt(chat)
   }
 
   function dropSubagent(chat: Chat, id: string) {
@@ -215,13 +239,18 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       case 'text':
         if (!event.parentToolUseId && view.partial) set(chat, { partial: '' })
         break
-      case 'tool-use':
-        if (event.parentToolUseId) subagentDoing(chat, event.parentToolUseId, describeTool(event.name, event.input))
-        else {
-          wake(chat)
-          set(chat, { activity: describeTool(event.name, event.input) })
+      case 'tool-use': {
+        if (event.parentToolUseId) {
+          subagentDoing(chat, event.parentToolUseId, describeTool(event.name, event.input))
+          break
         }
+        wake(chat)
+        set(chat, { activity: describeTool(event.name, event.input) })
+        chat.turns = (chat.turns ?? 0) + 1
+        const hit = view.halt ? undefined : limitHit(limitsFor(chat), chat.turns, 0)
+        if (hit) halt(chat, hit, true)
         break
+      }
       case 'tool-result':
         if (!chat.background.has(event.toolUseId)) dropSubagent(chat, event.toolUseId)
         break
@@ -253,12 +282,16 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         chat.lastError = undefined
         set(chat, { usage: event.usage })
         measureContext(chat)
+        const hit = view.halt ? undefined : limitHit(limitsFor(chat), 0, spent(chat))
         if (event.isError && !interrupted) fail(chat, [lastError, event.errorText].filter(Boolean).join(': '), 'error')
+        else if (view.halt) save(chat)
+        else if (hit) halt(chat, hit, false)
+        else if (view.paused && interrupted && event.isError && midTurn.has(view.state)) transition(chat, 'idle', { activity: '', ...noPending, subagents: [], partial: '' })
         else if ((chat.background.size || chat.backgroundTasks) && midTurn.has(view.state)) set(chat, { activity: 'Waiting on background tasks', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
         else if (midTurn.has(view.state)) {
           chat.background.clear()
           chat.doneAt = Date.now()
-          transition(chat, 'done', { unread: true, activity: '', ...noPending, subagents: [], partial: '' })
+          transition(chat, 'done', { unread: true, activity: '', ...noPending, subagents: [], partial: '', ...(chat.held?.length ? {} : { paused: undefined }) })
         } else save(chat)
         break
       }
@@ -286,7 +319,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     guard(chatId, (chat) => {
       chat.backgroundTasks = 0
       if (chat.view.backgroundJobs?.length) set(chat, { backgroundJobs: [] })
-      if (midTurn.has(chat.view.state)) fail(chat, error ?? 'The Claude process exited mid-turn', 'crashed')
+      if (running(chat.view)) fail(chat, error ?? 'The Claude process exited mid-turn', 'crashed')
     }),
   )
 
@@ -313,14 +346,28 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     }
   }
 
+  function go(chat: Chat, text: string, messageId: string, fields: Partial<ChatFields> = {}, fork = false) {
+    const view = chat.view
+    chat.turns = 0
+    chat.costBase = view.usage.costUsd
+    if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck' || view.halt) transition(chat, 'working', { unread: false, stuck: undefined, halt: undefined, activity: 'Thinking', partial: '', ...fields })
+    run(chat, text, messageId, fork)
+  }
+
+  function hold(chat: Chat, text: string, messageId: string, fork = false) {
+    ;(chat.held ??= []).push({ text, messageId, fork })
+    set(chat, { paused: true })
+    if (chat.view.state === 'starting') transition(chat, 'idle', { activity: '' })
+  }
+
   function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
     const view = chat.view
     const messageId = randomUUID()
     addRow(chat, { kind: 'user', id: messageId, text })
     if (view.suggestion) set(chat, { suggestion: undefined })
     if (view.parked || view.finished) set(chat, { parked: false, finished: undefined })
-    if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
-    run(chat, text, messageId, fork)
+    if (paused) hold(chat, text, messageId, fork)
+    else go(chat, text, messageId, fields, fork)
   }
 
   const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
@@ -345,7 +392,8 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         guard(id, (current) => {
           const waiting = current.view.state === 'starting' && current.view.setup === 'worktree'
           set(current, { setup: undefined })
-          if (waiting) run(current, prompt, messageId)
+          if (waiting && paused) hold(current, prompt, messageId)
+          else if (waiting) run(current, prompt, messageId)
         }),
       (error: unknown) =>
         guard(id, (current) => {
@@ -403,7 +451,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   for (const record of db.listChats()) {
     const chat = fromRecord(record)
     chats.set(chat.view.id, chat)
-    if (midTurn.has(chat.view.state)) transition(chat, 'stuck', { stuck: { reason: 'interrupted' } })
+    if (running(chat.view)) transition(chat, 'stuck', { stuck: { reason: 'interrupted' } })
   }
   for (const chat of chats.values()) {
     const colour = chat.view.colour || chat.view.archived ? undefined : colourFor(chat.view)
@@ -428,7 +476,33 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     view: (chatId: string): Readonly<ChatView> | undefined => chats.get(chatId)?.view,
     views: (): readonly Readonly<ChatView>[] => [...chats.values()].map((chat) => chat.view),
     recentFolders: (): string[] => [...new Set([...chats.values()].sort((a, b) => b.view.lastActivityAt - a.view.lastActivityAt).map((chat) => repoPath(chat.view.cwd)))].slice(0, 8),
-    busy: () => [...chats.values()].some((chat) => midTurn.has(chat.view.state)),
+    busy: () => paused || [...chats.values()].some((chat) => running(chat.view)),
+    paused: () => paused,
+
+    setPaused(on: unknown): void {
+      if (typeof on !== 'boolean' || on === paused) return
+      paused = on
+      for (const chat of chats.values()) {
+        const view = chat.view
+        if (on && (view.state === 'working' || view.state === 'starting')) {
+          set(chat, { paused: true })
+          void interrupt(chat)
+        } else if (!on && view.paused) {
+          const held = chat.held?.splice(0) ?? []
+          set(chat, { paused: undefined })
+          for (const { text, messageId, fork } of held) go(chat, text, messageId, {}, fork)
+          if (!held.length && view.state === 'idle' && view.finished === undefined && !view.archived) send(chat, resumePrompt)
+        }
+      }
+    },
+
+    setLimits(chatId: unknown, limits: unknown): void {
+      const chat = find(chatId)
+      if (!chat) return
+      const next = limitsOf(limits)
+      set(chat, { limits: Object.keys(next).length ? next : undefined })
+      save(chat)
+    },
 
     restore(chatId: unknown): Promise<void> {
       const chat = find(chatId)
@@ -488,7 +562,8 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       }
       const review = wanted.review === true
       const department: DeptId = review ? 'rev' : isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
-      const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}) })
+      const limits = limitsOf(wanted.limits)
+      const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}), ...(Object.keys(limits).length ? { limits } : {}) })
       if (!named) nameTopic(chat.view.id, accountId, prompt)
       if (plan) {
         const messageId = randomUUID()
@@ -553,7 +628,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
     finish(chatId: string): boolean {
       const chat = chats.get(chatId)
-      if (!chat || chat.view.archived || midTurn.has(chat.view.state)) return false
+      if (!chat || chat.view.archived || running(chat.view)) return false
       set(chat, { finished: Date.now(), unread: false })
       save(chat)
       return true
@@ -568,7 +643,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
     archive(chatId: string): boolean {
       const chat = chats.get(chatId)
-      if (!chat || chat.view.archived || midTurn.has(chat.view.state)) return false
+      if (!chat || chat.view.archived || running(chat.view)) return false
       engine.stop(chatId)
       set(chat, { archived: true, parked: false, unread: false })
       save(chat)
@@ -584,9 +659,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
     async interruptChat(chatId: unknown): Promise<void> {
       const chat = find(chatId)
-      if (!chat || !engine.running(chat.view.id)) return
-      chat.interrupting = true
-      await engine.interrupt(chat.view.id).catch(() => (chat.interrupting = false))
+      if (chat) await interrupt(chat)
     },
 
     async stopTask(chatId: unknown, id: unknown): Promise<void> {
@@ -615,7 +688,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const chat = find(chatId)
       if (!chat) return
       engine.stop(chat.view.id)
-      if (midTurn.has(chat.view.state)) stuck(chat, { reason: 'interrupted' })
+      if (running(chat.view)) stuck(chat, { reason: 'interrupted' })
     },
 
     async setModel(chatId: unknown, wanted: unknown): Promise<void> {
@@ -663,7 +736,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const pendingRequests = chat.view.pendingRequests.filter((request) => request.id !== requestId)
       const answered = answer ? { answered: [...(chat.view.answered ?? []), { id: requestId, ...answer }].slice(-5) } : {}
       const fields = { pending: chat.view.pending.filter((request) => request.id !== requestId), pendingRequests, oldestPendingAt: pendingRequests[0]?.createdAt, ...answered }
-      if (chat.view.state === 'needs-you' && pendingRequests.length === 0) transition(chat, 'working', fields)
+      if (chat.view.state === 'needs-you' && pendingRequests.length === 0 && !chat.view.halt) transition(chat, 'working', fields)
       else set(chat, fields)
     },
 
@@ -678,7 +751,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     shutdown(): void {
       for (const chat of chats.values()) {
         engine.stop(chat.view.id)
-        if (midTurn.has(chat.view.state)) stuck(chat, { reason: 'interrupted' })
+        if (running(chat.view)) stuck(chat, { reason: 'interrupted' })
       }
     },
   }

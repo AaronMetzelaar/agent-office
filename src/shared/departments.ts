@@ -1,3 +1,5 @@
+import type { Limits } from './guardrails'
+
 export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'] as const
 export type DeptId = (typeof deptIds)[number]
 export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
@@ -24,6 +26,7 @@ export interface StartOptions {
   worktree?: boolean
   title?: string
   review?: boolean
+  limits?: Limits
 }
 
 export const defaultRules: readonly DeptRule[] = [

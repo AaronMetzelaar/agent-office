@@ -29,7 +29,7 @@ let page: Page
 let accountId = ''
 
 const trayTitle = () => app.evaluate(() => (globalThis as unknown as MainGlobals).tray.getTitle())
-const notes = () => app.evaluate(() => [...(globalThis as unknown as MainGlobals).notifier.live].map(([key, note]) => ({ key, title: note.title, body: note.body, actions: note.actions.map((action) => action.text) })))
+const notes = () => app.evaluate(() => [...(globalThis as unknown as MainGlobals).notifier.live].map(([key, note]) => ({ key, title: note.title, body: note.body, actions: note.actions.map((action) => action.text) })).filter((note) => !note.key.startsWith('headroom:')))
 const snapshotChat = (id: string) => app.evaluate((_electron, chatId) => (globalThis as unknown as MainGlobals).store.view(chatId), id)
 const drawer = () => page.getByRole('complementary', { name: 'Inbox' })
 
@@ -76,7 +76,7 @@ test('⌘N quick start runs a chat in the chosen folder and account; Allow in th
   await expect(drawer().getByRole('heading', { name: 'New agent' })).toBeVisible()
   await drawer().getByRole('button', { name: 'Choose…' }).click()
   await expect(drawer().getByLabel('Folder')).toHaveValue(folder)
-  await expect(drawer().getByLabel('Account')).toHaveValue(accountId)
+  await expect(drawer().getByLabel('Account', { exact: true })).toHaveValue(accountId)
   await drawer().getByLabel('Prompt').fill('Run the tests [ask]')
   await drawer().getByLabel('Effort').selectOption('high')
 

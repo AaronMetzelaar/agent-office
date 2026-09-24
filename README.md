@@ -78,6 +78,12 @@ A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck c
 
 Stopping the host while a chat is mid-turn asks first, then interrupts its turn. After the host restarts, or crashes, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
 
+### Guardrails
+
+- The top bar shows each account's headroom: how much of its tightest rate-limit window (5-hour or weekly) is used and how long until it resets. It turns amber at 80%, or earlier if Claude reports a warning, and one quiet notification goes out when that happens.
+- Pause all interrupts every working chat's turn. Sessions stay alive, and paused chats show Paused and don't count as Done. Messages you send while paused, and new agents, wait until Resume all, which sends them. Resume all also tells chats it interrupted to continue where they left off.
+- Limits are off by default. Set a turn limit (top-level tool calls since your last message) or a cost limit (dollars since your last message, read from each result) in the New agent form or the chat header. Settings → Limits sets the default for chats without their own. When a chat hits a limit, its turn is interrupted and it waits at your door as Needs you, with the reason. Replying clears it.
+
 ## Outside chats
 
 Chats running in the desktop app (both instances) or `claude` in a terminal show up as visitors: read-only, with a Visitor badge. At startup, and whenever a transcript or a desktop chat file changes, the office lists the chats active in the last 24 hours:

@@ -24,7 +24,7 @@ function recallWorktree(): boolean {
 const rules = ref<readonly DeptRule[]>(defaultRules)
 const folders = ref<string[]>([])
 const promptEl = ref<InstanceType<typeof SlashInput>>()
-const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
+const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree(), turns: '' as number | '', costUsd: '' as number | '' })
 const error = ref('')
 const busy = ref(false)
 const ticket = reactive({ text: '', note: '', busy: false })
@@ -100,7 +100,7 @@ async function start() {
   error.value = ''
   const dept = section.value
   const chosen = form.section || props.desk?.dept || undefined
-  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept: chosen, worktree: form.worktree }).finally(() => (busy.value = false))
+  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept: chosen, worktree: form.worktree, limits: { turns: Number(form.turns), costUsd: Number(form.costUsd) } }).finally(() => (busy.value = false))
   if ('error' in result) return void (error.value = result.error)
   try {
     localStorage.setItem(memoryKey, JSON.stringify({ worktree: form.worktree }))
@@ -186,6 +186,16 @@ onMounted(async () => {
         <select v-model="form.effort" aria-label="Effort">
           <option v-for="effort in efforts" :key="effort" :value="effort">{{ effortLabels[effort] }}</option>
         </select>
+      </label>
+    </div>
+    <div class="fields" title="Stops the agent and waits for you when a run goes past this without your reply. Blank uses the default from Settings.">
+      <label class="field">
+        Turn limit
+        <input v-model.number="form.turns" type="number" min="1" step="1" placeholder="default" aria-label="Turn limit" />
+      </label>
+      <label class="field">
+        Cost limit ($)
+        <input v-model.number="form.costUsd" type="number" min="0" step="0.5" placeholder="default" aria-label="Cost limit in dollars" />
       </label>
     </div>
     <p class="auto"><b>Auto mode</b> on · asks you before risky actions</p>

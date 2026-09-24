@@ -49,7 +49,7 @@ test('starting from the free Mobile desk walks a new character in from the entra
   await expect(drawer.getByText('Mobile · desk 2')).toBeVisible()
   await expect(drawer.getByLabel('Folder')).toHaveValue(mobile)
   await expect(drawer.getByLabel('Section')).toHaveValue('mob')
-  await expect(drawer.getByLabel('Account')).toHaveValue(accountId)
+  await expect(drawer.getByLabel('Account', { exact: true })).toHaveValue(accountId)
   await drawer.getByLabel('Prompt').fill('Push notification deep links')
   await drawer.getByRole('button', { name: 'Start agent' }).click()
 

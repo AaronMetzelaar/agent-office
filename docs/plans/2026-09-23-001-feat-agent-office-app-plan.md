@@ -1044,6 +1044,12 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] The drawer board and ⌘K don't list retained visitors yet (21 on Aaron's machine on 2026-09-24, 14 blocked by uncommitted changes). They're only in Housekeeping. Add them under Housekeeping there if wanted.
 - [ ] Retention only sees worktrees whose `.git` file sits at or above the chat's cwd. A transcript folder whose first transcript has no `cwd` in its first 256 KB is never retained. Unit 13.
 - [ ] A `claude` process that uses a visitor's worktree blocks removal, but the row only explains it after you press Remove worktree. Unit 15.
+- [ ] Guardrails: the cost limit is checked only when a result message arrives, since `total_cost_usd` only comes with results. It can't stop a runaway mid-turn; the turn limit (top-level tool calls since Aaron's last message) does that.
+- [ ] Guardrails: Pause all lives in memory. A host crash or Stop agent host forgets it and drops held messages, though their rows still show. The host doesn't auto-restart for an update while paused. Messages already sent to a working chat before the pause stay queued in the SDK and run after the interrupt.
+- [ ] Guardrails: Pause all leaves chats that wait on a permission request alone. Answering one while paused lets that chat carry on.
+- [ ] Guardrails: a per-chat limit left blank uses the default from Settings, so a single chat can't opt out of a default. Headroom only reads the 5-hour and weekly windows, not the Opus/Sonnet sub-limits or overage.
+- [ ] Guardrails: the headroom warning goes to the phone as the `housekeeping` push kind (low priority), because `ntfy.ts` has no headroom kind. Add one there if it should be louder.
+- [ ] Guardrails: `tests/e2e/guardrails.spec.ts` never passed. Its only run loaded the main checkout's dev-server renderer through an inherited `ELECTRON_RENDERER_URL`. The spec now strips that variable. Run it once.
 
 ## System-Wide Impact
 
