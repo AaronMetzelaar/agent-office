@@ -97,6 +97,18 @@ watch(
   { immediate: true },
 )
 watch(
+  () => props.chat.rows,
+  (rows, previous) => {
+    if (!older.value.length) return
+    const kept = previous.findIndex((row) => row.id === rows[0]?.id)
+    if (kept > 0) older.value = [...older.value, ...previous.slice(0, kept)]
+    else if (kept === -1) {
+      older.value = []
+      more.value = undefined
+    }
+  },
+)
+watch(
   () => [props.chat.rows, props.chat.partial],
   () => {
     if (pinned) void stick()

@@ -873,7 +873,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 6 — History, outside chats, jobs and briefing
 
-- [ ] **Unit 12: History, search and usage**
+- [x] **Unit 12: History, search and usage**
 
 **Goal:** Resume, search, rename and archive past chats, and see token usage.
 
@@ -900,6 +900,12 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 **Verification:**
 - Search covers months of existing transcripts within seconds of the first run, and resume works for chats started in the office and before it.
+
+**Built (2026-09-24):**
+- `src/main/history/indexer.ts` keeps `search.db`: a contentless FTS5 table over user prompts and assistant text, one row per transcript line, with each file's byte offset, first prompt, folder and last timestamp. Only complete lines past the offset are read; a file that shrank is re-read, a deleted one is dropped. Lines over 512 KB (tool output, images) are skipped. On Aaron's 1.9 GB of transcripts the first pass took 4.4 s (18k lines, 6 MB index), a no-change pass 37 ms, a search under 10 ms.
+- It runs in a worker thread in the agent host (`src/main/history/worker.ts`, built as `out/main/indexer.js`), which watches `~/.claude/projects` and updates 5 s after a change.
+- Search lives in the ⌘K palette, not a separate History panel: name matches first, then "In chats" hits with a marked snippet. A hit maps to its office chat or visitor; any other transcript opens through `openTranscript` as a finished, read-only visitor (`visitors.summon`), so Move into the office forks it on its account.
+- Sending a message to a finished or archived office chat clears both flags and plain-resumes the same session. The Finished group pages 20 at a time with a name filter. Clicking the drawer title renames an office chat (`renameChat`).
 
 - [x] **Unit 13: Outside chats and adoption**
 
@@ -1017,8 +1023,8 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 
 - [x] Save each chat's permission mode in office.db, so it survives a relaunch (the chat returns to Auto today). Unit 15.
 - [x] "Continue on the other account" should fork into a new chat and park the original, and the chat panel's Stuck banner should offer it too. Today it switches the same chat, from the inbox only. Unit 15, which adds parking.
-- [ ] Transcript gap when more than 200 new rows arrive after loading older history. Unit 12.
-- [ ] Department moves are held by polling the open panel once a second, and `departments.json` is only read at startup. Watch the file and use the open-chat IPC. Unit 12.
+- [x] Transcript gap when more than 200 new rows arrive after loading older history. Unit 12. Rows that slide out of the live window join the loaded history; a wholesale replace drops the loaded history so Load earlier pages again from the new window.
+- [x] Department moves are held by polling the open panel once a second, and `departments.json` is only read at startup. Watch the file and use the open-chat IPC. Unit 12. The host watches the config folder and replaces the shared rules array in place; held moves are released on `setOpenChat`.
 - [ ] Tune the classifier thresholds (60% over two evaluations) against real transcripts. After a week of real use.
 - [ ] Mac notifications need the self-signed "Agent Office Local" certificate, which Aaron creates (steps in the README). Then build signed and verify the actions on screen.
 - [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
@@ -1028,7 +1034,7 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Floors with two section rows pack at about 1.5× the natural area of their sections (Aaron's single-row floor is 1.21×). Every row needs an aisle, and rows narrower than the office band stretch their sections rather than leave gaps. Walkways stay within about a fifth of the floor. Revisit with a skyline packer if busy days look too roomy. Unit 14.
 - [ ] When nobody rests in the Lounge and three or more sections are active, the packer prefers stretching one section across a row over leaving floor empty beside the office. Rare with Aaron's usage; revisit if it looks odd. Unit 14.
 - [ ] Done-and-unread chats park after a day like before and doze in the Lounge with their green ring, so an old unread reply leaves its desk. Keep them at the desk instead if Aaron misses them. Unit 15.
-- [ ] Standby rows show "done … ago" from the chat's last activity, which for an idle chat that never finished is its last message. Unit 12.
+- [x] Standby rows show "done … ago" from the chat's last activity, which for an idle chat that never finished is its last message. Unit 12. They now say "… ago" without "done".
 - [ ] Not run: the Playwright suite. `office-demo.spec.ts` now expects a Lounge sign instead of Parked.
 - [ ] A removed desk disappears without an animation, and its gap stays until the next re-pack. Unit 14.
 - [ ] Movers walk a timed path (1.3 s each way) whatever the distance, so a far desk makes them fast. The movers and truck don't cast shadows, since the shadow map only updates on layout changes. Unit 14.
@@ -1043,6 +1049,10 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [x] Archive visitor chats office-side, remove a visitor's worktree under the cleanup rules, and include visitors in Housekeeping. Units 13 and 15.
 - [ ] The drawer board and ⌘K don't list retained visitors yet (21 on Aaron's machine on 2026-09-24, 14 blocked by uncommitted changes). They're only in Housekeeping. Add them under Housekeeping there if wanted.
 - [ ] Retention only sees worktrees whose `.git` file sits at or above the chat's cwd. A transcript folder whose first transcript has no `cwd` in its first 256 KB is never retained. Unit 13.
+- [ ] Usage per chat and per account isn't shown. `usage` holds the SDK's per-process totals, which restart at zero after a resume in a new process, so a figure would undercount. Sum per turn in the store, and read older chats' usage from transcripts, if Aaron wants it. Unit 12.
+- [ ] The indexer worker loads `out/main/indexer.js` next to the main entry. Check that it and better-sqlite3 load from the packaged `app.asar`; unpack them (`asarUnpack`) if not. Packaging.
+- [ ] `tests/e2e/search.spec.ts` failed its last run because the worker path pointed into `out/main/chunks`; the fix (resolve from `require.main`) wasn't re-run under Playwright. Run it once. The spec drops `ELECTRON_RENDERER_URL` from the inherited env: a shell started from `pnpm dev` passes it on, and the other specs then load the dev server's renderer instead of the build.
+- [ ] Search hits for desktop chats show the first prompt, not the desktop title, until the chat is opened. Summoned old chats leave the Finished group when the host restarts. Unit 12.
 - [ ] A `claude` process that uses a visitor's worktree blocks removal, but the row only explains it after you press Remove worktree. Unit 15.
 - [ ] Guardrails: the cost limit is checked only when a result message arrives, since `total_cost_usd` only comes with results. It can't stop a runaway mid-turn; the turn limit (top-level tool calls since Aaron's last message) does that.
 - [ ] Guardrails: Pause all lives in memory. A host crash or Stop agent host forgets it and drops held messages, though their rows still show. The host doesn't auto-restart for an update while paused. Messages already sent to a working chat before the pause stay queued in the SDK and run after the interrupt.

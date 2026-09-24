@@ -7,7 +7,7 @@ import type { Hub } from '../ipc'
 import type { ChatStore } from '../store/chats'
 import { createDesktopMeta } from './desktop-meta'
 import { endpointSecret, install, isInstalled, uninstall, writeEndpoint, type HookPaths } from './installer'
-import { startListener } from './listener'
+import { isSessionId, startListener } from './listener'
 import { createDiscovery } from './transcripts'
 import { createVisitors, type VisitorOptions } from './visitors'
 
@@ -23,7 +23,7 @@ export interface OutsideDeps {
 }
 
 export interface WireOutsideDeps {
-  store: Pick<ChatStore, 'adopt'>
+  store: Pick<ChatStore, 'adopt' | 'views'>
   accounts(): readonly AccountView[]
   rules: readonly DeptRule[]
   settings(): Settings
@@ -94,6 +94,7 @@ export function createOutside({ store, accounts, rules, settings, claudeDir, des
     paths,
     listening,
     rescan,
+    transcript: (sessionId: string) => discovery.describe(sessionId, Date.now(), true),
     installed: () => isInstalled(paths.settings),
     async stop() {
       clearInterval(timer)
@@ -104,7 +105,7 @@ export function createOutside({ store, accounts, rules, settings, claudeDir, des
   }
 }
 
-export function wireOutside(hub: Hub, { visitors, paths }: Outside, { store, accounts, rules, settings, confirm }: WireOutsideDeps): void {
+export function wireOutside(hub: Hub, { visitors, paths, transcript }: Outside, { store, accounts, rules, settings, confirm }: WireOutsideDeps): void {
   const attempt = (change: () => unknown): Settings | { error: string } => {
     try {
       change()
@@ -132,6 +133,18 @@ export function wireOutside(hub: Hub, { visitors, paths }: Outside, { store, acc
     const moved = store.adopt({ accountId, cwd: visitor.cwd, title: visitor.title, department, sessionId: visitor.id })
     visitors.markMoved(visitor.id)
     return { chatId: moved }
+  })
+
+  hub.handle('openTranscript', (sessionId) => {
+    if (!isSessionId(sessionId)) return { error: 'That isn’t a chat.' }
+    const office = store.views().find((view) => view.sessionId === sessionId && !view.forkPending)
+    if (office) return { chatId: office.id }
+    if (!visitors.has(sessionId)) {
+      const seed = transcript(sessionId)
+      if (!seed) return { error: 'That chat’s transcript is gone.' }
+      visitors.summon(seed)
+    }
+    return { chatId: sessionId }
   })
 
   hub.handle('archiveVisitor', async (chatId) => {

@@ -77,7 +77,7 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
   }
 }
 
-export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors) {
+export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors, onOpen: () => void = () => {}) {
   const sync = createPatchSync({ events: store.events, snapshot: () => [...store.snapshot(), ...visitors.snapshot()] }, (batch) => hub.send('chatPatches', batch))
   let openChat: string | undefined
   hub.handle('getSnapshot', sync.snapshot)
@@ -96,9 +96,11 @@ export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors) {
     openChat = typeof chatId === 'string' ? chatId : undefined
     if (openChat) void store.restore(openChat)
     visitors.open(openChat)
+    onOpen()
   })
   hub.handle('resumeChat', store.resumeChat)
   hub.handle('continueOnAccount', store.continueOnAccount)
+  hub.handle('renameChat', store.rename)
   hub.handle('markRead', (chatId) => (visitors.has(chatId) ? visitors.markRead(chatId) : store.markRead(chatId)))
   return Object.assign(sync, { openChat: () => openChat })
 }

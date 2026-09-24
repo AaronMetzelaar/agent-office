@@ -22,7 +22,7 @@ export interface VisitorSeed {
   evidence: ChatEvent[][]
 }
 
-interface Entry {
+export interface Entry {
   type?: string
   isSidechain?: boolean
   isMeta?: boolean
@@ -85,18 +85,23 @@ function entries(text: string, dropFirst: boolean): Entry[] {
   })
 }
 
-function textOf(content: unknown): string {
+export function textOf(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
   return content.flatMap((block: { type?: unknown; text?: unknown }) => (block?.type === 'text' && typeof block.text === 'string' ? [block.text] : [])).join('\n')
 }
 
-function promptOf(entry: Entry): string | undefined {
+export function promptText(entry: Entry): string | undefined {
   const text = textOf(entry.message?.content).replace(reminders, '').trim()
-  return text && !/^(<|Caveat:|\[Request interrupted)/.test(text) ? titleOf(text) : undefined
+  return text && !/^(<|Caveat:|\[Request interrupted)/.test(text) ? text : undefined
 }
 
-const isTurn = (entry: Entry) => (entry.type === 'user' || entry.type === 'assistant') && !entry.isSidechain && !entry.isMeta
+function promptOf(entry: Entry): string | undefined {
+  const text = promptText(entry)
+  return text && titleOf(text)
+}
+
+export const isTurn = (entry: Entry) => (entry.type === 'user' || entry.type === 'assistant') && !entry.isSidechain && !entry.isMeta
 
 function endingOf(entry: Entry, mtimeMs: number): Tail['ending'] {
   const at = Date.parse(entry.timestamp ?? '') || mtimeMs
@@ -171,10 +176,10 @@ export function createDiscovery({ projectsDir, desktop }: { projectsDir: string;
       }),
     )
 
-  function seed(file: File, meta: DesktopChat | undefined, now: number): VisitorSeed | undefined {
+  function seed(file: File, meta: DesktopChat | undefined, now: number, anySource = false): VisitorSeed | undefined {
     const head = meta?.title && meta.cwd ? {} : (heads.get(file.path) ?? readHead(file.path))
     if (head.prompt || file.size >= headBytes) heads.set(file.path, head)
-    const source: Visitor | undefined = meta ? 'desktop' : head.entrypoint === 'cli' ? 'terminal' : undefined
+    const source: Visitor | undefined = meta ? 'desktop' : head.entrypoint === 'cli' || anySource ? 'terminal' : undefined
     if (!source) return undefined
     let tail = tails.get(file.path)
     if (tail?.mtimeMs !== file.mtimeMs || tail.size !== file.size) tails.set(file.path, (tail = { mtimeMs: file.mtimeMs, size: file.size, ...readTail(file) }))
@@ -223,11 +228,11 @@ export function createDiscovery({ projectsDir, desktop }: { projectsDir: string;
       })
     },
 
-    describe(sessionId: string, now: number): VisitorSeed | undefined {
+    describe(sessionId: string, now: number, anySource = false): VisitorSeed | undefined {
       if (!isSessionId(sessionId)) return undefined
       for (const folder of folders(projectsDir)) {
         const file = fileOf(sessionId, join(projectsDir, folder, `${sessionId}.jsonl`))
-        if (file) return seed(file, desktop(now - activeWindowMs, new Set([sessionId])).get(sessionId), now)
+        if (file) return seed(file, desktop(now - activeWindowMs, new Set([sessionId])).get(sessionId), now, anySource)
       }
       return undefined
     },

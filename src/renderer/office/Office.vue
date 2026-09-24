@@ -5,6 +5,7 @@ import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, 
 import { ago } from '../../shared/chat'
 import type { DeptId } from '../../shared/departments'
 import { isWarning, tightest } from '../../shared/guardrails'
+import type { SearchHit } from '../../shared/history'
 import { gb, plural, type Finished, type HousekeepingView } from '../../shared/housekeeping'
 import { usageLine, type AccountView, type Navigate } from '../../shared/ipc'
 import type { ReviewQueue } from '../../shared/workflow'
@@ -35,6 +36,9 @@ const projection = createProjection(props.source)
 const tick = ref(0)
 const colours = new Map<string, number>()
 const palette = reactive({ open: false, query: '' })
+const hits = shallowRef<SearchHit[]>([])
+const searching = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 const inbox = shallowRef(emptyInbox)
 const mode = ref<'inbox' | 'new' | 'house'>('inbox')
 const house = shallowRef<HousekeepingView>()
@@ -66,6 +70,11 @@ const matches = computed(() => {
   const done = finished.value.map((row) => ({ id: row.id, title: row.title, colour: row.colour, dept: row.dept, caption: 'Finished', state: 'idle' as StateKey }))
   return [...ui.agents, ...done].filter((a) => !q || a.title.toLowerCase().includes(q) || a.dept.toLowerCase().includes(q)).slice(0, 8)
 })
+const found = computed(() => {
+  const shown = new Set(matches.value.map((a) => a.id))
+  return hits.value.filter((hit) => !hit.chatId || !shown.has(hit.chatId)).slice(0, 8)
+})
+const hitColour = (hit: SearchHit) => (hit.chatId && projection.chats.get(hit.chatId)?.colour) || '#9ca3af'
 
 function push() {
   const w = world.value
@@ -77,7 +86,7 @@ function push() {
   w.sync(agents, projection.logins)
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
-  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingView)
+  if (pendingSelect && (agents.some((a) => a.id === pendingSelect) || projection.chats.get(pendingSelect)?.finished !== undefined)) select(pendingSelect, pendingView)
   const back = loose.value && agents.some((a) => a.id === loose.value!.id) ? loose.value.id : undefined
   if (back) select(back, 'keep')
 }
@@ -86,10 +95,10 @@ function select(chatId: string | undefined, view: View = 'fly') {
   mode.value = 'inbox'
   loose.value = undefined
   const chat = chatId ? projection.chats.get(chatId) : undefined
-  if (chat?.finished !== undefined) {
+  if (chat && (chat.finished !== undefined || chat.archived)) {
     const row = finished.value.find((r) => r.id === chat.id)
     world.value?.select(undefined, 'keep')
-    loose.value = { id: chat.id, title: chat.title, colour: row?.colour ?? '#9ca3af', dept: row?.dept ?? '', caption: `Finished · ${chat.cwd.split('/').pop()}`, state: stateKey(chat.state) }
+    loose.value = { id: chat.id, title: chat.title, colour: row?.colour ?? chat.colour ?? '#9ca3af', dept: row?.dept ?? '', caption: `${chat.archived ? 'Archived' : 'Finished'} · ${chat.cwd.split('/').pop()}`, state: stateKey(chat.state) }
     return
   }
   pendingSelect = chatId && !projection.chats.has(chatId) ? chatId : undefined
@@ -269,6 +278,34 @@ function jump(id: string | undefined) {
   if (id) select(id)
 }
 
+async function openHit(hit: SearchHit | undefined) {
+  palette.open = false
+  if (!hit) return
+  const opened = hit.chatId ? { chatId: hit.chatId } : await window.office.openTranscript(hit.sessionId)
+  if ('error' in opened) say(opened.error)
+  else select(opened.chatId)
+}
+
+function pick() {
+  if (matches.value[0]) jump(matches.value[0].id)
+  else void openHit(found.value[0])
+}
+
+watch(
+  () => palette.query.trim(),
+  (query) => {
+    clearTimeout(searchTimer)
+    searching.value = query.length >= 2
+    if (!searching.value) return void (hits.value = [])
+    searchTimer = setTimeout(async () => {
+      const result = await window.office.searchChats(query).catch(() => [])
+      if (palette.query.trim() !== query) return
+      hits.value = result
+      searching.value = false
+    }, 150)
+  },
+)
+
 function onKey(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
@@ -306,6 +343,7 @@ onUnmounted(() => {
   offReviews()
   clearInterval(captions)
   clearTimeout(toastTimer)
+  clearTimeout(searchTimer)
   offProjection()
   projection.stop()
 })
@@ -326,7 +364,7 @@ onUnmounted(() => {
       </div>
     </div>
     <button type="button" class="tbtn" @click="world?.overview()">Overview</button>
-    <button type="button" class="tbtn" aria-haspopup="dialog" @click="openPalette">Jump to agent <kbd>⌘K</kbd></button>
+    <button type="button" class="tbtn" aria-haspopup="dialog" title="Jump to an agent or search inside every chat" @click="openPalette">Search <kbd>⌘K</kbd></button>
     <button
       type="button"
       :class="['tbtn', 'res', { hot: house?.hot }]"
@@ -359,14 +397,22 @@ onUnmounted(() => {
     </button>
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
-    <div class="palette" role="dialog" aria-label="Jump to agent">
-      <input ref="paletteInput" v-model="palette.query" placeholder="Jump to an agent by name" aria-label="Agent name" @keydown.enter="jump(matches[0]?.id)" />
+    <div class="palette" role="dialog" aria-label="Search">
+      <input ref="paletteInput" v-model="palette.query" placeholder="Jump to an agent, or search inside every chat" aria-label="Search" @keydown.enter="pick" />
       <button v-for="a in matches" :key="a.id" type="button" class="pr" @click="jump(a.id)">
         <span class="av" :style="{ background: a.colour }" />
         <span class="pt">{{ a.title }}</span>
         <span :class="['pd', a.state]">{{ a.dept }} · {{ a.caption }}</span>
       </button>
-      <p v-if="!matches.length" class="none">No agent matches.</p>
+      <template v-if="found.length">
+        <p class="ph">In chats</p>
+        <button v-for="hit in found" :key="hit.sessionId" type="button" class="pr hit" @click="openHit(hit)">
+          <span class="av" :style="{ background: hitColour(hit) }" />
+          <span class="pt">{{ hit.title }}<span class="pa"> · {{ ago(Date.now() - hit.at) }} ago</span></span>
+          <span class="ps">{{ hit.snippet[0] }}<mark>{{ hit.snippet[1] }}</mark>{{ hit.snippet[2] }}</span>
+        </button>
+      </template>
+      <p v-if="!matches.length && !found.length" class="none">{{ searching ? 'Searching…' : 'Nothing matches.' }}</p>
     </div>
   </div>
 </template>
@@ -1019,6 +1065,36 @@ kbd {
   padding: 8px;
   display: grid;
   gap: 2px;
+  max-height: 72vh;
+  overflow: auto;
+}
+
+.palette .ph {
+  margin: 8px 10px 2px;
+  font: 10.5px var(--mono);
+  color: var(--faint);
+}
+
+.pa {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.ps {
+  grid-area: d;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ps mark {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 3px;
 }
 
 .palette input {

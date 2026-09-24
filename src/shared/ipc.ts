@@ -2,6 +2,7 @@ import type { CommandList, CommandTarget } from './commands'
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { Limits } from './guardrails'
+import type { SearchHit } from './history'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
@@ -145,6 +146,9 @@ export interface Commands {
   stopHost(): Promise<void>
   setPaused(on: boolean): Settings
   setLimits(chatId: string, limits: Limits): void
+  searchChats(query: string): Promise<SearchHit[]>
+  openTranscript(sessionId: string): { chatId: string } | { error: string }
+  renameChat(chatId: string, title: string): void
 }
 
 export interface Events {

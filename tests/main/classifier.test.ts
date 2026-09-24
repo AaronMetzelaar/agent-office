@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPlacement, loadRules } from '../../src/main/departments/classifier'
+import { createPlacement, loadRules, watchRules } from '../../src/main/departments/classifier'
 import { defaultRules, ruleFor, showsAccountBadge } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
@@ -157,5 +157,18 @@ describe('path rules', () => {
     expect(loadRules(dir)).toEqual([{ path: 'cookbook', dept: 'side' }, { path: 'research', dept: 'gym' }])
     writeFileSync(join(dir, 'departments.json'), '{ not json')
     expect(loadRules(dir)).toEqual(defaultRules)
+  })
+
+  it('picks up edits to departments.json in place, so every holder of the rules sees them', async () => {
+    const rules = loadRules(dir)
+    const stop = watchRules(dir, rules)
+    await vi.waitFor(
+      () => {
+        writeFileSync(join(dir, 'departments.json'), JSON.stringify([{ path: 'cookbook', dept: 'side' }]))
+        expect(rules).toEqual([{ path: 'cookbook', dept: 'side' }])
+      },
+      { timeout: 5000, interval: 200 },
+    )
+    stop()
   })
 })

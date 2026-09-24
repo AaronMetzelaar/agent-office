@@ -18,7 +18,7 @@ const repo = process.env.AGENT_OFFICE_REPO ?? (commonDir ? dirname(commonDir) : 
 
 export default defineConfig({
   main: {
-    build: { rollupOptions: { input: { index: 'src/main/index.ts', host: 'src/main/host/index.ts' } } },
+    build: { rollupOptions: { input: { index: 'src/main/index.ts', host: 'src/main/host/index.ts', indexer: 'src/main/history/worker.ts' } } },
     define: { __BUILD_COMMIT__: JSON.stringify(commit), __SOURCE_REPO__: JSON.stringify(repo) },
   },
   preload: {},

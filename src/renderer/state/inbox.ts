@@ -73,6 +73,14 @@ export function finishedOf(chats: Iterable<ChatView>, accounts: readonly Account
     })
 }
 
+export const finishedPage = 20
+
+export function pageFinished(rows: readonly FinishedRow[], query: string, limit: number): { rows: FinishedRow[]; left: number } {
+  const q = query.trim().toLowerCase()
+  const matching = q ? rows.filter((row) => row.title.toLowerCase().includes(q) || row.dept.toLowerCase().includes(q)) : rows
+  return { rows: matching.slice(0, limit), left: Math.max(0, matching.length - limit) }
+}
+
 export interface Inbox {
   waiting: WaitingItem[]
   board: BoardGroup[]

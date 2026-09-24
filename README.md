@@ -58,6 +58,8 @@ The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `host.sock`, `host.secret` (mode 0600), `host.pid` and `host.log` belong to the agent host, and `host/` holds its Chromium profile.
 - `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, colour, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, each account's last health, and settings (phone push, whether you've seen the Alerts hint). It never holds message text.
 
+- `search.db` is the search index, owned by an indexer thread in the agent host. It holds a contentless FTS5 index of the prompts and replies in every transcript, with each transcript's read offset, first prompt and folder. It holds no message text: snippets are re-read from the transcript line. Deleting it rebuilds it from scratch, in about 5 seconds for 2 GB of transcripts.
+
 Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and to show outside chats, and doesn't touch `~/.claude` otherwise, apart from the optional hook entry described under Outside chats.
 
 `better-sqlite3` 13 ships N-API prebuilt binaries, so the same binary loads in Node (Vitest) and in Electron. There is no native rebuild step, and `package.json` lists it under `ignoredBuiltDependencies` so pnpm skips its node-gyp script.
@@ -83,6 +85,15 @@ Stopping the host while a chat is mid-turn asks first, then interrupts its turn.
 - The top bar shows each account's headroom: how much of its tightest rate-limit window (5-hour or weekly) is used and how long until it resets. It turns amber at 80%, or earlier if Claude reports a warning, and one quiet notification goes out when that happens.
 - Pause all interrupts every working chat's turn. Sessions stay alive, and paused chats show Paused and don't count as Done. Messages you send while paused, and new agents, wait until Resume all, which sends them. Resume all also tells chats it interrupted to continue where they left off.
 - Limits are off by default. Set a turn limit (top-level tool calls since your last message) or a cost limit (dollars since your last message, read from each result) in the New agent form or the chat header. Settings → Limits sets the default for chats without their own. When a chat hits a limit, its turn is interrupted and it waits at your door as Needs you, with the reason. Replying clears it.
+
+## Search and history
+
+⌘K (Search in the top bar) jumps to an agent by name and, from two letters on, searches inside every chat: office chats, finished ones and every older transcript in `~/.claude/projects`, from both accounts. Each hit shows the chat's title, its age and a snippet with the match marked. Opening a hit opens the chat's transcript in the drawer. An older chat the office doesn't know opens read-only, like a visitor, and Move into the office continues a fork of it on the account it ran on. It stays in the Finished group until the host restarts.
+
+The indexer adds only what was appended since the last pass, 5 seconds after a transcript changes. Malformed lines are skipped and logged. Subagent transcripts, system reminders, commands and tool results aren't indexed.
+
+The Finished group lists the newest first, 20 at a time, with a filter by name or department once it holds more than a page. Sending a message to a finished or archived office chat continues the same session, and the character walks back to a desk. Click a chat's title in the drawer to rename it.
+
 
 ## Outside chats
 

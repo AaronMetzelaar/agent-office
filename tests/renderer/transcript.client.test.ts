@@ -137,3 +137,23 @@ describe('undo file changes', () => {
     expect(byClass(root, 'rwb')).toHaveLength(0)
   })
 })
+
+describe('earlier history', () => {
+  const users = (from: number, to: number): ChatRow[] => Array.from({ length: to - from + 1 }, (_, i) => ({ kind: 'user', id: `r${from + i}`, text: `r${from + i}` }))
+  const shown = (root: Node) => byClass(root, 'ur').map(textOf)
+
+  it('keeps rows that slide out of the live window after loading older history, so nothing goes missing', async () => {
+    Object.assign(globalThis, { window: { office: { olderRows: async () => ({ rows: users(-4, 0), more: false }) } } })
+    const { root, update } = mount(sessionChat({ sessionId: 's1', state: 'idle', rows: users(1, 200) }))
+    await click(byClass(root, 'older')[0]!)
+    await new Promise((resolve) => setTimeout(resolve))
+    await nextTick()
+    expect(shown(root)).toEqual(users(-4, 200).map((row) => row.id))
+
+    await update(sessionChat({ sessionId: 's1', state: 'idle', rows: users(6, 205) }))
+    expect(shown(root)).toEqual(users(-4, 205).map((row) => row.id))
+
+    await update(sessionChat({ sessionId: 's1', state: 'idle', rows: users(400, 599) }))
+    expect(shown(root)).toEqual(users(400, 599).map((row) => row.id))
+  })
+})

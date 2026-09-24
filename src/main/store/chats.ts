@@ -365,7 +365,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     const messageId = randomUUID()
     addRow(chat, { kind: 'user', id: messageId, text })
     if (view.suggestion) set(chat, { suggestion: undefined })
-    if (view.parked || view.finished) set(chat, { parked: false, finished: undefined })
+    if (view.parked || view.finished || view.archived) set(chat, { parked: false, finished: undefined, archived: false })
     if (paused) hold(chat, text, messageId, fork)
     else go(chat, text, messageId, fields, fork)
   }
@@ -507,7 +507,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     restore(chatId: unknown): Promise<void> {
       const chat = find(chatId)
       const sessionId = chat?.view.sessionId
-      if (!chat || !sessionId || chat.view.archived) return Promise.resolve()
+      if (!chat || !sessionId) return Promise.resolve()
       return (chat.restoring ??= replay(chat, sessionId))
     },
 
@@ -648,6 +648,14 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       set(chat, { archived: true, parked: false, unread: false })
       save(chat)
       return true
+    },
+
+    rename(chatId: unknown, title: unknown): void {
+      const chat = find(chatId)
+      const next = typeof title === 'string' ? title.trim().split('\n')[0]!.slice(0, 60).trim() : ''
+      if (!chat || !next || next === chat.view.title) return
+      set(chat, { title: next })
+      save(chat)
     },
 
     setDepartment(chatId: string, department: DeptId): void {

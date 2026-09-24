@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
+import { computed, nextTick, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
 import { defaultModel, effortLabels, efforts, modelLabels, simulatorOf, usingSimulator, type ChatView, type Effort } from '../../shared/chat'
 import { canRest } from '../office/standby'
 import { hasNewArtifact, sawArtifacts } from '../state/artifacts'
@@ -26,6 +26,8 @@ const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; c
 const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
 const flash = ref('')
 const moving = ref(false)
+const naming = ref<string>()
+const nameInput = ref<HTMLInputElement>()
 const seen = shallowReactive(new Map<string, PendingRequestView>())
 const dismissed = reactive(new Set<string>())
 let flashTimer: ReturnType<typeof setTimeout> | undefined
@@ -84,6 +86,19 @@ async function resume() {
   if (refused) say(refused.error)
 }
 
+async function rename() {
+  if (!props.chat || props.chat.visitor) return
+  naming.value = props.chat.title
+  await nextTick()
+  nameInput.value?.select()
+}
+
+function saveName() {
+  const title = naming.value?.trim()
+  naming.value = undefined
+  if (props.chat && title && title !== props.chat.title) void window.office.renameChat(props.chat.id, title)
+}
+
 function setModel(event: Event) {
   const model = (event.target as HTMLSelectElement).value
   if (props.chat && model) void window.office.setModel(props.chat.id, model)
@@ -107,6 +122,7 @@ watch(
     dismissed.clear()
     tab.value = props.chat && usingSimulator(props.chat) ? 'simulator' : props.chat && hasNewArtifact(props.chat) ? 'artifacts' : 'chat'
     flash.value = ''
+    naming.value = undefined
     void window.office.setOpenChat(chatId)
   },
   { immediate: true },
@@ -141,13 +157,14 @@ onUnmounted(() => {
     <div class="dh">
       <span class="av" :style="{ background: agent.colour }" />
       <div>
-        <h2>{{ agent.title }}</h2>
+        <input v-if="naming !== undefined" ref="nameInput" v-model="naming" class="rename" maxlength="60" aria-label="Chat name" @keydown.enter.prevent="saveName" @keydown.esc.stop="naming = undefined" @blur="saveName" />
+        <h2 v-else :class="{ named: chat && !chat.visitor }" :title="chat && !chat.visitor ? 'Rename' : undefined" @click="rename">{{ chat?.title ?? agent.title }}</h2>
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <div class="hact">
         <button v-if="chat?.sessionId" type="button" class="btn sm" title="Resumes this session in a terminal, on its own account. The office chat is untouched." @click="openInTerminal">Open in terminal</button>
         <button v-if="chat?.visitor === 'desktop'" type="button" class="btn sm" title="Focuses the right Claude desktop window. It can't jump to this exact chat yet." @click="openInDesktop">Open in Claude desktop</button>
-        <template v-if="chat && chat.finished === undefined">
+        <template v-if="chat && chat.finished === undefined && !chat.archived">
           <button v-if="canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
           <button type="button" class="btn sm" title="Finish: clear the desk and move the chat to Finished" @click="emit('finish', [chat.id])">Done</button>
           <button v-if="removable" type="button" class="btn sm" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [chat.id], true)">Done + worktree</button>
@@ -218,6 +235,23 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.chatp h2.named {
+  cursor: text;
+}
+
+.chatp .rename {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0 4px;
+  font: 600 15px Geist, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: none;
 }
 
 .chatp .hact {

@@ -148,7 +148,7 @@ describe('placement and colour', () => {
     const now = Date.now()
     const day = 86_400_000
     const chat = { id: 'p', accountId: 'main', cwd: '/x/portfolio', title: 'Old', archived: false, parked: true, state: 'idle', stateSince: now - 2 * day, lastActivityAt: now - 2 * day, createdAt: 0, pending: [], pendingRequests: [], subagents: [] } as unknown as ChatView
-    expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Dozing · done 2d ago' })
+    expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Dozing · 2d ago' })
   })
 
   it('captions a paused chat as Paused and a chat stopped at its limit with the reason', () => {

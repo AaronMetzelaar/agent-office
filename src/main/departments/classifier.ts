@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, watch } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { ChatState } from '../../shared/chat'
 import { defaultRules, evidenceDept, validRules, type DeptId, type DeptRule } from '../../shared/departments'
@@ -30,6 +30,15 @@ export function loadRules(dir: string): DeptRule[] {
     return validRules(JSON.parse(readFileSync(join(dir, 'departments.json'), 'utf8'))) ?? [...defaultRules]
   } catch {
     return [...defaultRules]
+  }
+}
+
+export function watchRules(dir: string, rules: DeptRule[]): () => void {
+  try {
+    const watcher = watch(dir, (_event, name) => name === 'departments.json' && rules.splice(0, rules.length, ...loadRules(dir)))
+    return () => watcher.close()
+  } catch {
+    return () => {}
   }
 }
 
@@ -93,6 +102,5 @@ export function createPlacement(engine: Pick<Engine, 'events'>, store: Pick<Chat
   store.events.on('patch', (patch) => {
     if (patch.fields && 'state' in patch.fields) settle(patch.id)
   })
-  setInterval(release, 1000).unref()
   return { release }
 }

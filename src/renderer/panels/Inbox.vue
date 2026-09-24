@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
 import type { ReviewQueue } from '../../shared/workflow'
-import type { FinishedRow, Inbox, WaitingItem } from '../state/inbox'
+import { finishedPage, pageFinished, type FinishedRow, type Inbox, type WaitingItem } from '../state/inbox'
 import ReviewRequests from './ReviewRequests.vue'
 
 const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; removable?: string[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
@@ -15,6 +15,10 @@ const drafts = reactive<Record<string, string>>({})
 const flash = ref('')
 const alertsHint = ref(false)
 const withTrees = ref(false)
+const finishedQuery = ref('')
+const finishedLimit = ref(finishedPage)
+const finishedShown = computed(() => pageFinished(props.finished ?? [], finishedQuery.value, finishedLimit.value))
+watch(finishedQuery, () => (finishedLimit.value = finishedPage))
 let flashTimer: ReturnType<typeof setTimeout> | undefined
 const clock = setInterval(() => (now.value = Date.now()), 30_000)
 
@@ -153,7 +157,7 @@ onUnmounted(() => {
           <i class="sd" :style="{ background: row.colour }" />
           <span class="bt">{{ row.title }}</span>
           <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
-          <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
+          <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · {{ since(row.at) }} ago</span>
         </button>
         <span class="sacts">
           <button v-if="removable?.includes(row.id)" type="button" class="btn sm" :aria-label="`Done and remove the worktree of ${row.title}`" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [row.id], true)">+ worktree</button>
@@ -163,7 +167,8 @@ onUnmounted(() => {
     </details>
     <details v-if="finished?.length" class="grp standby finished">
       <summary>Finished<span class="cts">{{ finished.length }}</span></summary>
-      <div v-for="row in finished" :key="row.id" class="srow">
+      <input v-if="finished.length > finishedPage" v-model="finishedQuery" class="ffilter" type="search" placeholder="Filter by name" aria-label="Filter finished chats" />
+      <div v-for="row in finishedShown.rows" :key="row.id" class="srow">
         <button type="button" class="brow" @click="emit('select', row.id)">
           <i class="sd" :style="{ background: row.colour }" />
           <span class="bt">{{ row.title }}</span>
@@ -171,6 +176,8 @@ onUnmounted(() => {
           <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · finished {{ since(row.at) }} ago</span>
         </button>
       </div>
+      <p v-if="!finishedShown.rows.length" class="fnone">No name matches. <kbd>⌘K</kbd> searches inside chats.</p>
+      <button v-if="finishedShown.left" type="button" class="fmore" @click="finishedLimit += finishedPage">Show {{ Math.min(finishedPage, finishedShown.left) }} more · {{ finishedShown.left }} left</button>
     </details>
     <button v-if="inbox.parked || cleanup" type="button" class="pfoot" @click="emit('house')">
       <span><b>{{ inbox.parked }} parked</b> · quiet for a while</span><span>{{ cleanup ? `${cleanup} to clean up →` : 'Housekeeping →' }}</span>
@@ -586,6 +593,43 @@ onUnmounted(() => {
 
 .finished .srow .brow {
   padding-right: 12px;
+}
+
+.finished .ffilter {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--line2);
+  outline: none;
+  font: 12.5px Geist, system-ui, sans-serif;
+  color: var(--ink);
+  background: transparent;
+}
+
+.finished .fnone {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.finished .fmore {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line2);
+  font: 11px var(--mono);
+  color: var(--muted);
+  text-align: center;
+}
+
+.finished .fmore:hover,
+.finished .fmore:focus-visible {
+  color: var(--ink);
+  background: var(--soft);
 }
 
 .standby .sacts {

@@ -7,9 +7,10 @@ import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
-import { createPlacement, loadRules } from '../departments/classifier'
+import { createPlacement, loadRules, watchRules } from '../departments/classifier'
 import { createJev } from '../departments/jev'
 import { wireHandoff } from '../handoff'
+import { createSearch, wireHistory } from '../history'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
 import { loginShellPath } from '../login-path'
@@ -54,8 +55,11 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
   const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
-  const sync = wireChats(hub, store, outside.visitors)
-  createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
+  const unwatchRules = watchRules(configDir(), deptRules)
+  const sync = wireChats(hub, store, outside.visitors, () => placement.release())
+  const placement = createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
+  const search = createSearch(join(dataDir, 'search.db'), join(claudeDir(), 'projects'), join(app.getAppPath(), 'out/main/indexer.js'))
+  wireHistory(hub, search, { store, visitors: outside.visitors })
   hub.handle('departmentRules', () => deptRules)
   sync.setAccounts(accounts.list())
   hub.handle('resolveRequest', windowResolver(broker, () => ui.state().focused))
@@ -168,6 +172,8 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
       stopped = true
       clearInterval(stripTimer)
       clearInterval(usageTimer)
+      unwatchRules()
+      void search.stop()
       house.stop()
       phone.stop()
       void outside.stop()

@@ -162,7 +162,7 @@ describe('inbox', () => {
       { id: 'read', dept: 'Marketplace', at: now - 2 * hour, dozing: false },
       { id: 'old', dept: 'Marketplace', dozing: true },
     ])
-    expect(agents.find((agent) => agent.id === 'read')?.caption).toBe('Standby · done 2h ago')
+    expect(agents.find((agent) => agent.id === 'read')?.caption).toBe('Standby · 2h ago')
   })
 
   it('keeps finished chats off the floor and lists them in Finished, newest first, with department and when they finished', () => {

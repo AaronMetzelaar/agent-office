@@ -61,6 +61,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     if (at !== undefined && seed.writtenAt > at && finished.delete(seed.sessionId)) saveFinished()
     return finished.get(seed.sessionId)
   }
+  const summoned = new Set<string>()
   let open: string | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -207,7 +208,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         if (Object.keys(fields).length) set(entry, fields)
       }
       const cutoff = now() - activeWindowMs
-      for (const entry of visitors.values()) if (!fresh.has(entry.view.id) && entry.view.lastActivityAt < cutoff) remove(entry)
+      for (const entry of visitors.values()) if (!fresh.has(entry.view.id) && !summoned.has(entry.view.id) && entry.view.lastActivityAt < cutoff) remove(entry)
     },
 
     hook(event: HookEvent): void {
@@ -273,6 +274,13 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       saveFinished()
       set(entry, { finished: at, unread: false })
       return true
+    },
+
+    summon(seed: VisitorSeed): void {
+      if (visitors.has(seed.sessionId)) return
+      summoned.add(seed.sessionId)
+      const entry = add(seed)
+      set(entry, { finished: entry.view.finished ?? seed.lastActivityAt, retained: false })
     },
 
     markMoved(chatId: string): void {

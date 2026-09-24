@@ -63,6 +63,9 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   setLimits: true,
   openInTerminal: true,
   openInDesktop: true,
+  searchChats: true,
+  openTranscript: true,
+  renameChat: true,
 }
 
 export const forwarded = Object.keys(names) as (keyof typeof names)[]
