@@ -149,6 +149,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
   function stuck(chat: Chat, reason: Stuck) {
     if (chat.view.partial) addRow(chat, { kind: 'text', id: randomUUID(), text: chat.view.partial })
+    chat.background.clear()
     transition(chat, 'stuck', { stuck: reason, ...noPending, subagents: [], partial: '' })
   }
 
@@ -161,6 +162,15 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
   function dropSubagent(chat: Chat, id: string) {
     if (chat.view.subagents.some((agent) => agent.id === id)) set(chat, { subagents: chat.view.subagents.filter((agent) => agent.id !== id) })
+  }
+
+  function subagentDoing(chat: Chat, id: string, activity: string) {
+    const subagents = chat.view.subagents
+    if (subagents.some((agent) => agent.id === id && agent.activity !== activity)) set(chat, { subagents: subagents.map((agent) => (agent.id === id ? { ...agent, activity } : agent)) })
+  }
+
+  function wake(chat: Chat) {
+    if (chat.view.state === 'done') transition(chat, 'working', { unread: false, activity: 'Thinking' })
   }
 
   function guard(chatId: string, handle: (chat: Chat) => void) {
@@ -191,6 +201,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         save(chat)
         break
       case 'text-delta':
+        wake(chat)
         view.partial += event.text
         emit({ id: view.id, partialAppend: event.text })
         if (view.activity !== 'Writing a reply') set(chat, { activity: 'Writing a reply' })
@@ -199,7 +210,11 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         if (!event.parentToolUseId && view.partial) set(chat, { partial: '' })
         break
       case 'tool-use':
-        if (!event.parentToolUseId) set(chat, { activity: describeTool(event.name, event.input) })
+        if (event.parentToolUseId) subagentDoing(chat, event.parentToolUseId, describeTool(event.name, event.input))
+        else {
+          wake(chat)
+          set(chat, { activity: describeTool(event.name, event.input) })
+        }
         break
       case 'tool-result':
         if (!chat.background.has(event.toolUseId)) dropSubagent(chat, event.toolUseId)
@@ -207,6 +222,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       case 'subagent-start':
         if (event.background) chat.background.add(event.id)
         set(chat, { subagents: [...view.subagents, { id: event.id, description: event.description }] })
+        break
+      case 'subagent-progress':
+        subagentDoing(chat, event.id, event.activity)
         break
       case 'subagent-stop':
         chat.background.delete(event.id)
@@ -219,7 +237,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         chat.lastError = undefined
         set(chat, { usage: event.usage })
         if (event.isError && !interrupted) fail(chat, [lastError, event.errorText].filter(Boolean).join(': '), 'error')
+        else if (!interrupted && chat.background.size && midTurn.has(view.state)) set(chat, { activity: 'Thinking', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
         else if (midTurn.has(view.state)) {
+          chat.background.clear()
           chat.doneAt = Date.now()
           transition(chat, 'done', { unread: true, activity: '', ...noPending, subagents: [], partial: '' })
         } else save(chat)

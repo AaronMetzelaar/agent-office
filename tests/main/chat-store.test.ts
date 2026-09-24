@@ -100,7 +100,7 @@ describe('chat store', () => {
     engine.emit(id, sdk.toolUse([{ id: 'a2', name: 'Agent', input: { description: 'Explore auth', run_in_background: true } }]))
     engine.emit(id, sdk.toolUse([{ id: 'a1-read', name: 'Read', input: { file_path: '/repo/bid.ts' } }], 'a1'))
     expect(chat(id).subagents).toEqual([
-      { id: 'a1', description: 'Explore bids' },
+      { id: 'a1', description: 'Explore bids', activity: 'Reading bid.ts' },
       { id: 'a2', description: 'Explore auth' },
     ])
     expect(chat(id).rows.find((row) => row.id === 'a1-read')).toMatchObject({ parentToolUseId: 'a1' })
@@ -111,6 +111,40 @@ describe('chat store', () => {
 
     engine.emit(id, sdk.taskNotification('a2'))
     expect(chat(id).subagents).toEqual([])
+  })
+
+  it('stays Working while background subagents run past the main turn, and shows what each is doing', () => {
+    const { engine, chat } = office
+    const id = working()
+    engine.emit(id, sdk.toolUse([{ id: 'b1', name: 'Agent', input: { description: 'Scan bids', run_in_background: true } }]))
+    engine.emit(id, sdk.toolUse([{ id: 'b2', name: 'Agent', input: { description: 'Scan auth', run_in_background: true } }]))
+    engine.emit(id, sdk.toolResult('b1', 'Async agent launched'))
+    engine.emit(id, sdk.toolResult('b2', 'Async agent launched'))
+    engine.emit(id, sdk.result())
+    expect(chat(id)).toMatchObject({ state: 'working', unread: false })
+    expect(caption(id)).toBe('2 subagents exploring')
+
+    engine.emit(id, sdk.toolUse([{ id: 'b1-read', name: 'Read', input: { file_path: '/repo/bid.ts' } }], 'b1'))
+    engine.emit(id, sdk.taskProgress('b2', 'Tracing the login flow'))
+    expect(chat(id).subagents).toEqual([
+      { id: 'b1', description: 'Scan bids', activity: 'Reading bid.ts' },
+      { id: 'b2', description: 'Scan auth', activity: 'Tracing the login flow' },
+    ])
+
+    engine.emit(id, sdk.taskNotification('b1'))
+    engine.emit(id, sdk.taskNotification('b2'))
+    engine.emit(id, sdk.text('Both scans are in'))
+    engine.emit(id, sdk.result())
+    expect(chat(id)).toMatchObject({ state: 'done', subagents: [] })
+  })
+
+  it('wakes a Done agent back to Working when it resumes on its own', () => {
+    const { engine, chat } = office
+    const id = working()
+    engine.emit(id, sdk.result())
+    expect(chat(id).state).toBe('done')
+    engine.emit(id, sdk.toolUse([{ id: 'r1', name: 'Read', input: { file_path: '/repo/a.ts' } }]))
+    expect(chat(id)).toMatchObject({ state: 'working', unread: false, activity: 'Reading a.ts' })
   })
 
   it('a rate limit error becomes Stuck (rate-limited) with the retry time', () => {

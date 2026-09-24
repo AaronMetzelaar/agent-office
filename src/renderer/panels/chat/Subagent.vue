@@ -3,7 +3,7 @@ import type { AgentItem } from './groups'
 import { resultSummary, toolTarget } from './rows'
 import ToolGroup from './ToolGroup.vue'
 
-defineProps<{ item: AgentItem; state: 'running' | 'done' | 'failed' }>()
+defineProps<{ item: AgentItem; state: 'running' | 'done' | 'failed'; activity?: string }>()
 
 const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
 </script>
@@ -15,8 +15,9 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
       <b>{{ toolTarget(item.row) || 'Subagent' }}</b>
       <span class="st">{{ labels[state] }}</span>
     </div>
+    <p v-if="state === 'running' && activity" class="now">{{ activity }}</p>
     <p v-if="item.summary" class="sm">{{ item.summary }}</p>
-    <details v-if="item.items.length">
+    <details v-if="item.items.length" :open="state === 'running'">
       <summary>Activity</summary>
       <div class="steps">
         <template v-for="child in item.items" :key="child.kind === 'group' ? `g:${child.id}` : child.row.id">
@@ -85,6 +86,13 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
   margin-left: auto;
   font-size: 12px;
   color: var(--faint);
+}
+
+.sub .now {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink2);
+  overflow-wrap: anywhere;
 }
 
 .sub .sm,

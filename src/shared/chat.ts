@@ -77,7 +77,7 @@ export interface ChatFields {
   oldestPendingAt?: number
   answered?: Answered[]
   earlier?: boolean
-  subagents: { id: string; description: string }[]
+  subagents: { id: string; description: string; activity?: string }[]
   usage: Usage
   partial: string
   createdAt: number

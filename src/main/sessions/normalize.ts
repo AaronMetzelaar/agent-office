@@ -10,6 +10,7 @@ export type ChatEvent =
   | { type: 'tool-result'; toolUseId: string; text: string; isError: boolean }
   | { type: 'user-text'; id: string; text: string }
   | { type: 'subagent-start'; id: string; description: string; background: boolean }
+  | { type: 'subagent-progress'; id: string; activity: string }
   | { type: 'subagent-stop'; id: string }
   | { type: 'turn-result'; usage: Usage; isError: boolean; errorText?: string }
   | { type: 'headroom'; info: SDKRateLimitInfo }
@@ -26,7 +27,6 @@ const quietSystem = new Set([
   'hook_response',
   'task_started',
   'task_updated',
-  'task_progress',
   'thinking_tokens',
   'session_state_changed',
   'background_tasks_changed',
@@ -97,7 +97,7 @@ export function normalize(message: SDKMessage): ChatEvent[] {
     }
     case 'user':
       if ('isSynthetic' in message && message.isSynthetic) return []
-      return userEvents(message.uuid, message.message?.content)
+      return userEvents(message.uuid, message.message?.content).filter((event) => !message.parent_tool_use_id || event.type === 'tool-result')
     case 'stream_event': {
       const event = message.event
       if (message.parent_tool_use_id || event.type !== 'content_block_delta' || event.delta.type !== 'text_delta') return []
@@ -116,6 +116,9 @@ export function normalize(message: SDKMessage): ChatEvent[] {
     case 'system':
       if (message.subtype === 'init') return [{ type: 'session', sessionId: message.session_id, model: message.model }, ...(message.permissionMode ? [{ type: 'mode' as const, mode: message.permissionMode }] : [])]
       if (message.subtype === 'status') return message.permissionMode ? [{ type: 'mode', mode: message.permissionMode }] : []
+      if (message.subtype === 'task_progress') {
+        return message.tool_use_id && message.summary ? [{ type: 'subagent-progress', id: message.tool_use_id, activity: message.summary }] : []
+      }
       if (message.subtype === 'task_notification') return message.tool_use_id ? [{ type: 'subagent-stop', id: message.tool_use_id }] : []
       if (message.subtype === 'api_retry') return message.error === 'rate_limit' ? [{ type: 'retry-at', at: Date.now() + message.retry_delay_ms }] : []
       return quietSystem.has(message.subtype) ? [] : [{ type: 'other', label: `system:${message.subtype}` }]

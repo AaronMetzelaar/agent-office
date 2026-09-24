@@ -216,7 +216,7 @@ export function renderChip(chip: Chip, v: ChipView) {
   if (key === chip.key) return false
   chip.key = key
   const queued = v.queueIndex >= 0
-  const extra = v.state === 'working' && v.subs > 0 && v.subs < 3 && !v.parked
+  const extra = v.state === 'working' && v.subs > 0 && !v.parked
   chip.el.className = ['chip', stateKey(v.state), v.parked && 'parked', queued && 'q', v.selected && 'sel', v.dim && 'dim', chip.mini && 'mini'].filter(Boolean).join(' ')
   chip.bubble.hidden = !(v.state === 'needs-you' || (v.state === 'stuck' && queued))
   chip.bubble.classList.toggle('warn', v.state === 'stuck')

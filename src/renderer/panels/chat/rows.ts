@@ -96,7 +96,7 @@ export function toolDetail(row: Pick<ToolRow, 'name' | 'input'>): string {
   }
 }
 
-export function subagentState(row: ToolRow, running: ReadonlySet<string>): 'running' | 'done' | 'failed' {
+export function subagentState(row: ToolRow, running: ReadonlyMap<string, unknown>): 'running' | 'done' | 'failed' {
   if (row.result?.isError) return 'failed'
   return row.result && !running.has(row.id) ? 'done' : 'running'
 }

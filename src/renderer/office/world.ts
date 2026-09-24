@@ -747,7 +747,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
             key: f.id,
             x: ((projected.x + 1) / 2) * w,
             y: ((1 - projected.y) / 2) * h,
-            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0 && f.subagents.length < 3, l.queueIndex >= 0) + (acts === 'both' ? 50 : acts ? 22 : 0) + (acts && removable(f.id) ? 50 : 0),
+            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0, l.queueIndex >= 0) + (acts === 'both' ? 50 : acts ? 22 : 0) + (acts && removable(f.id) ? 50 : 0),
             miniHw: l.queueIndex >= 0 ? 22 : 14,
             h: (far ? 32 : 38) + (bubble ? (far ? 30 : 36) : 0),
             priority: mode === 2 ? 0 : loud(who) ? 1 : stateKey(f.state) === 'working' ? 2 : f.state === 'done' ? 3 : 4,

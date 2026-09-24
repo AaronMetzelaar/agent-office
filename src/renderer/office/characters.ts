@@ -56,6 +56,7 @@ export interface Mini {
   s: number
   nb: number
   ba: number
+  o: number
 }
 
 export interface Character {
@@ -368,15 +369,16 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   while (c.minis.length < n) {
     const m = kit.blob(kit.colourMini(colour), true)
     m.g.scale.setScalar(0.001)
-    c.minis.push({ b: m, s: 0, nb: 1 + Math.random() * 3, ba: -9 })
+    c.minis.push({ b: m, s: 0, nb: 1 + Math.random() * 3, ba: -9, o: c.minis.length * 2.1 })
   }
   const centre = T.miniCentre ?? w.pos
   c.minis.forEach((m, j) => {
     m.s += ((j < n ? 1 : 0) - m.s) * Math.min(1, dt * 4)
+    m.o += ((j * Math.PI * 2) / Math.max(n, 1) - m.o) * Math.min(1, dt * 3)
     m.b.g.visible = m.s > 0.02
     if (!m.b.g.visible) return
     m.b.g.scale.setScalar(Math.max(0.001, m.s) * 0.42)
-    const an = t * 0.5 * am + j * 2.1 + c.ph, rx = 1.3, rz = 1.05
+    const an = t * 0.5 * am + m.o + c.ph, rx = 1.3, rz = 1.05
     m.b.g.position.set(centre.x + Math.cos(an) * rx, 0, centre.z + Math.sin(an) * rz)
     m.b.g.rotation.y = Math.atan2(-Math.sin(an) * rx, Math.cos(an) * rz)
     const s = Math.sin(t * 10 + j)

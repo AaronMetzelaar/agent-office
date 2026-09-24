@@ -140,6 +140,8 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
             forkSession: options.forkSession,
             settings: options.permissions ? { permissions: options.permissions } : undefined,
             includePartialMessages: true,
+            forwardSubagentText: true,
+            agentProgressSummaries: true,
             canUseTool: (...args) => canUseTool(chatId, ...args),
             spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
               const child = spawn(command, args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
