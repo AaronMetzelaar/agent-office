@@ -21,6 +21,7 @@ export interface DeptRule {
 export interface StartOptions {
   dept?: DeptId
   worktree?: boolean
+  title?: string
 }
 
 export const defaultRules: readonly DeptRule[] = [

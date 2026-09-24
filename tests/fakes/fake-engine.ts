@@ -67,6 +67,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const signals: { pid: number; signal: string }[] = []
   const ignoresTerm = new Set<number>()
   let nextPid = 70_000
+  let supported = ['compact', 'review', 'mws-test-cases', 'mws-verify', 'mws-review', 'mws-pr', 'pr-comment-rundown', 'gh-fix-ci', 'pr-review-rundown']
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
 
   function ask(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
@@ -157,6 +158,7 @@ export function createFakeEngine({ auto = false } = {}) {
     },
     running: (chatId) => live.has(chatId),
     pid: (chatId) => live.get(chatId)?.pid,
+    commands: (chatId) => (starts.some((start) => start.chatId === chatId) ? supported : undefined),
   } satisfies Engine
 
   const processes = {
@@ -182,6 +184,9 @@ export function createFakeEngine({ auto = false } = {}) {
     emit,
     init,
     processes,
+    supports(commands: string[]) {
+      supported = commands
+    },
     sessionId: (chatId: string) => live.get(chatId)?.sessionId,
     exit(chatId: string, error?: string) {
       live.delete(chatId)

@@ -10,7 +10,7 @@ import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
-import { createWorktree, planWorktree, slugFor, type WorktreePlan } from '../worktrees/create'
+import { createWorktree, planWorktree, reviewPr, slugFor, type WorktreePlan } from '../worktrees/create'
 import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
@@ -279,7 +279,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
   function retryWorktree(chat: Chat, worktree: string, prompt: string) {
     try {
-      setUpWorktree(chat, planWorktree(repoPath(chat.view.cwd), basename(worktree)), prompt)
+      setUpWorktree(chat, { ...planWorktree(repoPath(chat.view.cwd), basename(worktree)), pr: reviewPr(prompt) }, prompt)
     } catch (error) {
       worktreeFailed(chat, error)
     }
@@ -406,7 +406,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const wanted = (typeof options === 'object' && options ? options : {}) as StartOptions
       let plan: WorktreePlan | undefined
       try {
-        plan = wanted.worktree === true ? planWorktree(cwd, slugFor(prompt)) : undefined
+        plan = wanted.worktree === true ? { ...planWorktree(cwd, slugFor(prompt)), pr: reviewPr(prompt) } : undefined
       } catch (error) {
         return { error: errorText(error) }
       }
@@ -415,7 +415,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         accountId,
         cwd,
         department,
-        title: prompt.trim().split('\n')[0]!.slice(0, 60),
+        title: (typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : prompt).trim().split('\n')[0]!.slice(0, 60),
         ...(model ? { model: model as string } : {}),
         ...(effort ? { effort: effort as Effort } : {}),
       })

@@ -3,11 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { CSS2DRenderer, type CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { LoginItem } from '../../shared/chat'
+import type { ReviewRequest } from '../../shared/workflow'
 import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
 import { assignDesks, baseSlots, benchSeats, capacityOf, dept, depts, door, kindOf, layoutFloor, lounge, parkedZone, queueSpots, settle, widthOf, type Demand, type DeptId, type Floor } from './layout'
+import { createIntray } from './intray'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type DeptScene, type Slot } from './props'
@@ -95,6 +97,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const labels = new CSS2DRenderer({ element: labelsEl })
   labels.setSize(innerWidth, innerHeight)
   const labelScene = new THREE.Scene()
+  const intray = createIntray(scene, labelScene)
   const canvas = renderer.domElement
   const controls = new OrbitControls(camera, canvas)
   Object.assign(controls, { enableDamping: true, screenSpacePanning: false, minPolarAngle: 0.35, maxPolarAngle: 1.2, minDistance: 4 })
@@ -693,6 +696,9 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       refresh()
     },
     setFilter,
+    setReviews(requests: readonly ReviewRequest[]) {
+      if (intray.update(requests, Date.now())) kick()
+    },
     overview: () => select(undefined, false),
     escape() {
       if (focus.filter) return setFilter(undefined)

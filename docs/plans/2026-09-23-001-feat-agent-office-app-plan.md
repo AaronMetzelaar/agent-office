@@ -738,7 +738,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 ### Phase 4 — Workflow
 
-- [ ] **Unit 16: Workflow — ship-it actions, Linear on the desks, review queue**
+- [x] **Unit 16: Workflow — ship-it actions, Linear on the desks, review queue**
 
 **Goal:** Put Aaron's own MWS workflow one click away from each agent. Surface the PRs waiting for his review as a second queue.
 
@@ -961,6 +961,9 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Marketplace and Side projects fit only one front desk each, because props block the second. Unit 14 (layout pass).
 - [ ] Mac notifications need the self-signed "Agent Office Local" certificate, which Aaron creates (steps in the README). Then build signed and verify the actions on screen.
 - [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
+- [ ] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
+- [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
+- [ ] "Review" finds the PR's local clone among the repos of existing chats (matching `origin`). A repo with no chat yet gets a message instead of a folder picker. Add a picker if that happens often.
 
 ## System-Wide Impact
 

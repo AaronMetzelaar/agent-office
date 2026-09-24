@@ -17,6 +17,7 @@ import { configDir, createPhonePush } from './notify/ntfy'
 import { createBroker, windowResolver } from './permissions/registry'
 import { createRules } from './permissions/rules'
 import { wireReview } from './review'
+import { run } from './review/git'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createSessionManager, type Engine } from './sessions/manager'
 import { createChatStore } from './store/chats'
@@ -24,6 +25,8 @@ import { openDb } from './store/db'
 import { loginItems, wireChats } from './store/ipc-sync'
 import { createTray } from './tray'
 import { stripState } from './tray/strip'
+import { wireWorkflow } from './workflow'
+import { createLinear } from './workflow/linear'
 
 if (process.env.AGENT_OFFICE_USER_DATA) app.setPath('userData', process.env.AGENT_OFFICE_USER_DATA)
 
@@ -40,6 +43,7 @@ if (app.requestSingleInstanceLock()) {
 async function start(): Promise<void> {
   if (app.isPackaged) process.env.PATH = await loginShellPath()
   const fakeEngine = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_ENGINE === '1' ? (await import('../../tests/fakes/fake-engine')).createFakeEngine({ auto: true }) : undefined
+  const fakeGithub = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_GH === '1' ? (await import('../../tests/fakes/github')).createFakeGithub() : undefined
   secureSession(devServerUrl, join(__dirname, '../renderer'))
   const win = createWindow()
   const userData = app.getPath('userData')
@@ -100,6 +104,9 @@ async function start(): Promise<void> {
   const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor() })
   handle('getSettings', win, appUrl, settings)
   wireReview(win, appUrl, store, editor)
+  const linear = createLinear(() => vault.linearKey())
+  const confirm = async (message: string, detail: string) => (await dialog.showMessageBox(win, { type: 'question', buttons: ['Move', 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
+  const reviews = wireWorkflow(win, appUrl, { store, engine, accounts: accounts.list, linear, rules: deptRules, gh: fakeGithub?.run ?? run, confirm })
   handle('setSetting', win, appUrl, (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if (typeof value !== 'boolean') return settings()
@@ -137,7 +144,7 @@ async function start(): Promise<void> {
   })
   accounts.events.on('removed', store.accountRemoved)
   Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
-  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine })
+  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine, fakeGithub, reviews })
   app.on('second-instance', () => show())
   app.on('activate', () => show())
 }

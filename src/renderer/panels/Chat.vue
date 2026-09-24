@@ -9,6 +9,7 @@ import Composer from './chat/Composer.vue'
 import PlanCard from './chat/PlanCard.vue'
 import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
+import ShipIt from './chat/ShipIt.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
@@ -104,6 +105,7 @@ onUnmounted(() => {
       </div>
       <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
     </div>
+    <ShipIt v-if="chat" :chat="chat" />
     <div class="ctl">
       <div class="tabs" role="tablist" aria-label="Chat views">
         <button type="button" role="tab" :aria-selected="tab === 'chat'" @click="tab = 'chat'">Chat</button>

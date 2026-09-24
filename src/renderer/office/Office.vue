@@ -5,6 +5,7 @@ import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, 
 import type { DeptId } from '../../shared/departments'
 import { gb, plural, type HousekeepingView } from '../../shared/housekeeping'
 import type { AccountView, Navigate } from '../../shared/ipc'
+import type { ReviewQueue } from '../../shared/workflow'
 import Chat from '../panels/Chat.vue'
 import Housekeeping from '../panels/Housekeeping.vue'
 import Inbox from '../panels/Inbox.vue'
@@ -34,6 +35,7 @@ const palette = reactive({ open: false, query: '' })
 const inbox = shallowRef(emptyInbox)
 const mode = ref<'inbox' | 'new' | 'house'>('inbox')
 const house = shallowRef<HousekeepingView>()
+const reviews = shallowRef<ReviewQueue>()
 const chatList = computed(() => (tick.value, [...projection.chats.values()]))
 const worktreeCount = computed(() => house.value?.worktrees.length ?? 0)
 const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
@@ -60,6 +62,7 @@ function push() {
   for (const a of agents) colours.set(a.id, a.colour)
   inbox.value = buildInbox(projection.chats, agents, projection.logins)
   w.sync(agents, projection.logins)
+  w.setReviews(reviews.value?.requests ?? [])
   tick.value++
   if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingFly)
 }
@@ -204,11 +207,15 @@ function onKey(event: KeyboardEvent) {
 const offNavigate = window.office.onNavigate(navigate)
 const offHousekeeping = window.office.onHousekeeping((view) => (house.value = view))
 void window.office.getHousekeeping().then((view) => (house.value ??= view))
+const offReviews = window.office.onReviewRequests((queue) => (reviews.value = queue))
+void window.office.getReviewRequests().then((queue) => (reviews.value ??= queue))
+watch([reviews, world], () => world.value?.setReviews(reviews.value?.requests ?? []))
 onMounted(() => addEventListener('keydown', onKey))
 onUnmounted(() => {
   removeEventListener('keydown', onKey)
   offNavigate()
   offHousekeeping()
+  offReviews()
   clearInterval(captions)
   offProjection()
   projection.stop()
@@ -248,7 +255,7 @@ onUnmounted(() => {
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" />
-    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" />
+    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">
@@ -637,6 +644,24 @@ kbd {
   font-size: 12px;
   border-width: 1.5px;
   bottom: calc(100% + 5px);
+}
+
+.intray {
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
+  font: 600 11px/16px var(--mono);
+  color: var(--accent);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.intray.late {
+  border-color: var(--needs);
+  background: var(--needs-bg);
+  color: var(--needs-ink);
 }
 
 .sign {

@@ -33,6 +33,7 @@ const promptEl = ref<HTMLTextAreaElement>()
 const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: remembered.model, effort: remembered.effort, worktree: remembered.worktree })
 const error = ref('')
 const busy = ref(false)
+const ticket = reactive({ text: '', note: '', busy: false })
 
 const accountId = computed({
   get: () => form.accountId || defaultAccount(props.accounts, props.desk?.dept) || '',
@@ -64,6 +65,18 @@ async function choose() {
   if (!path) return
   folders.value = [path, ...folders.value.filter((folder) => folder !== path)]
   form.folder = path
+}
+
+async function fromTicket() {
+  if (!ticket.text.trim() || ticket.busy) return
+  ticket.busy = true
+  const found = await window.office.lookupTicket(ticket.text).finally(() => (ticket.busy = false))
+  if ('error' in found) return void (ticket.note = found.error)
+  const { id, title, description } = found.ticket
+  form.prompt = [title ? `${id} ${title}` : id, description, form.prompt.trim()].filter(Boolean).join('\n\n')
+  form.worktree = true
+  ticket.note = found.notice ?? (title ? '' : `Without a Linear key only ${id} is filled in. Add one in Accounts to get the title.`)
+  promptEl.value?.focus()
 }
 
 async function start() {
@@ -99,6 +112,14 @@ onMounted(async () => {
     <button type="button" class="ib" aria-label="Cancel" title="Cancel (Esc)" @click="emit('close')">×</button>
   </div>
   <form class="nw" @submit.prevent="start" @keydown.meta.enter.prevent="start" @keydown.esc="emit('close')">
+    <div class="field">
+      Start from ticket
+      <span class="pick">
+        <input v-model="ticket.text" aria-label="Linear ticket" placeholder="AUC-1302 or a Linear link" @keydown.enter.prevent="fromTicket" />
+        <button type="button" class="btn" :disabled="!ticket.text.trim() || ticket.busy" @click="fromTicket">Use ticket</button>
+      </span>
+      <p v-if="ticket.note" class="note" role="status">{{ ticket.note }}</p>
+    </div>
     <label class="field">
       Prompt
       <textarea ref="promptEl" v-model="form.prompt" rows="5" placeholder="What should this agent do?" aria-label="Prompt" />

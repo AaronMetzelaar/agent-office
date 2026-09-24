@@ -49,11 +49,17 @@ const office: OfficeApi = {
   cleanUp: (chatIds) => ipcRenderer.invoke('cleanUp', chatIds),
   removeWorktree: (path) => ipcRenderer.invoke('removeWorktree', path),
   setThresholds: (thresholds) => ipcRenderer.invoke('setThresholds', thresholds),
+  getShipIt: (chatId) => ipcRenderer.invoke('getShipIt', chatId),
+  lookupTicket: (text) => ipcRenderer.invoke('lookupTicket', text),
+  moveTicket: (chatId) => ipcRenderer.invoke('moveTicket', chatId),
+  getReviewRequests: () => ipcRenderer.invoke('getReviewRequests'),
+  startReview: (url) => ipcRenderer.invoke('startReview', url),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
   onAccountsChanged: (listener) => subscribe('accountsChanged', listener),
   onChatPatches: (listener) => subscribe('chatPatches', listener),
   onNavigate: (listener) => subscribe('navigate', listener),
   onHousekeeping: (listener) => subscribe('housekeeping', listener),
+  onReviewRequests: (listener) => subscribe('reviewRequests', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

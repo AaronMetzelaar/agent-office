@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk'
 import type { Effort } from '../../shared/chat'
 
 export type SessionPermissions = { allow: string[]; ask: string[] }
@@ -30,6 +30,7 @@ export interface Engine {
   setPermissions(chatId: string, permissions: SessionPermissions): Promise<void>
   running(chatId: string): boolean
   pid(chatId: string): number | undefined
+  commands(chatId: string): string[] | undefined
 }
 
 export type ChatCanUseTool = (chatId: string, ...args: Parameters<CanUseTool>) => ReturnType<CanUseTool>
@@ -78,6 +79,8 @@ function inputQueue() {
 export function createSessionManager(tokenFor: (accountId: string) => string | undefined, canUseTool: ChatCanUseTool): Engine {
   const events = new EventEmitter<EngineEvents>()
   const sessions = new Map<string, Session>()
+  const commands = new Map<string, string[]>()
+  const learn = (chatId: string, list: SlashCommand[]) => commands.set(chatId, list.map((command) => command.name))
 
   const live = (chatId: string) => {
     const session = sessions.get(chatId)
@@ -88,8 +91,11 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
   async function consume(chatId: string, session: Session, token: string) {
     let error: string | undefined
     try {
-      for await (const message of await session.ready) {
+      const query = await session.ready
+      void query.supportedCommands().then((list) => session.stopped || learn(chatId, list), () => {})
+      for await (const message of query) {
         if (session.stopped) return
+        if (message.type === 'system' && message.subtype === 'commands_changed') learn(chatId, message.commands)
         events.emit('message', chatId, message)
       }
     } catch (thrown) {
@@ -167,5 +173,6 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     },
     running: (chatId) => sessions.has(chatId),
     pid: (chatId) => sessions.get(chatId)?.spawned.pid,
+    commands: (chatId) => commands.get(chatId),
   }
 }

@@ -2,9 +2,11 @@
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
+import type { ReviewQueue } from '../../shared/workflow'
 import type { Inbox, WaitingItem } from '../state/inbox'
+import ReviewRequests from './ReviewRequests.vue'
 
-const props = defineProps<{ inbox: Inbox; canSwitch?: boolean; cleanup?: number }>()
+const props = defineProps<{ inbox: Inbox; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: [] }>()
 
 const now = ref(Date.now())
@@ -123,6 +125,7 @@ onUnmounted(() => {
       </div>
     </article>
     <p v-if="!inbox.waiting.length" class="none">When Auto mode needs a decision, the agent walks to your door and waits here.</p>
+    <ReviewRequests v-if="reviews" :queue="reviews" :now="now" @select="emit('select', $event)" />
     <h3 class="sec">Everyone else</h3>
     <section v-for="group in inbox.board" :key="group.id" class="grp" :data-dept="group.id">
       <h4>

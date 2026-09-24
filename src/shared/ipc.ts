@@ -3,6 +3,7 @@ import type { DeptRule, StartOptions } from './departments'
 import type { CleanupSummary, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
+import type { ReviewQueue, ShipIt, TicketLookup } from './workflow'
 
 export interface AppInfo {
   name: string
@@ -89,6 +90,11 @@ export interface Commands {
   cleanUp(chatIds?: string[]): Promise<CleanupSummary>
   removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
   setThresholds(thresholds: Thresholds): HousekeepingView
+  getShipIt(chatId: string): Promise<ShipIt>
+  lookupTicket(text: string): Promise<TicketLookup>
+  moveTicket(chatId: string): Promise<{ status?: string; error?: string }>
+  getReviewRequests(): ReviewQueue
+  startReview(url: string): Promise<StartChatResult>
 }
 
 export interface Events {
@@ -97,6 +103,7 @@ export interface Events {
   chatPatches: ChatPatchBatch
   navigate: Navigate
   housekeeping: HousekeepingView
+  reviewRequests: ReviewQueue
 }
 
 export type OfficeApi = {
@@ -107,4 +114,5 @@ export type OfficeApi = {
   onChatPatches(listener: (payload: Events['chatPatches']) => void): () => void
   onNavigate(listener: (payload: Events['navigate']) => void): () => void
   onHousekeeping(listener: (payload: Events['housekeeping']) => void): () => void
+  onReviewRequests(listener: (payload: Events['reviewRequests']) => void): () => void
 }

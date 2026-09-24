@@ -9,7 +9,7 @@ const sdk = vi.hoisted(() => ({
   messages: [] as unknown[],
   thrown: undefined as Error | undefined,
   hold: undefined as Promise<void> | undefined,
-  control: { interrupt: vi.fn(), setModel: vi.fn(), applyFlagSettings: vi.fn(), setPermissionMode: vi.fn(), close: vi.fn() },
+  control: { interrupt: vi.fn(), setModel: vi.fn(), applyFlagSettings: vi.fn(), setPermissionMode: vi.fn(), close: vi.fn(), supportedCommands: vi.fn(async () => [{ name: 'compact' }, { name: 'mws-pr' }]) },
 }))
 
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
@@ -132,5 +132,18 @@ describe('session manager', () => {
     expect(engine.pid('c1')).toBe(child.pid)
     await new Promise((resolve) => child.once('exit', resolve))
     release()
+  })
+
+  it('knows each chat’s supported commands, replaces them when they change, and keeps them after the session stops', async () => {
+    const { engine, seen } = manager()
+    sdk.messages = [{ type: 'system', subtype: 'init' }, { type: 'system', subtype: 'commands_changed', commands: [{ name: 'compact' }, { name: 'mws-pr' }, { name: 'mws-verify' }] }]
+    expect(engine.commands('c1')).toBeUndefined()
+
+    engine.start('c1', { accountId: 'main', cwd: tmpdir() })
+    await vi.waitFor(() => expect(seen).toHaveLength(2))
+    expect(engine.commands('c1')).toEqual(['compact', 'mws-pr', 'mws-verify'])
+
+    engine.stop('c1')
+    expect(engine.commands('c1')).toEqual(['compact', 'mws-pr', 'mws-verify'])
   })
 })
