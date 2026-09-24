@@ -20,6 +20,7 @@ export interface ChatRecord {
   stuck?: Stuck
   archived: boolean
   parked?: boolean
+  finished?: number
   forkPending?: boolean
   unread: boolean
   createdAt: number
@@ -63,6 +64,7 @@ const addedColumns: [string, string][] = [
   ['parked', 'integer not null default 0'],
   ['review', 'integer not null default 0'],
   ['fork_pending', 'integer not null default 0'],
+  ['finished_at', 'integer'],
 ]
 
 const columns: [keyof ChatRecord, string][] = [
@@ -82,6 +84,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['stuck', 'stuck'],
   ['archived', 'archived'],
   ['parked', 'parked'],
+  ['finished', 'finished_at'],
   ['forkPending', 'fork_pending'],
   ['unread', 'unread'],
   ['createdAt', 'created_at'],

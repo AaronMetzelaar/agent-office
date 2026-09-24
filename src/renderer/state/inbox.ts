@@ -1,10 +1,11 @@
 import type { ChatView, LoginItem, StuckReason } from '../../shared/chat'
-import { hexOf, type DeptId } from '../../shared/office'
+import type { AccountView } from '../../shared/ipc'
+import { departmentOf, hexOf, isResearch, type DeptId } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import { buildQueue, type QueueItem } from '../../shared/queue'
 import { countsFor, stateKey, type StateKey } from '../office/labels'
 import { dept, depts } from '../office/layout'
-import { spotFor } from '../office/standby'
+import { canRest, spotFor } from '../office/standby'
 import type { Agent } from './projection'
 
 export interface WaitingItem {
@@ -51,6 +52,27 @@ export interface StandbyRow {
   dozing: boolean
 }
 
+export interface FinishedRow {
+  id: string
+  title: string
+  colour: string
+  dept: string
+  accent: string
+  at: number
+  visitor: boolean
+}
+
+export function finishedOf(chats: Iterable<ChatView>, accounts: readonly AccountView[]): FinishedRow[] {
+  const research = new Set(accounts.filter(isResearch).map((account) => account.id))
+  return [...chats]
+    .filter((chat) => chat.finished !== undefined && !chat.archived)
+    .sort((a, b) => b.finished! - a.finished!)
+    .map((chat) => {
+      const d = dept[departmentOf(chat, research.has(chat.accountId))]
+      return { id: chat.id, title: chat.title, colour: chat.colour ?? '#9ca3af', dept: d.name, accent: hexOf(d.accent), at: chat.finished!, visitor: !!chat.visitor }
+    })
+}
+
 export interface Inbox {
   waiting: WaitingItem[]
   board: BoardGroup[]
@@ -67,9 +89,10 @@ export function lastReply(chat: Pick<ChatView, 'rows' | 'partial'> | undefined):
   return row?.kind === 'text' ? row.text : undefined
 }
 
-export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonly Agent[], logins: readonly LoginItem[]): Inbox {
+export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonly Agent[], logins: readonly LoginItem[], sent: ReadonlySet<string> = new Set()): Inbox {
   const byId = new Map(agents.map((agent) => [agent.id, agent]))
-  const queue = buildQueue(agents, logins)
+  const away = (agent: Agent) => sent.has(agent.id) && canRest(agent.state)
+  const queue = buildQueue(agents.filter((agent) => !away(agent)), logins)
   const queued = new Set(queue.flatMap((item) => item.chats))
   const waiting = queue.map((item): WaitingItem => {
     const agent = item.chatId ? byId.get(item.chatId) : undefined
@@ -87,7 +110,7 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
       ...(chat?.visitor ? { visitor: true } : {}),
     }
   })
-  const lounged = new Set(agents.filter((agent) => spotFor(agent, undefined, false) === 'lounge').map((agent) => agent.id))
+  const lounged = new Set(agents.filter((agent) => spotFor(agent, undefined, false, away(agent)) === 'lounge').map((agent) => agent.id))
   const atWork = agents.filter((agent) => !lounged.has(agent.id))
   const board = depts
     .map((d): BoardGroup => ({

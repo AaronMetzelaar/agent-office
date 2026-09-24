@@ -277,60 +277,6 @@ export function layoutFloor(desks: Demand, standby = 0, prev?: Floor): Floor {
   return { zones, lounge, yard: side, bounds, frame: union(bounds, boxes.side) }
 }
 
-export function settle(current: Demand, seated: Demand, canRelayout: boolean, present: ReadonlySet<DeptId> = new Set()): { desks: Demand; pending: boolean } {
-  const desks: Demand = {}
-  let pending = false
-  for (const { id } of depts) {
-    const n = seated[id] ?? 0
-    const want = n > 0 || present.has(id) ? n + 1 : 0
-    desks[id] = canRelayout ? want : Math.max(current[id] ?? 0, n, present.has(id) ? 1 : 0)
-    pending ||= desks[id] !== want
-  }
-  return { desks, pending }
-}
-
-export function assignDesks(prev: ReadonlyMap<string, number>, agents: readonly { id: string; dept: DeptId }[], capacity: (id: DeptId) => number): Map<string, number> {
-  const taken = new Map<DeptId, Set<number>>(deptIds.map((id) => [id, new Set()]))
-  const out = new Map<string, number>()
-  const later: { id: string; dept: DeptId }[] = []
-  for (const agent of agents) {
-    const slot = prev.get(agent.id)
-    const used = taken.get(agent.dept)!
-    if (slot !== undefined && slot < capacity(agent.dept) && !used.has(slot)) {
-      used.add(slot)
-      out.set(agent.id, slot)
-    } else later.push(agent)
-  }
-  for (const agent of later) {
-    const used = taken.get(agent.dept)!
-    let slot = 0
-    while (used.has(slot)) slot++
-    used.add(slot)
-    out.set(agent.id, slot)
-  }
-  return out
-}
-
-export function assignSeats(prev: ReadonlyMap<string, number>, ids: readonly string[]): Map<string, number> {
-  const used = new Set<number>()
-  const out = new Map<string, number>()
-  for (const id of ids) {
-    const seat = prev.get(id)
-    if (seat !== undefined && seat < ids.length && !used.has(seat)) {
-      used.add(seat)
-      out.set(id, seat)
-    }
-  }
-  let next = 0
-  for (const id of ids) {
-    if (out.has(id)) continue
-    while (used.has(next)) next++
-    used.add(next)
-    out.set(id, next)
-  }
-  return out
-}
-
 export function anchorsFor(kind: SlotKind, x: number, z: number) {
   return kind === 'gym'
     ? { seat: [x, z - 0.1] as const, stand: [x + 1, z + 0.8] as const, chip: [x, 1.25, z - 0.1] as const }

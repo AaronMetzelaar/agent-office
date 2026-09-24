@@ -107,7 +107,7 @@ test('review requests fill the tray and the drawer, Review starts an agent in PR
   await expect(left.locator('.rqi')).toHaveText([/Deep links for push/])
   await expect(tray).toHaveText('✉ 1 review')
   await expect(tray).not.toHaveClass(/late/)
-  await drawer.locator('.standby summary').click()
+  await drawer.locator('.standby summary', { hasText: 'Standby' }).click({ position: { x: 12, y: 12 } })
   await expect(drawer.locator('.standby .brow', { hasText: 'Review #7' })).toContainText('PR reviews')
   expect((await views()).find((view) => view.id === review.id)).toMatchObject({ archived: false, state: 'idle' })
 

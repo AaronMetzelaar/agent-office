@@ -1,5 +1,6 @@
 import { Color } from 'three'
 import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
+import type { Finished, FinishedMany } from '../../shared/housekeeping'
 import type { AccountView } from '../../shared/ipc'
 import { showsAccountBadge } from '../../shared/departments'
 import { departmentOf, isResearch, palette, type DeptId } from '../../shared/office'
@@ -8,6 +9,8 @@ export interface ChatSource {
   getSnapshot(): Promise<ChatSnapshot>
   onChatPatches(listener: (batch: ChatPatchBatch) => void): () => void
   onWindowVisibility?(listener: (payload: { visible: boolean }) => void): () => void
+  finishChat?(chatId: string, removeWorktree?: boolean): Promise<Finished | undefined>
+  finishChats?(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>
 }
 
 export type Projection = ReturnType<typeof createProjection>
@@ -154,7 +157,7 @@ const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.tes
 export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
   const research = new Set(accounts.filter(isResearch).map((account) => account.id))
   const labels = new Map(accounts.map((account) => [account.id, account.label]))
-  const live = [...chats].filter((chat) => !chat.archived && !chat.retained)
+  const live = [...chats].filter((chat) => !chat.archived && !chat.retained && chat.finished === undefined)
   const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research.has(chat.accountId)) }))
   const colours = assignColours(
     placed.map(({ chat, dept }) => ({ id: chat.id, dept, createdAt: chat.createdAt, fixed: hexColour(chat.colour) })),

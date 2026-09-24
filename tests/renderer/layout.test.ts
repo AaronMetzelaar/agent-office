@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
-import { assignDesks, assignSeats, band, bandArea, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, settle, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
-import { demandOf, spotFor } from '../../src/renderer/office/standby'
+import { band, bandArea, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
+import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
+import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
 
 const inside = deptIds.filter((id) => id !== 'side')
 const overlap = (a: readonly number[], b: readonly number[]) => a[0]! < b[2]! - 1e-9 && b[0]! < a[2]! - 1e-9 && a[1]! < b[3]! - 1e-9 && b[1]! < a[3]! - 1e-9
-const agentsToDesks = (agents: Demand) => settle({}, agents, true).desks
+const agentsToDesks = (agents: Demand): Demand => Object.fromEntries(deptIds.map((id) => [id, agents[id] ? agents[id]! + 1 : 0]))
 const shownOrder = (desks: Demand) => deptIds.filter((id) => layoutFloor(desks).zones[id].shown)
+const atDesks = (agents: Demand, from = 0): Sitter[] => deptIds.flatMap((dept) => Array.from({ length: agents[dept] ?? 0 }, (_, i) => ({ id: `${dept}${i + from}`, dept, spot: 'desk' as const, parked: false, recent: true })))
 
-function floorOf(agents: readonly { dept: DeptId; state: ChatState; parked?: boolean }[]) {
-  const { seated, present, standby } = demandOf(agents.map((a) => ({ dept: a.dept, spot: spotFor({ ...a, parked: a.parked ?? false }, undefined, false) })))
-  return { floor: layoutFloor(settle({}, seated, true, present).desks, standby), seated, present, standby }
+function floorOf(agents: readonly { dept: DeptId; state: ChatState; parked?: boolean }[], recent: boolean) {
+  const seating = reseat(noSeating, agents.map((a, i) => ({ id: `a${i}`, dept: a.dept, spot: spotFor({ ...a, parked: a.parked ?? false }, undefined, false), parked: a.parked ?? false, recent })), true)
+  return { floor: layoutFloor(seating.size, seating.lounge), seating }
 }
 
-const fixture = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })))
+const fixture = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), false)
 
 function occupied(floor: Floor): Box[] {
   return [...inside.filter((id) => floor.zones[id].shown).map((id) => floor.zones[id].box), ...(floor.lounge.shown ? [floor.lounge.box] : []), ...fixedParts]
@@ -117,14 +119,17 @@ describe('section size follows its agents', () => {
 })
 
 describe('packing Aaron’s floor', () => {
-  it('counts only working, needs-you, stuck and done-unread chats toward desks, and sends the other 15 to the Lounge', () => {
-    expect(fixture.seated).toEqual({ mkt: 1, plat: 1, side: 2, gym: 1 })
-    expect([...fixture.present]).toEqual(['gym'])
-    expect(fixture.standby).toBe(15)
+  it('gives desks to working, needs-you, stuck and done-unread chats, and sends the other 15 to the Lounge', () => {
     const { zones, lounge } = fixture.floor
     expect(inside.filter((id) => zones[id].shown)).toEqual(['mkt', 'plat', 'gym'])
     expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([2, 2, 2, 3])
     expect(lounge).toMatchObject({ shown: true, seats: 15 })
+  })
+
+  it('reserves a desk for every chat active in the last day after a relaunch', () => {
+    const { zones, lounge } = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), true).floor
+    expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([5, 7, 9, 4])
+    expect(lounge.seats).toBe(15)
   })
 
   it('fits the building within about 1.2× the area its sections and fixed parts need', () => {
@@ -232,13 +237,11 @@ describe('the Lounge', () => {
   })
 
   it('never moves a seated agent when the Lounge fills up', () => {
-    const rows = loungeRowsIn(ZF - band.z0)
-    for (let i = 0; i < 20; i++) expect(loungeSeat(i, rows)).toEqual(loungeSeat(i, rows))
-    const first = assignSeats(new Map(), ['a', 'b', 'c'])
-    const next = assignSeats(first, ['b', 'c', 'd'])
-    expect(next.get('b')).toBe(first.get('b'))
-    expect(next.get('c')).toBe(first.get('c'))
-    expect(new Set(next.values()).size).toBe(3)
+    const resting = (ids: string[]): Sitter[] => ids.map((id) => ({ id, dept: 'mob', spot: 'lounge', parked: false, recent: false }))
+    const first = reseat(noSeating, resting(['a', 'b', 'c']), true)
+    const next = reseat(first, resting(['a', 'b', 'c', 'd']), true)
+    for (const id of ['a', 'b', 'c']) expect(next.seats.get(id)).toBe(first.seats.get(id))
+    expect(new Set(next.seats.values()).size).toBe(4)
   })
 
   it('hides when nobody is resting', () => {
@@ -249,46 +252,51 @@ describe('the Lounge', () => {
 describe('folding sections', () => {
   const everyone: Demand = { mkt: 3, adm: 1, mob: 2, plat: 2, side: 3, rev: 1, gym: 2 }
 
-  it('shows a section only while it has active agents, and keeps the rest in the fixed order', () => {
-    const folded = settle(agentsToDesks(everyone), { ...everyone, adm: 0, rev: 0 }, true).desks
-    const without = layoutFloor(folded)
+  it('shows a section only while it holds desks, and keeps the rest in the fixed order', () => {
+    const all = reseat(noSeating, atDesks(everyone), true)
+    const folded = reseat(all, atDesks({ ...everyone, adm: 0, rev: 0 }), true)
+    const without = layoutFloor(folded.size)
     expect(without.zones.adm.shown).toBe(false)
     expect(without.zones.rev.shown).toBe(false)
-    expect(shownOrder(folded)).toEqual(['mkt', 'mob', 'plat', 'side', 'gym'])
+    expect(shownOrder(folded.size)).toEqual(['mkt', 'mob', 'plat', 'side', 'gym'])
   })
 
   it('shows the gym for a done agent at the water cooler, with one free treadmill', () => {
-    expect(settle({}, {}, true, new Set<DeptId>(['gym'])).desks.gym).toBe(1)
+    expect(reseat(noSeating, [{ id: 'g', dept: 'gym', spot: 'cooler', parked: false, recent: false }], true).size.gym).toBe(1)
   })
 
   it('unfolds PR reviews when a review agent starts, even while zoomed in', () => {
-    const before = agentsToDesks({ mkt: 1 })
-    const back = settle(before, { mkt: 1, rev: 1 }, false)
-    expect(back.desks.rev).toBe(1)
-    expect(layoutFloor(back.desks).zones.rev.shown).toBe(true)
-    expect(shownOrder(back.desks)).toEqual(['mkt', 'rev'])
+    const before = reseat(noSeating, atDesks({ mkt: 1 }), true)
+    const back = reseat(before, atDesks({ mkt: 1, rev: 1 }), false)
+    expect(back.size.rev).toBe(1)
+    expect(layoutFloor(back.size).zones.rev.shown).toBe(true)
+    expect(shownOrder(back.size)).toEqual(['mkt', 'rev'])
     expect(back.pending).toBe(true)
-    expect(settle(back.desks, { mkt: 1, rev: 1 }, true)).toEqual({ desks: expect.objectContaining({ rev: 2 }), pending: false })
+    expect(reseat(back, atDesks({ mkt: 1, rev: 1 }), true)).toMatchObject({ size: expect.objectContaining({ rev: 2 }), pending: false })
   })
 
   it('holds every shrink and fold while hovered or zoomed in, and applies it back at the overview', () => {
-    const desks = agentsToDesks(everyone)
-    const hovering = settle(desks, { ...everyone, adm: 0, mkt: 1 }, false)
+    const all = reseat(noSeating, atDesks(everyone), true)
+    const hovering = reseat(all, atDesks({ ...everyone, adm: 0, mkt: 1 }), false)
     expect(hovering.pending).toBe(true)
-    expect(hovering.desks).toMatchObject({ adm: 2, mkt: 4 })
-    expect(layoutFloor(hovering.desks).zones.adm.shown).toBe(true)
-    expect(layoutFloor(hovering.desks).zones.mkt.w).toBe(layoutFloor(desks).zones.mkt.w)
-    const released = settle(hovering.desks, { ...everyone, adm: 0, mkt: 1 }, true)
-    expect(released).toEqual({ desks: expect.objectContaining({ adm: 0, mkt: 2 }), pending: false })
-    expect(layoutFloor(released.desks).zones.adm.shown).toBe(false)
+    expect(hovering.size).toMatchObject({ adm: 2, mkt: 4 })
+    expect(layoutFloor(hovering.size).zones.adm.shown).toBe(true)
+    expect(layoutFloor(hovering.size).zones.mkt.w).toBe(layoutFloor(all.size).zones.mkt.w)
+    const released = reseat(hovering, atDesks({ ...everyone, adm: 0, mkt: 1 }), true)
+    expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0 }), pending: false })
+    expect(builtDesks(released, 'mkt')).toEqual([0, 3])
+    expect(layoutFloor(released.size).zones.adm.shown).toBe(false)
+    const next = reseat(released, [...atDesks({ ...everyone, adm: 0, mkt: 1 }), { id: 'late', dept: 'plat', spot: 'desk', parked: false, recent: true }], true)
+    expect(next.size.mkt).toBe(2)
+    expect(builtDesks(next, 'mkt')).toEqual([0, 1])
   })
 
   it('seats a newcomer while zoomed in without adding the next free desk until the overview', () => {
-    const desks = agentsToDesks({ mob: 1 })
-    const zoomed = settle(desks, { mob: 2 }, false)
-    expect(zoomed.desks.mob).toBe(2)
+    const one = reseat(noSeating, atDesks({ mob: 1 }), true)
+    const zoomed = reseat(one, atDesks({ mob: 2 }), false)
+    expect(zoomed.size.mob).toBe(2)
     expect(zoomed.pending).toBe(true)
-    expect(settle(zoomed.desks, { mob: 2 }, true).desks.mob).toBe(3)
+    expect(reseat(zoomed, atDesks({ mob: 2 }), true).size.mob).toBe(3)
   })
 
   it('lists PR reviews after Side projects and before the gym', () => {
@@ -299,17 +307,17 @@ describe('folding sections', () => {
 
 describe('desks', () => {
   it('never seats two agents at one desk, even with 15 agents in one department', () => {
-    const agents = Array.from({ length: 15 }, (_, i) => ({ id: `a${i}`, dept: 'mkt' as DeptId }))
-    const floor = layoutFloor({ mkt: 16 })
-    const desks = assignDesks(new Map(), agents, () => 16)
-    const spots = [...desks.values()].map((i) => floor.zones.mkt.world[i]!.join(','))
+    const seating = reseat(noSeating, atDesks({ mkt: 15 }), true)
+    const floor = layoutFloor(seating.size)
+    const spots = [...seating.desks.values()].map((d) => floor.zones.mkt.world[d.slot]!.join(','))
     expect(new Set(spots).size).toBe(15)
   })
 
   it('keeps each agent at its desk when others come and go', () => {
-    const first = assignDesks(new Map(), [{ id: 'a', dept: 'mob' }, { id: 'b', dept: 'mob' }, { id: 'c', dept: 'mob' }], () => 4)
-    const next = assignDesks(first, [{ id: 'c', dept: 'mob' }, { id: 'd', dept: 'mob' }], () => 3)
-    expect(next.get('c')).toBe(first.get('c'))
-    expect(next.get('d')).toBe(first.get('a'))
+    const at = (ids: string[]): Sitter[] => ids.map((id) => ({ id, dept: 'mob', spot: 'desk', parked: false, recent: true }))
+    const first = reseat(noSeating, at(['a', 'b', 'c']), true)
+    const next = reseat(first, at(['c', 'd']), true)
+    expect(next.desks.get('c')).toEqual(first.desks.get('c'))
+    expect(next.desks.get('d')).toEqual(first.desks.get('a'))
   })
 })

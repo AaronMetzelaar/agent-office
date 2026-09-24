@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
-import { layoutFloor, settle, type DeptId } from '../../src/renderer/office/layout'
-import { demandOf, spotFor, type Spot } from '../../src/renderer/office/standby'
+import type { DeptId } from '../../src/renderer/office/layout'
+import { spotFor, type Spot } from '../../src/renderer/office/standby'
 
-const spot = (state: ChatState, extra: { parked?: boolean; dept?: DeptId; prev?: Spot; open?: boolean } = {}) => spotFor({ state, parked: extra.parked ?? false, dept: extra.dept ?? 'mkt' }, extra.prev, extra.open ?? false)
+const spot = (state: ChatState, extra: { parked?: boolean; dept?: DeptId; prev?: Spot; open?: boolean; sent?: boolean } = {}) =>
+  spotFor({ state, parked: extra.parked ?? false, dept: extra.dept ?? 'mkt' }, extra.prev, extra.open ?? false, extra.sent)
 
 describe('where a chat rests', () => {
   it('keeps active and done-unread chats at their desk and sends read or idle chats to the Lounge', () => {
@@ -28,36 +29,9 @@ describe('where a chat rests', () => {
     expect(spot('idle', { prev: 'lounge', open: true })).toBe('lounge')
   })
 
-  it('walks a standby chat back to a desk in its department when a message arrives, even while open', () => {
-    const resting = spot('idle', { dept: 'plat' })
-    expect(resting).toBe('lounge')
-    const back = spot('working', { dept: 'plat', prev: resting, open: true })
-    expect(back).toBe('desk')
-    const before = demandOf([{ dept: 'plat', spot: resting }])
-    const after = demandOf([{ dept: 'plat', spot: back }])
-    expect(before).toMatchObject({ seated: {}, standby: 1 })
-    expect(after).toMatchObject({ seated: { plat: 1 }, standby: 0 })
-    expect(layoutFloor(settle({}, after.seated, false).desks).zones.plat).toMatchObject({ shown: true, desks: 1 })
-  })
-
-  it('counts only working, needs-you, stuck and done-unread chats toward section size, and gives the gym treadmills only for runners', () => {
-    const agents: { dept: DeptId; state: ChatState }[] = [
-      { dept: 'mkt', state: 'stuck' },
-      { dept: 'mkt', state: 'idle' },
-      { dept: 'mkt', state: 'idle' },
-      { dept: 'plat', state: 'working' },
-      { dept: 'plat', state: 'needs-you' },
-      { dept: 'plat', state: 'done' },
-      { dept: 'plat', state: 'idle' },
-      { dept: 'gym', state: 'working' },
-      { dept: 'gym', state: 'done' },
-      { dept: 'gym', state: 'idle' },
-      { dept: 'gym', state: 'idle' },
-    ]
-    const { seated, present, standby } = demandOf(agents.map((a) => ({ dept: a.dept, spot: spot(a.state, { dept: a.dept }) })))
-    expect(seated).toEqual({ mkt: 1, plat: 3, gym: 1 })
-    expect([...present]).toEqual(['gym'])
-    expect(standby).toBe(5)
-    expect(settle({}, seated, true, present).desks).toMatchObject({ mkt: 2, plat: 4, gym: 2, adm: 0 })
+  it('moves done, idle and stuck chats to the Lounge by hand, even while open, until they work again', () => {
+    for (const state of ['done', 'idle', 'stuck'] as const) expect(spot(state, { prev: 'desk', open: true, sent: true })).toBe('lounge')
+    expect(spot('done', { dept: 'gym', sent: true })).toBe('lounge')
+    for (const state of ['working', 'needs-you', 'starting'] as const) expect(spot(state, { sent: true })).toBe('desk')
   })
 })

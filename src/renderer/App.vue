@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-import type { AccountView, Settings } from '../shared/ipc'
+import type { AccountView, HostStatus, Settings } from '../shared/ipc'
 import { editors } from '../shared/review'
 import Office from './office/Office.vue'
 import Accounts from './panels/Accounts.vue'
@@ -14,8 +14,10 @@ const source = shallowRef<ChatSource>()
 const menuOpen = ref(false)
 const accountsOpen = ref(false)
 const settings = ref<Settings>()
+const host = ref<HostStatus>({ connected: true, updateReady: false })
 const needsLogin = computed(() => accounts.value?.some((account) => account.health.status === 'needs-login'))
 let unsubscribe = () => {}
+let offHost = () => {}
 
 function openHousekeeping() {
   menuOpen.value = false
@@ -25,6 +27,15 @@ function openHousekeeping() {
 function openAccounts() {
   menuOpen.value = false
   accountsOpen.value = true
+}
+
+function restartHost() {
+  void window.office.restartHost()
+}
+
+function stopHost() {
+  menuOpen.value = false
+  void window.office.stopHost()
 }
 
 async function togglePhonePush() {
@@ -42,6 +53,8 @@ async function setEditor(event: Event) {
 }
 
 onMounted(async () => {
+  offHost = window.office.onHostStatus((status) => (host.value = status))
+  host.value = await window.office.getHostStatus()
   const demoMode = import.meta.env.RENDERER_VITE_OFFICE_DEMO
   if (demoMode === '1' || demoMode === 'fixture') {
     const demo = await import('./state/demo')
@@ -57,10 +70,17 @@ onMounted(async () => {
   version.value = (await window.office.getAppInfo()).version
   settings.value = await window.office.getSettings()
 })
-onUnmounted(() => unsubscribe())
+onUnmounted(() => {
+  unsubscribe()
+  offHost()
+})
 </script>
 
 <template>
+  <p v-if="!host.connected" class="host" role="status">Reconnecting to agent host…</p>
+  <p v-else-if="host.updateReady" class="host" role="status">
+    Agent host update ready<button @click="restartHost">Restart now</button>
+  </p>
   <template v-if="accounts && source">
     <Onboarding v-if="accounts.length === 0" />
     <template v-else>
@@ -97,6 +117,7 @@ onUnmounted(() => unsubscribe())
                 <option v-for="(label, id) in editors" :key="id" :value="id">{{ label }}</option>
               </select>
             </label>
+            <button role="menuitem" title="Stops every agent and quits Agent Office" @click="stopHost">Stop agent host</button>
           </div>
         </div>
       </Office>
@@ -174,6 +195,31 @@ onUnmounted(() => unsubscribe())
 .menu button:disabled {
   cursor: default;
   color: var(--faint);
+}
+
+.host {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font: 11px var(--mono);
+  color: #3b5b9a;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.host button {
+  all: unset;
+  cursor: pointer;
+  color: var(--ink);
+  text-decoration: underline;
 }
 
 .version {

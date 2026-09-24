@@ -1,14 +1,13 @@
 import { app, Menu, nativeImage, Tray } from 'electron'
 import { stripBitmap, type StripState } from './strip'
 
-export function createTray(show: () => void, read: () => StripState) {
+export function createTray(show: () => void, quit: () => void) {
   const tray = new Tray(image({ needs: 0, dots: [] }))
   tray.setToolTip('Agent Office')
   tray.on('click', show)
-  tray.on('right-click', () => tray.popUpContextMenu(menu(show)))
+  tray.on('right-click', () => tray.popUpContextMenu(menu(show, quit)))
   let last = ''
-  const update = () => {
-    const state = read()
+  const update = (state: StripState) => {
     const key = JSON.stringify(state)
     if (key === last || tray.isDestroyed()) return
     last = key
@@ -16,11 +15,10 @@ export function createTray(show: () => void, read: () => StripState) {
     tray.setTitle(state.needs ? String(state.needs) : '', { fontType: 'monospacedDigit' })
     tray.setToolTip(state.needs ? `Agent Office · ${state.needs} waiting for you` : 'Agent Office')
   }
-  update()
   return { tray, update }
 }
 
-function menu(show: () => void): Menu {
+function menu(show: () => void, quit: () => void): Menu {
   return Menu.buildFromTemplate([
     { label: 'Show Agent Office', click: show },
     {
@@ -30,7 +28,7 @@ function menu(show: () => void): Menu {
       click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
     },
     { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() },
+    { label: 'Quit…', click: quit },
   ])
 }
 

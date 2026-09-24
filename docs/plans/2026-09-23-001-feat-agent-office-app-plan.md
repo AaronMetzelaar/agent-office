@@ -117,10 +117,19 @@ Two more, added during planning:
   - Diffs are per-chat patches, coalesced in main and flushed once per frame tick. The message rate stays bounded however many chats stream.
   - While no window is visible, main pushes only state transitions (for the tray and notifications), not text deltas.
 - **The ChatStore keeps each chat's in-flight partial message and a bounded recent message list in memory.** That copy feeds live diffs and snapshots, so a snapshot taken mid-stream is complete. Older history pages in from the chat's JSONL transcript on demand. The metadata database never holds message content.
-- **Session orchestration stays in the Electron main process; transcript indexing does not.**
-  - Generation happens in each session's own `claude` subprocess, so main only routes events.
-  - Rejected alternative: running the session engine in a `utilityProcess`, which adds a second IPC hop for little v1 benefit.
-  - Mitigations: per-chat event handling runs inside an error boundary, so one session's exception can't take down the others, the tray or notifications.
+- **Process model: a long-lived agent host owns the sessions; the window app is a client (decided 2026-09-24).** Aaron updates the app constantly, and every restart used to interrupt running agents.
+  - **Agent host.** A second, windowless instance of the same Electron binary, started with `--agent-host`. `src/main/index.ts` hands off to `out/main/host.js` when it sees the flag. The host owns the session engine and SDK queries, the ChatStore and `office.db`, the permission broker and rules, phone push (posting and the reply listener), the outside-chats hook listener and scan, housekeeping sampling, and the workflow and review-queue polling. It hides its Dock icon, and it keeps its Chromium profile and singleton lock in `<userData>/host`, so it never clashes with the window app's lock.
+  - **Why Electron and not Node.** The host needs `safeStorage` for account tokens, the Linear key and the ntfy key. On macOS, Electron keeps the `safeStorage` key in the Keychain item `<app name> Safe Storage`, and the item's access list names the app's binary. The host runs the same binary under the same app name, so it opens the item the single-process app created, with no new Keychain prompt. Plain Node can't decrypt. A `utilityProcess` dies with the app, so it doesn't qualify.
+  - **Window app.** Keeps the window, the renderer, the tray strip, the menu and native notifications. It connects to the host, or spawns it (detached, `stdio` to `<userData>/host.log`) and then connects. Renderer IPC handlers keep today's sender guard and forward each command to the host unchanged.
+  - **Transport.** A Unix domain socket at `<userData>/host.sock`, mode 0600, carrying newline-delimited JSON frames: calls with ids, replies, and events. The first call must be `hello` with the per-install secret from `<userData>/host.secret` (mode 0600, compared with `timingSafeEqual`); anything else closes the connection. Commands and events reuse `src/shared/ipc.ts`. The host adds a few of its own: `uiState` (window visible and focused), `noteEvent` (a notification's action, reply, click or close), `busy`, `exit` and `exitWhenIdle`. The window app answers the host's `confirm` calls with its native dialog, and receives `strip`, `show`, `notify` and `unnotify` events for the tray, window and notifications.
+  - **Seams.** Everything host-side takes a `Hub` (`handle`, `send`) and a `Ui` (window state, confirm, show, notification, strip). The socket server with `remoteUi` implements them in the host. `windowHub` with `localUi` implements them in-process for `AGENT_OFFICE_INLINE_HOST=1`, which the existing end-to-end tests use so they can still reach `store`, `notifier` and `dialog` in one process. Packaged builds ignore the flag.
+  - **Reconnecting.** The client retries with backoff (50 ms doubling to 2 s) and spawns the host at most once every 5 seconds while the socket is missing or refuses. The renderer keeps its last office and shows "Reconnecting to agent host…". After a reconnect the window app re-sends window state and the open chat, and nudges the renderer to take a fresh snapshot and account list.
+  - **Lifecycle.** ⌘Q and "Quit Window App Only" quit the window app only. "Quit and Stop All Agents" in the tray, and Settings → Stop agent host, ask first if any chat is mid-turn (the same "Agents are still working" dialog), then stop the host and quit. An idle host stays up. SIGTERM, `exit` and restarts all run the same shutdown: stop every session and mark mid-turn chats Stuck (interrupted), as before.
+  - **Host updates.** The build hash is the first 16 hex digits of the SHA-256 of `out/main/host.js`. Rollup names shared chunks by content hash, and `host.js` requires them by name, so any change to host-side code changes it, while renderer, preload and window-only main changes don't. When the running host's hash differs from the one on disk, the window app shows "Agent host update ready" and sends `exitWhenIdle`. The host exits once no office chat is Starting, Working or Needs you, and the client's reconnect loop spawns the new one. "Restart now" sends `exit` at once. If every window app disconnects first, the host cancels the pending restart and keeps running.
+  - **Dev mode.** `pnpm dev` spawns the host the same way. electron-vite only kills the window app it started, so a dev restart or HMR never touches agents, and a main-side rebuild shows up as an update.
+  - **Migration.** The host uses the same `userData` folder, so its first start takes over `office.db`, `accounts.json`, `secrets/` and the settings as they are.
+  - Rejected alternatives: a `utilityProcess` host (dies with the app), a plain Node host (can't read `safeStorage`), and a launchd agent (a second install step and code-signing identity to manage, for no gain over a detached child).
+  - Generation still happens in each session's own `claude` subprocess, so the host only routes events. Per-chat event handling runs inside an error boundary, so one session's exception can't take down the others.
   - FTS indexing runs in a utility process, and SQLite writes are batched, so the one-second notification target isn't competing with background work.
 - **The renderer is treated as reachable by untrusted content.** Transcripts contain model output, file contents and fetched web pages, and the renderer can reach the approval path. Hardening:
   - The window runs with `sandbox`, context isolation, no node integration and `webviewTag` off.
@@ -257,7 +266,7 @@ Aaron kept these as built. Reverting either one is a small change in Units 5 and
 
 ```mermaid
 flowchart LR
-  subgraph Main["Main process (Node)"]
+  subgraph Main["Agent host (windowless Electron, --agent-host)"]
     ACC[Accounts\nsafeStorage tokens] --> SM[SessionManager\none SDK query per chat]
     SM -->|normalized events| CS[ChatStore\nstate machines + SQLite]
     SM -->|canUseTool| PR[PendingRequest registry\nresolveRequest id]
@@ -267,11 +276,18 @@ flowchart LR
     DEP[Department classifier] --> CS
     HB[Hook bridge\nlocalhost + secret] --> CS
     DM[Desktop metadata watcher] --> CS
-    CS --> TRAY[Tray strip]
-    CS --> NOTIF[Notifications]
+    CS --> NOTIF[Notifier + phone push]
     NOTIF -->|Allow / Deny / reply| PR
   end
-  CS <-->|typed IPC: snapshots, diffs, commands| R
+  subgraph UI["Window app (Electron main)"]
+    TRAY[Tray strip]
+    NATIVE[Native notifications]
+    FWD[Guarded IPC forwarder]
+  end
+  CS <-->|Unix socket + secret: snapshots, patches, commands| FWD
+  CS --> TRAY
+  NOTIF --> NATIVE
+  FWD <-->|typed IPC| R
   subgraph R["Renderer (Vue 3 + TresJS)"]
     OFFICE[Office scene] --- INBOX[Inbox]
     INBOX --- CHAT[Chat panel]
@@ -515,15 +531,27 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - The building's floor, walls, windows and shadow frustum follow the bounds of the sections showing plus the fixed front band (office, door queue, entrance). The Parked lounge folds away while nothing is parked. The overview camera refits to the new bounds.
   - While he hovers or zooms in, sections never shrink or fold; a newcomer still gets a desk at once, and the next free desk waits for the overview.
 - **Packing, the Lounge and the playground** (revised 2026-09-24, second pass):
-  - `standby.ts` decides where each chat rests: working, needs-you, stuck and done-unread keep a desk; idle, read and parked chats go to the Lounge; a done gym agent waits at the water cooler. While a chat is open its agent keeps whatever spot it had, except that new work always walks it back to a desk. Only desk spots count toward section size.
+  - `standby.ts` decides where each chat rests: working, needs-you, stuck and done-unread keep a desk; idle, read and parked chats go to the Lounge; a done gym agent waits at the water cooler. While a chat is open its agent keeps whatever spot it had, except that new work always walks it back to a desk. Desks, reserved desks included, are counted by `seating.ts` (third pass below).
   - `layoutFloor` packs the visible inside sections in the fixed order into rows. It tries every set of row breaks, puts the Lounge beside the glass office or at the end of a row, and puts the Side projects playground in front of the entrance or beside the left wall. The cost is the footprint plus how large the combined frame would sit in the 16:10 canvas. Rows narrower than the building stretch their sections. Band slack wider than a walkway is effectively forbidden.
   - Every row faces front with an aisle in front of it. Room shells are all north-style (side openings at the front). The gym drops its bench row; the bench sits in the relax row as decor.
   - The fixed front is the glass office, the door queue, the entrance and a cloakroom (the old lockers) behind the queue, so the lobby never reads as empty floor. `fixedParts` in `layout.ts` is the single definition for props and tests.
-  - The Lounge is its own scene: a rug, a coffee corner anchored to its right edge and one armchair per occupant, baked in one group and rebuilt when the count changes. Seats fill column by column from the front, so a growing Lounge never moves a seated agent.
+  - The Lounge is its own scene: a rug, a coffee corner anchored to its right edge and one armchair per occupant (third pass below), baked in one group and rebuilt when the count changes. Seats fill column by column from the front, so a growing Lounge never moves a seated agent.
   - Side projects is a yard shell: a lawn plane that reaches to the door, picnic tables with laptops and nameplates, and tier props (tree, bushes, string lights, swing, slide, sandbox). The nav grid covers the combined frame, and the building's walls are nav blockers with a gap at the door.
   - Each per-frame piece of the world loop (every agent, layout, camera, controls, clock, LEDs, desk screens, labels) and the two screen timers run inside `guard.ts`, which logs a failure once and turns that piece off. The main process forwards renderer console errors, uncaught exceptions, unhandled rejections, crashes and preload failures to stdout as `[renderer] …`.
   - Starting an agent opens its chat with the `keep` camera view; only clicks on an agent or a sign move the camera.
   - Measured on Aaron's floor (21 chats, 18 visitors): the building went from 31.8 × 26.4 = 840 to 24.0 × 10.9 = 262 (1.21× the natural area of its sections and fixed parts), and draw calls from 687 to 500.
+- **Stable floor, reserved desks and Done** (revised 2026-09-24, third pass):
+  - `seating.ts` owns desks and armchairs. `reseat(prev, sitters, canRelayout, claims)` is pure: it returns the desk per chat (dept and slot), the armchair per chat, the laid-out size per section and Lounge, whether a re-pack is pending, and whether this call re-packs. The world calls `layoutFloor` only when `repack` is true, so a state change never moves the floor.
+  - A chat holds a desk while it's at it, and keeps it while it rests in the Lounge or at the gym cooler. It loses it when it parks, changes department or disappears. A chat first seen resting (a relaunch, or a visitor showing up) gets a desk only when it was active in the last day. Each section keeps an explicit set of built desks: the holders' desks, one free "+" desk, and desks whose removal is held while he hovers or zooms. A removed holder's desk is dropped on its own and leaves a gap; the free desk stays put. A desk add compacts its section (holders + 1, or more if a seated agent sits at a higher slot), and any other add or remove compacts sections with gaps. Away holders are renumbered then, which nobody sees; seated agents never are. The section footprint is the highest built slot + 1.
+  - Only Lounge occupants get chairs. An arriving agent takes the lowest free chair; with none free the Lounge grows by one, which is a re-pack even while held. A leaving agent's chair stays empty. Chairs are compacted only at a desk add or remove, and occupants are snapped to their new chair when a re-pack moves or reshapes the Lounge, so they move with the furniture.
+  - A reserved desk reads as away: the desk chair is baked separately (one or two extra draw calls per desk) and pushed out, and the screen shows a dimmed "away" card.
+  - Move to lounge is renderer state (`sent` in the world): the chat rests even while open, and leaves the door queue. Moving a done chat also marks it read, so the move survives a relaunch.
+  - Done goes through `finishChat(chatId, removeWorktree)` and `finishChats(chatIds, removeWorktrees)`, both sender-guarded. `finishSteps` in `src/main/housekeeping/finish.ts` is the decision table (refuse, stop, keep or remove); a worktree only enters it when removal was asked for. Housekeeping looks up the chat and its worktree, runs `blockedReason` plus "another chat works in it", asks through the native dialog, then stops the processes, marks the chat finished and removes the worktree. Nothing is archived. `finishChats` asks once with a preview of what it will finish, remove, keep and skip.
+  - Finished is a field, not an archive. Office chats persist it in `chats.finished_at`; `store.finish` sets it (with `unread: false`) and any message clears it. Visitors keep `finishedVisitors` in settings next to `archivedVisitors`; a hook event with real activity or a newer transcript write clears it. `toAgents` leaves finished chats off the floor, `finishedOf` lists them for the drawer's Finished group, and the Office opens one as a loose chat panel without a floor agent. `HousekeepingView.removable` lists chats whose worktree passes the removal checks; sampling refreshes each worktree's git state at most once a minute for it.
+  - The renderer marks ids as finishing before it calls main. When a finishing chat's finished patch arrives, its agent waves, walks out, and leaves a ghost holding its desk. `trips.ts` is the mover state machine (arrive, fetch, pickup, carry, load, leave: 5.2 s). Up to three desks join a trip while the truck is arriving, and later ones queue. The desk is rebuilt bare at pickup, and the ghost goes only once the truck has left, which triggers the re-pack.
+  - `movers.ts` builds the truck (four merged meshes), a street strip, three movers (small blobs with overalls and caps) and their items lazily on the first Done. All of it is hidden at rest, so it adds no draw calls then.
+  - Aaron's fixture floor stays at 262 floor units (1.21×) when its idle chats have no reservations. After a relaunch where every idle chat was active in the last day, reserved desks make the floor larger.
+  - Move to lounge on a stuck chat also takes it out of the drawer's Waiting for you and lists it under Standby (`buildInbox` gets the world's sent set).
 - **Clear sections** (origin R3):
   - each department gets a subtle floor tint from its accent, with a crisp edge inlay
   - low partitions or planters, with an opening onto the main aisle
@@ -741,6 +769,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Remove worktree: `git worktree remove` without force, allowed only when clean, or when fully pushed with the PR merged.
 - Visitors (built 2026-09-24): `createHousekeeping` takes the visitor list. Visitor cwds add repos to the worktree scan; quiet visitors join the candidates; `removeVisitorWorktree(chatId)` looks the worktree up from the visitor record, so the renderer never passes a path. Every removal refuses while a visitor in that worktree is Working, Needs you or active in the last 10 minutes (`visitorHold` in `src/shared/housekeeping.ts`), and archives the visitors in a worktree it removes. A visitor's RAM comes from a `claude` process whose arguments carry its session id; a `--fork-session` process isn't counted.
 - "Clean up safe" previews the list, runs the allowed actions, and reports what was freed (GB and worktree count).
+- Done (built 2026-09-24): one chat at a time, from the office. It stops the chat's processes and marks it finished, without archiving; visitors are only marked finished. "Done + remove worktree" also removes the worktree when `blockedReason` allows it, asking "finish only and keep the worktree?" if it no longer does. A busy visitor is refused, and a busy office chat offers "Stop and finish". "Clear all done" runs Done for every Standby chat after one preview, removing safe worktrees only when its checkbox is on. Finished chats stay cleanup candidates; archiving is only in this panel.
 - Everything runs through argument-array process launches. Nothing is deleted when the git state can't be determined.
 
 **Test scenarios:**
@@ -994,6 +1023,11 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Done-and-unread chats park after a day like before and doze in the Lounge with their green ring, so an old unread reply leaves its desk. Keep them at the desk instead if Aaron misses them. Unit 15.
 - [ ] Standby rows show "done … ago" from the chat's last activity, which for an idle chat that never finished is its last message. Unit 12.
 - [ ] Not run: the Playwright suite. `office-demo.spec.ts` now expects a Lounge sign instead of Parked.
+- [ ] A removed desk disappears without an animation, and its gap stays until the next re-pack. Unit 14.
+- [ ] Movers walk a timed path (1.3 s each way) whatever the distance, so a far desk makes them fast. The movers and truck don't cast shadows, since the shadow map only updates on layout changes. Unit 14.
+- [ ] The first agent to rest in a full Lounge re-packs the floor to add its chair. Unit 14.
+- [ ] Done + remove worktree on an office chat deletes the folder the chat runs in. A later message to that finished chat fails to start and turns it Stuck. Unit 14.
+- [ ] Finished visitors leave the Finished group when discovery drops them after a day without activity, like other quiet visitors. Unit 13.
 - [ ] The label test for 15 agents passes with little room at the door queue: the front row's signs sit just above the queue tags. Revisit sign placement if the front row moves. Unit 14.
 - [ ] Outside chats without the hook get their state from transcripts only, so they never show Needs you until the hook is installed. After installing, check on the real machine whether sessions that were already running start reporting, or only after they restart. Unit 13.
 - [ ] A brand-new outside chat appears at its first tool call or Stop: SessionStart and the first UserPromptSubmit arrive before its transcript exists, and the listener drops events without one. Retry once after a second if that feels slow. Unit 13.
@@ -1013,7 +1047,7 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
   - SDK errors become typed Stuck reasons per chat; account-level failures are raised once per account.
   - Hook-script failures must never propagate into outside sessions: fail fast and silent.
 - **State lifecycle risks:**
-  - Pending requests are memory-only, since their callbacks die with the process, and turn into Stuck on restart.
+  - Pending requests are memory-only, since their callbacks die with the host process, and turn into Stuck when the host restarts. Restarting the window app doesn't touch them.
   - Worktree creation must clean up after itself on failure.
   - The FTS index tracks per-file offsets.
 - **API surface parity:** a permission decision must behave identically from the chat, inbox, queue, keyboard and notification, which is enforced by the single `resolveRequest`.

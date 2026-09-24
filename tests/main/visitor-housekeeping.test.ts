@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultRules } from '../../src/shared/departments'
 import { day, summaryText } from '../../src/shared/housekeeping'
 import { wireHousekeeping } from '../../src/main/housekeeping'
+import { windowHub } from '../../src/main/ipc'
 import { wireOutside, type Outside } from '../../src/main/outside'
 import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
 import { createDiscovery } from '../../src/main/outside/transcripts'
@@ -250,8 +251,8 @@ describe('visitor IPC', () => {
     const appUrl = 'app://office/index.html'
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
     const confirm = vi.fn(async () => false)
-    wireHousekeeping(win, appUrl, house)
-    wireOutside(win, appUrl, { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rules: defaultRules, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false }), confirm })
+    wireHousekeeping(windowHub(win, appUrl), house)
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rules: defaultRules, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false }), confirm })
     const trusted = { sender: win.webContents, senderFrame: { url: appUrl } }
     const invoke = (name: string, ...args: unknown[]) => handlers.get(name)!(trusted, ...args)
     const officeChat = office.start('Office work')

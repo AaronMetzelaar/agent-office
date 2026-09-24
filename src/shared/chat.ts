@@ -66,6 +66,7 @@ export interface ChatFields {
   review?: boolean
   archived: boolean
   parked?: boolean
+  finished?: number
   state: ChatState
   stuck?: Stuck
   stateSince: number
@@ -120,6 +121,8 @@ export interface Refusal {
 export type StartChatResult = { chatId: string } | { error: string; code?: Refusal['code'] }
 
 export const maxRows = 200
+
+export const isBusy = (state: ChatState) => state === 'starting' || state === 'working' || state === 'needs-you'
 
 export const emptyUsage = (): Usage => ({ inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0 })
 

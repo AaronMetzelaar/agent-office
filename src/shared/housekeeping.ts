@@ -68,6 +68,7 @@ export interface HousekeepingView {
   thresholds: Thresholds
   candidates: string[]
   safe: string[]
+  removable: string[]
   stubborn: Record<string, Proc[]>
 }
 
@@ -85,6 +86,18 @@ export interface CleanupSummary {
   removed: number
   skipped: { chatId: string; reason: string }[]
   stubborn: Proc[]
+}
+
+export interface Finished {
+  error?: string
+  removed?: string
+  kept?: string
+}
+
+export interface FinishedMany {
+  finished: string[]
+  skipped: { chatId: string; reason: string }[]
+  removed: number
 }
 
 export const hotShare = 0.4

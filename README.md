@@ -27,24 +27,42 @@ The Electron binary downloads on first launch.
 
 To run the built app without the dev server: `pnpm build && pnpm exec electron .`
 
+## Processes
+
+Agent Office runs as two processes of the same app:
+- **The agent host** runs every chat. It owns the Agent SDK sessions and their `claude` subprocesses, `office.db`, permission requests and rules, phone push, the outside-chats listener, housekeeping and the review queue. It has no window and no Dock icon. It shows up in Activity Monitor as a second Agent Office process, started with `--agent-host`.
+- **The window app** is the office you see: the window, the menu bar strip, the menus and macOS notifications. It talks to the host over a socket in the data folder, which only your user can open and which needs a per-install secret.
+
+The window app starts the host when it isn't running, including after Open at Login, and in `pnpm dev`. Quitting, restarting, updating or crashing the window app leaves the host and its agents running. When the window app comes back, it picks up the office where it was. While it can't reach the host, the office stays on screen with "Reconnecting to agent host…" at the top.
+
+When the host's own code changes (an update, or a main-side change in `pnpm dev`), the window app shows "Agent host update ready". It restarts the host at the first moment no office chat is Starting, Working or Needs you. Restart now does it at once. Renderer-only changes never restart the host.
+
+### Stopping the host
+
+- Settings → Stop agent host, or right-click the menu bar icon → Quit… → Quit and Stop All Agents. Both ask first if an agent is mid-turn, then stop the host and quit the window app.
+- From a terminal: `kill "$(cat ~/Library/Application\ Support/Agent\ Office/host.pid)"`. The host shuts down the same way.
+
+An idle host keeps running, since it costs almost nothing. Stopping it marks chats that were mid-turn Stuck (interrupted), exactly like quitting did before the split.
+
 ## Running in the background
 
-Closing the window hides it, and the app keeps running in the menu bar. Launching the app again focuses the running one. ⌘Q also quits.
+Closing the window hides it, and the app keeps running in the menu bar. Launching the app again focuses the running one. ⌘Q quits the window app only; agents keep working.
 
-The menu bar icon is a live strip. The ring fills and a number appears next to it while anyone waits at your door (requests, stuck chats and accounts that need login, the same count as the inbox). Small dots to its right show agents at work: a solid dot per working agent and a hollow one per unread reply, up to eight. Clicking it opens the window on the inbox. Right-click it for Show Agent Office, Open at Login and Quit. Open at Login starts off.
+The menu bar icon is a live strip. The ring fills and a number appears next to it while anyone waits at your door (requests, stuck chats and accounts that need login, the same count as the inbox). Small dots to its right show agents at work: a solid dot per working agent and a hollow one per unread reply, up to eight. Clicking it opens the window on the inbox. Right-click it for Show Agent Office, Open at Login and Quit…, which asks whether to quit the window app only or stop all agents too. Open at Login starts off.
 
 ## Where data lives
 
 The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `accounts.json` lists accounts (id, label, created at).
 - `secrets/` holds each account token, the optional Linear key and the ntfy signing key, each as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
+- `host.sock`, `host.secret` (mode 0600), `host.pid` and `host.log` belong to the agent host, and `host/` holds its Chromium profile.
 - `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, colour, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, each account's last health, and settings (phone push, whether you've seen the Alerts hint). It never holds message text.
 
 Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and to show outside chats, and doesn't touch `~/.claude` otherwise, apart from the optional hook entry described under Outside chats.
 
 `better-sqlite3` 13 ships N-API prebuilt binaries, so the same binary loads in Node (Vitest) and in Electron. There is no native rebuild step, and `package.json` lists it under `ignoredBuiltDependencies` so pnpm skips its node-gyp script.
 
-Set `AGENT_OFFICE_USER_DATA` to use a different folder. The end-to-end tests use a temporary one, so they can run while your own copy is open.
+Set `AGENT_OFFICE_USER_DATA` to use a different folder, and with it a separate host. The end-to-end tests use a temporary one, so they can run while your own copy is open. Use one when you try a worktree build too: two builds on the same folder share one host, and the second to connect sees a different build hash and restarts the host with its own code once it's idle. macOS caps socket paths at 104 bytes, so keep the folder's path short.
 
 ## Accounts
 
@@ -54,11 +72,11 @@ Account health (status and usage) is saved in `office.db`, so it survives a rest
 
 ## Chats
 
-Each chat runs as one streaming Agent SDK session in the main process, with its account's token, its folder as the working directory, and Auto mode. Main owns the chat state. The renderer asks for a snapshot on mount and whenever the window shows, then applies per-chat patches, flushed at most once per 16ms. While the window is hidden, only state changes are pushed.
+Each chat runs as one streaming Agent SDK session in the agent host, with its account's token, its folder as the working directory, and Auto mode. The host owns the chat state. The renderer asks for a snapshot on mount and whenever the window shows, then applies per-chat patches, flushed at most once per 16ms. While the window is hidden, only state changes are pushed.
 
 A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck carries a reason: needs login, rate limited (with the retry time when Claude sends one), crashed, interrupted or error. An exception in one chat only marks that chat Stuck.
 
-Quitting while a chat is mid-turn asks first, then interrupts its turn. After a restart, or a crash, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
+Stopping the host while a chat is mid-turn asks first, then interrupts its turn. After the host restarts, or crashes, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
 
 ## Outside chats
 
@@ -128,6 +146,7 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, one containing `[ask]` asks to run `pnpm test` first, and one containing `[danger]` asks to run `rm -rf dist`. Packaged builds ignore it.
+- `AGENT_OFFICE_INLINE_HOST=1` runs the host inside the window app's process, the way the app worked before the split, so a test can reach `store`, `notifier` and `dialog` in one process. `playwright.config.ts` sets it, and `tests/e2e/host.spec.ts` clears it to test the real host. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_GH=1` answers the review queue's `gh` calls from `tests/fakes/github.ts` instead of GitHub. `playwright.config.ts` sets it, so no end-to-end test reaches GitHub. Packaged builds ignore it.
 - `AGENT_OFFICE_HIDDEN=1` keeps the window off screen. It still renders at 1440×900 with WebGL, timers and animation running, but it never shows, never takes focus and never posts a macOS notification banner. An uncaught error in main goes to stderr instead of the error dialog. `show()`, `hide()` and `isVisible()` track a visibility flag instead of the real window. `playwright.config.ts` sets it, so the end-to-end suite runs without a window appearing. A test that depends on focus pins `isFocused` in main, as `approve-from-inbox.spec.ts` does. Packaged builds ignore it.
 - `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads the ntfy files from and writes the hook script and endpoint to. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.

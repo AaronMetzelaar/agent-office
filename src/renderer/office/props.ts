@@ -29,6 +29,9 @@ export interface Slot {
   belt?: THREE.Texture
   lines: { ind: number; len: number; acc: boolean }[]
   scroll: number
+  chair?: THREE.Group
+  bare?: boolean
+  look?: string
 }
 
 export interface DeptScene {
@@ -39,7 +42,7 @@ export interface DeptScene {
   tint: THREE.MeshStandardMaterial
   tintLo: THREE.Color
   tintHi: THREE.Color
-  slots: Slot[]
+  slots: (Slot | undefined)[]
   tier: Tier
   back?: THREE.Group
   side?: THREE.Group
@@ -439,23 +442,26 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     placeSlot(s, 0, 0)
     return s
   }
-  function desk(d: DeptDef, i: number, x: number, z: number): Slot {
+  function desk(d: DeptDef, i: number, x: number, z: number, bare = false): Slot {
     const g = grp(x, z), v = (i * 5 + d.id.charCodeAt(0)) % 6, s = slotOf(d, i, x, z, g, 'desk')
     mesh(RB(1.6, 0.05, 0.76, 0.02), mat.wood, 0, 0.745, 0, g)
     for (const sx of [-0.76, 0.76]) mesh(RB(0.04, 0.72, 0.7, 0.015), mat.white, sx, 0.36, 0, g)
     mesh(RB(1.48, 0.34, 0.025, 0.01), mat.white, 0, 0.53, 0.33, g)
     mesh(RB(0.4, 0.5, 0.6, 0.02), mat.white, 0.5, 0.26, -0.02, g)
     mesh(BX(0.2, 0.012, 0.008), mat.metal, 0.5, 0.44, -0.325, g)
-    mesh(RB(0.64, 0.4, 0.03, 0.012), mat.white, 0, 1.07, 0.2, g)
-    mesh(CY(0.018, 0.022, 0.2, 10), mat.metal, 0, 0.86, 0.23, g)
-    mesh(RB(0.22, 0.012, 0.14, 0.006), mat.metal, 0, 0.776, 0.22, g)
     mesh(RB(0.4, 0.016, 0.13, 0.006), mat.white, 0, 0.778, -0.24, g)
     mesh(RB(0.06, 0.02, 0.1, 0.01), mat.white, 0.31, 0.78, -0.24, g)
-    const sp = new THREE.Mesh(screenGeo, new THREE.MeshBasicMaterial({ map: s.screen.t, toneMapped: false }))
-    sp.position.set(0, 1.07, 0.183)
-    sp.rotation.y = Math.PI
-    g.add(sp)
-    if (v === 1 || v === 4) {
+    if (!bare) {
+      mesh(RB(0.64, 0.4, 0.03, 0.012), mat.white, 0, 1.07, 0.2, g)
+      mesh(CY(0.018, 0.022, 0.2, 10), mat.metal, 0, 0.86, 0.23, g)
+      mesh(RB(0.22, 0.012, 0.14, 0.006), mat.metal, 0, 0.776, 0.22, g)
+      const sp = new THREE.Mesh(screenGeo, new THREE.MeshBasicMaterial({ map: s.screen.t, toneMapped: false }))
+      sp.position.set(0, 1.07, 0.183)
+      sp.rotation.y = Math.PI
+      g.add(sp)
+    }
+    if (bare) s.bare = true
+    else if (v === 1 || v === 4) {
       const m2 = grp(-0.56, 0.12, 0.5, g)
       mesh(RB(0.5, 0.32, 0.028, 0.01), mat.white, 0, 1.02, 0, m2)
       mesh(BX(0.46, 0.28, 0.004), mat.screenOff, 0, 1.02, -0.016, m2)
@@ -470,10 +476,11 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(CY(0.03, 0.075, 0.1, 18), mat.black, 0, 1.12, 0.15, lg).rotation.x = 0.5
     }
     if (v % 2 === 0) for (let k = 0; k < 3; k++) mesh(BX(0.21, 0.004, 0.29), k % 2 ? mat.paper : mat.offw, -0.42 + k * 0.01, 0.772 + k * 0.005, -0.1, g).rotation.y = (k - 1) * 0.09
-    if (v % 3 === 1) mesh(CY(0.04, 0.036, 0.09, 14), [mat.white, mat.terra, M(0x1b34ff, 0.5)][i % 3]!, 0.62, 0.815, -0.12, g)
-    if (v === 2 || v === 5) succ(-0.64, 0.77, 0.12, g)
-    if (v === 3) mesh(RB(0.18, 0.016, 0.24, 0.006), M(0xe0463c, 0.7), -0.45, 0.779, -0.08, g).rotation.y = 0.25
+    if (v % 3 === 1 && !bare) mesh(CY(0.04, 0.036, 0.09, 14), [mat.white, mat.terra, M(0x1b34ff, 0.5)][i % 3]!, 0.62, 0.815, -0.12, g)
+    if ((v === 2 || v === 5) && !bare) succ(-0.64, 0.77, 0.12, g)
+    if (v === 3 && !bare) mesh(RB(0.18, 0.016, 0.24, 0.006), M(0xe0463c, 0.7), -0.45, 0.779, -0.08, g).rotation.y = 0.25
     const ch = grp(0, -0.68, 0, g)
+    s.chair = ch
     mesh(RB(0.46, 0.07, 0.44, 0.03), mat.chair, 0, 0.46, 0, ch)
     mesh(RB(0.44, 0.44, 0.06, 0.03), mat.chair, 0, 0.76, -0.27, ch)
     mesh(CY(0.025, 0.025, 0.34, 10), mat.black, 0, 0.26, 0, ch)
@@ -486,7 +493,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     blockAt(x, z - 0.7, 0.25, 0.25, 0.2)
     return s
   }
-  function picnic(d: DeptDef, i: number, x: number, z: number): Slot {
+  function picnic(d: DeptDef, i: number, x: number, z: number, bare = false): Slot {
     const g = grp(x, z), s = slotOf(d, i, x, z, g, 'desk')
     mesh(RB(1.6, 0.06, 0.72, 0.02), mat.wood, 0, 0.72, 0, g)
     for (const bz of [-0.68, 0.68]) mesh(RB(1.6, 0.05, 0.28, 0.02), mat.wood, 0, 0.44, bz, g)
@@ -494,14 +501,17 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(RB(0.06, 0.05, 1.64, 0.01), mat.woodD, sx, 0.36, 0, g)
       for (const lz of [-0.22, 0.22]) mesh(RB(0.06, 0.74, 0.06, 0.01), mat.woodD, sx, 0.37, lz, g).rotation.x = lz * 1.6
     }
-    mesh(RB(0.36, 0.016, 0.25, 0.006), mat.metal, 0, 0.758, -0.14, g)
-    const lid = grp(0, -0.01, 0, g)
-    lid.position.y = 0.76
-    lid.rotation.x = 0.28
-    mesh(RB(0.36, 0.24, 0.012, 0.006), mat.metal, 0, 0.12, 0, lid)
-    const sp = plane(0.32, 0.2, new THREE.MeshBasicMaterial({ map: s.screen.t, toneMapped: false }), 0, 0.12, -0.008, lid)
-    sp.rotation.y = Math.PI
-    mesh(CY(0.035, 0.03, 0.08, 10), mat.white, 0.52, 0.79, -0.12, g)
+    if (bare) s.bare = true
+    else {
+      mesh(RB(0.36, 0.016, 0.25, 0.006), mat.metal, 0, 0.758, -0.14, g)
+      const lid = grp(0, -0.01, 0, g)
+      lid.position.y = 0.76
+      lid.rotation.x = 0.28
+      mesh(RB(0.36, 0.24, 0.012, 0.006), mat.metal, 0, 0.12, 0, lid)
+      const sp = plane(0.32, 0.2, new THREE.MeshBasicMaterial({ map: s.screen.t, toneMapped: false }), 0, 0.12, -0.008, lid)
+      sp.rotation.y = Math.PI
+      mesh(CY(0.035, 0.03, 0.08, 10), mat.white, 0.52, 0.79, -0.12, g)
+    }
     plate(s, 0.84, 0.21, 0, 0.62, 0.375, 0)
     block(x - 0.8, z - 0.36, x + 0.8, z + 0.36)
     block(x - 0.8, z + 0.54, x + 0.8, z + 0.82, 0.15)
@@ -1601,24 +1611,34 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     d.side = side
   }
 
-  function addSlot(id: DeptId, i: number, x: number, z: number) {
+  function addSlot(id: DeptId, i: number, x: number, z: number, bare = false) {
     const d = deptScenes[id]
     const prev = [cur, owner, tag] as const
     cur = d.gi
     owner = id
     tag = `desk:${id}:${i}`
-    const s = (kindOf(id) === 'gym' ? treadmill : id === 'side' ? picnic : desk)(d.def, i, x, z)
+    const s = kindOf(id) === 'gym' ? treadmill(d.def, i, x, z) : (id === 'side' ? picnic : desk)(d.def, i, x, z, bare)
     ;[cur, owner, tag] = prev
-    bake(s.g, new Set())
+    bake(s.g, new Set(s.chair ? [s.chair] : []))
+    if (s.chair) bake(s.chair, new Set())
     d.slots[i] = s
     return s
+  }
+  function rebuildSlot(id: DeptId, i: number, bare: boolean) {
+    const old = deptScenes[id].slots[i]
+    if (!old || kindOf(id) === 'gym' || !!old.bare === bare) return old
+    dispose(old.g, true)
+    nav.unblock(`desk:${id}:${i}`)
+    return addSlot(id, i, old.bx, old.bz, bare)
   }
   function removeSlot(id: DeptId, i: number) {
     const s = deptScenes[id].slots[i]
     if (!s) return
     dispose(s.g, true)
     nav.unblock(`desk:${id}:${i}`)
-    deptScenes[id].slots.length = i
+    const slots = deptScenes[id].slots
+    delete slots[i]
+    while (slots.length && !slots.at(-1)) slots.length--
   }
 
   const sun = new THREE.DirectionalLight(0xfff2df, 2.3)
@@ -1777,6 +1797,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     setTier,
     addSlot,
     removeSlot,
+    rebuildSlot,
     drawStatus,
     tickStatus() {
       hist.push(Math.min(9.5, Math.max(2.5, hist.at(-1)! + (Math.random() - 0.5) * 1.4)))
@@ -1838,7 +1859,7 @@ export function drawPlate(s: Slot, occupant: { colour: number; project: string }
 }
 
 export function drawScreen(s: Slot, a: { colour: number; title: string; state: string; caption: string; ask?: string }) {
-  const { c, x, t } = s.screen, w = c.width, st = a.state, idle = st === 'idle'
+  const { c, x, t } = s.screen, w = c.width, st = a.state, idle = st === 'idle' || st === 'away'
   x.fillStyle = idle ? '#23272F' : '#F6F7FB'
   x.fillRect(0, 0, w, c.height)
   x.fillStyle = hexCss(a.colour)
@@ -1870,6 +1891,10 @@ export function drawScreen(s: Slot, a: { colour: number; title: string; state: s
     x.fillStyle = '#6B7280'
     x.font = '15px "JetBrains Mono", monospace'
     x.fillText(a.caption.slice(0, 30), 16, 84)
+  } else if (st === 'away') {
+    x.fillStyle = '#6B7280'
+    x.font = '15px "JetBrains Mono", monospace'
+    x.fillText('away · in the lounge', 16, 84)
   } else if (st === 'done') {
     x.fillStyle = '#15A34A'
     x.font = '600 34px Geist, sans-serif'
@@ -1887,6 +1912,11 @@ export function drawScreen(s: Slot, a: { colour: number; title: string; state: s
     x.globalAlpha = 1
   }
   t.needsUpdate = true
+}
+
+export function setChair(s: Slot, away: boolean) {
+  s.chair?.position.set(away ? 0.3 : 0, 0, away ? -1.05 : -0.68)
+  s.chair?.rotation.set(0, away ? 0.6 : 0, 0)
 }
 
 export function clearScreen(s: Slot) {

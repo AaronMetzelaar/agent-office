@@ -50,6 +50,8 @@ const office: OfficeApi = {
   removeWorktree: (path) => ipcRenderer.invoke('removeWorktree', path),
   removeVisitorWorktree: (chatId) => ipcRenderer.invoke('removeVisitorWorktree', chatId),
   setThresholds: (thresholds) => ipcRenderer.invoke('setThresholds', thresholds),
+  finishChat: (chatId, removeWorktree) => ipcRenderer.invoke('finishChat', chatId, removeWorktree),
+  finishChats: (chatIds, removeWorktrees) => ipcRenderer.invoke('finishChats', chatIds, removeWorktrees),
   getShipIt: (chatId) => ipcRenderer.invoke('getShipIt', chatId),
   lookupTicket: (text) => ipcRenderer.invoke('lookupTicket', text),
   moveTicket: (chatId) => ipcRenderer.invoke('moveTicket', chatId),
@@ -59,12 +61,16 @@ const office: OfficeApi = {
   uninstallHook: () => ipcRenderer.invoke('uninstallHook'),
   moveIntoOffice: (chatId) => ipcRenderer.invoke('moveIntoOffice', chatId),
   archiveVisitor: (chatId) => ipcRenderer.invoke('archiveVisitor', chatId),
+  getHostStatus: () => ipcRenderer.invoke('getHostStatus'),
+  restartHost: () => ipcRenderer.invoke('restartHost'),
+  stopHost: () => ipcRenderer.invoke('stopHost'),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
   onAccountsChanged: (listener) => subscribe('accountsChanged', listener),
   onChatPatches: (listener) => subscribe('chatPatches', listener),
   onNavigate: (listener) => subscribe('navigate', listener),
   onHousekeeping: (listener) => subscribe('housekeeping', listener),
   onReviewRequests: (listener) => subscribe('reviewRequests', listener),
+  onHostStatus: (listener) => subscribe('hostStatus', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

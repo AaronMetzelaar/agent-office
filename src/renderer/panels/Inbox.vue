@@ -3,17 +3,18 @@ import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
 import type { ReviewQueue } from '../../shared/workflow'
-import type { Inbox, WaitingItem } from '../state/inbox'
+import type { FinishedRow, Inbox, WaitingItem } from '../state/inbox'
 import ReviewRequests from './ReviewRequests.vue'
 
-const props = defineProps<{ inbox: Inbox; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: [] }>()
+const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; removable?: string[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: []; finish: [chatIds: string[], withTrees?: boolean] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
 const drafts = reactive<Record<string, string>>({})
 const flash = ref('')
 const alertsHint = ref(false)
+const withTrees = ref(false)
 let flashTimer: ReturnType<typeof setTimeout> | undefined
 const clock = setInterval(() => (now.value = Date.now()), 30_000)
 
@@ -142,13 +143,34 @@ onUnmounted(() => {
     </section>
     <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
     <details v-if="inbox.standby.length" class="grp standby">
-      <summary>Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span></summary>
-      <button v-for="row in inbox.standby" :key="row.id" type="button" class="brow" @click="emit('select', row.id)">
-        <i class="sd" :style="{ background: row.colour }" />
-        <span class="bt">{{ row.title }}</span>
-        <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
-        <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
-      </button>
+      <summary>
+        Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span>
+        <label class="trees" title="Also remove the worktrees that are safe to remove" @click.stop><input v-model="withTrees" type="checkbox" /> also remove safe worktrees</label>
+        <button type="button" class="btn sm clear" title="Finish every chat in the lounge. Shows what it will do first." @click.prevent.stop="emit('finish', inbox.standby.map((row) => row.id), withTrees)">Clear all done</button>
+      </summary>
+      <div v-for="row in inbox.standby" :key="row.id" class="srow">
+        <button type="button" class="brow" @click="emit('select', row.id)">
+          <i class="sd" :style="{ background: row.colour }" />
+          <span class="bt">{{ row.title }}</span>
+          <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
+          <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
+        </button>
+        <span class="sacts">
+          <button v-if="removable?.includes(row.id)" type="button" class="btn sm" :aria-label="`Done and remove the worktree of ${row.title}`" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [row.id], true)">+ worktree</button>
+          <button type="button" class="btn sm" :aria-label="`Done: finish ${row.title}`" title="Clear the desk and move the chat to Finished" @click="emit('finish', [row.id])">Done</button>
+        </span>
+      </div>
+    </details>
+    <details v-if="finished?.length" class="grp standby finished">
+      <summary>Finished<span class="cts">{{ finished.length }}</span></summary>
+      <div v-for="row in finished" :key="row.id" class="srow">
+        <button type="button" class="brow" @click="emit('select', row.id)">
+          <i class="sd" :style="{ background: row.colour }" />
+          <span class="bt">{{ row.title }}</span>
+          <span class="bm">{{ row.visitor ? 'visitor' : '' }}</span>
+          <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · finished {{ since(row.at) }} ago</span>
+        </button>
+      </div>
     </details>
     <button v-if="inbox.parked || cleanup" type="button" class="pfoot" @click="emit('house')">
       <span><b>{{ inbox.parked }} parked</b> · quiet for a while</span><span>{{ cleanup ? `${cleanup} to clean up →` : 'Housekeeping →' }}</span>
@@ -548,6 +570,52 @@ onUnmounted(() => {
   font-size: 10.5px;
   font-weight: 400;
   color: var(--muted);
+}
+
+.standby .srow {
+  position: relative;
+}
+
+.standby .srow + .srow {
+  border-top: 1px solid var(--line2);
+}
+
+.standby .srow .brow {
+  padding-right: 64px;
+}
+
+.finished .srow .brow {
+  padding-right: 12px;
+}
+
+.standby .sacts {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+  gap: 4px;
+  opacity: 0.55;
+}
+
+.standby .srow:hover .sacts,
+.standby .sacts:focus-within {
+  opacity: 1;
+}
+
+.standby summary .trees {
+  margin-left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.standby summary .clear {
+  margin-left: 8px;
 }
 
 .standby .bd .dd {
