@@ -47,6 +47,7 @@ export function sessionEnv(token: string): Record<string, string> {
   for (const [key, value] of Object.entries(process.env)) if (value !== undefined) env[key] = value
   delete env.ANTHROPIC_API_KEY
   delete env.CLAUDE_CONFIG_DIR
+  delete env.CLAUDE_CODE_ENTRYPOINT
   env.CLAUDE_CODE_OAUTH_TOKEN = token
   return env
 }

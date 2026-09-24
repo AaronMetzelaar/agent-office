@@ -40,7 +40,7 @@ The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `secrets/` holds each account token, the optional Linear key and the ntfy signing key, each as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
 - `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, colour, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, each account's last health, and settings (phone push, whether you've seen the Alerts hint). It never holds message text.
 
-Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and doesn't touch `~/.claude` otherwise, apart from the optional hook entry Unit 13 adds with your consent.
+Claude Code transcripts stay where Claude Code writes them, in `~/.claude/projects`. The office reads them to replay a chat's history and to show outside chats, and doesn't touch `~/.claude` otherwise, apart from the optional hook entry described under Outside chats.
 
 `better-sqlite3` 13 ships N-API prebuilt binaries, so the same binary loads in Node (Vitest) and in Electron. There is no native rebuild step, and `package.json` lists it under `ignoredBuiltDependencies` so pnpm skips its node-gyp script.
 
@@ -59,6 +59,19 @@ Each chat runs as one streaming Agent SDK session in the main process, with its 
 A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck carries a reason: needs login, rate limited (with the retry time when Claude sends one), crashed, interrupted or error. An exception in one chat only marks that chat Stuck.
 
 Quitting while a chat is mid-turn asks first, then interrupts its turn. After a restart, or a crash, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
+
+## Outside chats
+
+Chats running in the desktop app (both instances) or `claude` in a terminal show up as visitors: read-only, with a Visitor badge. At startup, and whenever a transcript or a desktop chat file changes, the office lists the chats active in the last 24 hours:
+- Desktop chats come from each instance's `~/Library/Application Support/<instance>/claude-code-sessions/**/local_*.json`, which gives the title, archived state and account (the `Claude-Research` instance maps to the research account). Archived chats are left out.
+- Terminal chats are transcripts whose entrypoint is `cli`. Their account shows as unknown, and their title is the first prompt.
+- Transcripts from Agent SDK sessions, including the office's own, are left out.
+
+A first state comes from the transcript: written in the last 5 minutes and mid-turn means Working; a finished turn means Done if the desktop app hasn't focused the chat since, otherwise Idle. Placement uses the same path rules and file classifier as office chats, and research chats sit in the gym.
+
+Settings → Outside chats installs the hook bridge after a consent dialog. It backs up `~/.claude/settings.json` to `settings.json.agent-office-<time>.bak`, then adds one hook entry, marked by its `agent-office-hook` command, for SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Notification, Stop, SubagentStop and SessionEnd. Every write re-reads the file and replaces it through a temporary file, so edits Claude Code makes in between survive. Turning it off removes exactly that entry. The hook script lives in `~/.config/agent-office/agent-office-hook` and posts each event with `curl` to `127.0.0.1`, reading the port and a per-install secret from `~/.config/agent-office/hook.curlrc` (mode 0600). With the office closed it exits at once. Hook events then drive the visitors' states live: a permission prompt shows the chat as Needs you.
+
+Move into the office asks first, then creates an office chat that forks the original on your next message (`resume` with `forkSession`). The office never writes to the original's transcript, and the visitor stays behind, marked Moved.
 
 ## Permissions
 
@@ -116,7 +129,8 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_ENGINE=1` swaps the Agent SDK for the scripted engine in `tests/fakes/fake-engine.ts`, which answers every message without spending tokens. A message containing `[hang]` keeps its chat working, one containing `[ask]` asks to run `pnpm test` first, and one containing `[danger]` asks to run `rm -rf dist`. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_GH=1` answers the review queue's `gh` calls from `tests/fakes/github.ts` instead of GitHub. `playwright.config.ts` sets it, so no end-to-end test reaches GitHub. Packaged builds ignore it.
-- `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads the ntfy files from. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.
+- `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads the ntfy files from and writes the hook script and endpoint to. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.
+- `CLAUDE_CONFIG_DIR` and `AGENT_OFFICE_DESKTOP_DIR` replace `~/.claude` and `~/Library/Application Support` for outside chats and the hook installer. `playwright.config.ts` points both at empty folders, so the end-to-end tests never read your chats or touch your settings.
 - `RENDERER_VITE_OFFICE_DEMO=1 pnpm dev` runs the office on the prototype's sample chats instead of your accounts: working, waiting, stuck and parked agents, with Admin folded until its first agent walks in after 10 seconds. The flag is read at build time, so a normal `pnpm build` leaves the demo out. The Playwright demo check builds its own copy into `out-demo/` and reads the fps probe on `window.__fps`, which only dev and demo builds expose.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 

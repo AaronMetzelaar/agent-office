@@ -842,7 +842,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Search covers months of existing transcripts within seconds of the first run, and resume works for chats started in the office and before it.
 
-- [ ] **Unit 13: Outside chats and adoption**
+- [x] **Unit 13: Outside chats and adoption**
 
 **Goal:** Show desktop-app and terminal chats live, and move them into the office safely.
 
@@ -964,6 +964,10 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
 - [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
 - [ ] "Review" finds the PR's local clone among the repos of existing chats (matching `origin`). A repo with no chat yet gets a message instead of a folder picker. Add a picker if that happens often.
+- [ ] Outside chats without the hook get their state from transcripts only, so they never show Needs you until the hook is installed. After installing, check on the real machine whether sessions that were already running start reporting, or only after they restart. Unit 13.
+- [ ] A brand-new outside chat appears at its first tool call or Stop: SessionStart and the first UserPromptSubmit arrive before its transcript exists, and the listener drops events without one. Retry once after a second if that feels slow. Unit 13.
+- [ ] Terminal chats show the account as unknown; nothing on disk ties a terminal login to an office account label. Unit 13.
+- [ ] Moving a chat into the office starts nothing: the fork happens on the first message sent there. If the original was mid-turn, that message has to say to carry on. Unit 13.
 
 ## System-Wide Impact
 

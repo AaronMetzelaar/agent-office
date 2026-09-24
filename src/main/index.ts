@@ -14,6 +14,8 @@ import { loginShellPath } from './login-path'
 import { createWaitMetrics } from './metrics/wait'
 import { createNotifier } from './notify'
 import { configDir, createPhonePush } from './notify/ntfy'
+import { claudeDir, createOutside, wireOutside } from './outside'
+import { desktopDir } from './outside/desktop-meta'
 import { createBroker, windowResolver } from './permissions/registry'
 import { createRules } from './permissions/rules'
 import { wireReview } from './review'
@@ -57,7 +59,8 @@ async function start(): Promise<void> {
   const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
-  const sync = wireChats(win, appUrl, store)
+  const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
+  const sync = wireChats(win, appUrl, store, outside.visitors)
   createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
   handle('departmentRules', win, appUrl, () => deptRules)
   sync.setAccounts(accounts.list())
@@ -101,12 +104,13 @@ async function start(): Promise<void> {
     const saved = db.setting('editor')
     return isEditor(saved) ? saved : 'code'
   }
-  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor() })
+  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor(), outsideChats: outside.installed() })
   handle('getSettings', win, appUrl, settings)
-  wireReview(win, appUrl, store, editor)
+  wireReview(win, appUrl, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
-  const confirm = async (message: string, detail: string) => (await dialog.showMessageBox(win, { type: 'question', buttons: ['Move', 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
+  const confirm = async (message: string, detail: string, action = 'Move') => (await dialog.showMessageBox(win, { type: 'question', buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
   const reviews = wireWorkflow(win, appUrl, { store, engine, accounts: accounts.list, linear, rules: deptRules, gh: fakeGithub?.run ?? run, confirm })
+  wireOutside(win, appUrl, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm })
   handle('setSetting', win, appUrl, (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if (typeof value !== 'boolean') return settings()
@@ -130,7 +134,7 @@ async function start(): Promise<void> {
   const house = createHousekeeping(store, engine, db, fakeEngine ? { ...realSystem(), ...fakeEngine.processes, graceMs: 1000 } : realSystem(), notifier.cleanup)
   wireHousekeeping(win, appUrl, house)
   house.start()
-  const strip = createTray(() => show({ to: 'inbox' }), () => stripState(store.views(), loginItems(accounts.list())))
+  const strip = createTray(() => show({ to: 'inbox' }), () => stripState([...store.views(), ...outside.visitors.views()], loginItems(accounts.list())))
   store.events.on('patch', (patch) => {
     if (patch.fields && ('state' in patch.fields || 'pendingRequests' in patch.fields || 'archived' in patch.fields)) strip.update()
   })
@@ -139,12 +143,13 @@ async function start(): Promise<void> {
   accounts.events.on('changed', (list) => {
     send(win, 'accountsChanged', list)
     sync.setAccounts(list)
+    outside.rescan()
     strip.update()
     for (const account of list) if (account.health.status !== 'needs-login') notifier.loginFixed(account.id)
   })
   accounts.events.on('removed', store.accountRemoved)
   Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
-  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine, fakeGithub, reviews })
+  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine, fakeGithub, reviews, outside })
   app.on('second-instance', () => show())
   app.on('activate', () => show())
 }

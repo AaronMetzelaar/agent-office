@@ -98,6 +98,7 @@ onUnmounted(() => {
           <button v-else type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
           <button type="button" class="btn sm" @click="decide(item.requests[0].id, { kind: 'deny' }, 'inbox')">Deny</button>
         </template>
+        <button v-else-if="item.visitor" type="button" class="btn sm" @click="emit('select', item.chatId)">Open</button>
         <template v-else-if="item.kind === 'stuck' && item.chatId">
           <button type="button" class="btn sm" @click="resume(item.chatId)">Resume</button>
           <button v-if="canSwitch && item.stuckReason === 'rate-limited'" type="button" class="btn sm" title="Continue on the other account" @click="emit('continue', item.chatId)">Other account</button>
@@ -117,8 +118,8 @@ onUnmounted(() => {
       </template>
       <div v-if="expanded.has(item.key) && item.chatId" class="xp">
         <p class="last">{{ item.lastReply ?? 'No reply yet.' }}</p>
-        <textarea v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.meta.enter.prevent="send(item.chatId, 'inbox')" />
-        <div class="crow">
+        <textarea v-if="!item.visitor" v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.meta.enter.prevent="send(item.chatId, 'inbox')" />
+        <div v-if="!item.visitor" class="crow">
           <span class="sp" />
           <button type="button" class="btn accent sm" @click="send(item.chatId, 'inbox')">Send <kbd>⌘↵</kbd></button>
         </div>

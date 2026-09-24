@@ -7,6 +7,8 @@ export const effortLabels: Record<Effort, string> = { low: 'Low', medium: 'Mediu
 export const chatModes = ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk', 'auto'] as const
 export type ChatMode = (typeof chatModes)[number]
 
+export type Visitor = 'desktop' | 'terminal'
+
 export type ChatState = 'starting' | 'working' | 'needs-you' | 'done' | 'idle' | 'stuck'
 export type StuckReason = 'needs-login' | 'rate-limited' | 'crashed' | 'interrupted' | 'error'
 
@@ -52,6 +54,9 @@ export interface ChatFields {
   permissionMode?: ChatMode
   worktree?: string
   setup?: 'worktree' | 'worktree-failed'
+  forkPending?: boolean
+  visitor?: Visitor
+  moved?: boolean
   colour?: string
   department?: string
   archived: boolean

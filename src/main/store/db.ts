@@ -19,6 +19,7 @@ export interface ChatRecord {
   stuck?: Stuck
   archived: boolean
   parked?: boolean
+  forkPending?: boolean
   unread: boolean
   createdAt: number
   lastActivityAt: number
@@ -59,6 +60,7 @@ create table if not exists settings (key text primary key, value text not null);
 const addedColumns: [string, string][] = [
   ['permission_mode', 'text'],
   ['parked', 'integer not null default 0'],
+  ['fork_pending', 'integer not null default 0'],
 ]
 
 const columns: [keyof ChatRecord, string][] = [
@@ -77,6 +79,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['stuck', 'stuck'],
   ['archived', 'archived'],
   ['parked', 'parked'],
+  ['forkPending', 'fork_pending'],
   ['unread', 'unread'],
   ['createdAt', 'created_at'],
   ['lastActivityAt', 'last_activity_at'],
@@ -85,7 +88,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['usage', 'usage'],
 ]
 const json = new Set<keyof ChatRecord>(['stuck', 'usage'])
-const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'unread'])
+const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'forkPending', 'unread'])
 
 function toRow(record: ChatRecord): Row {
   const row: Row = {}

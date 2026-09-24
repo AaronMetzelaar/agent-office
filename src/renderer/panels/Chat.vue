@@ -19,6 +19,7 @@ const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; c
 const aliases = ['opus', 'sonnet', 'haiku']
 const tab = ref<'chat' | 'review'>('chat')
 const flash = ref('')
+const moving = ref(false)
 const seen = shallowReactive(new Map<string, PendingRequestView>())
 const dismissed = reactive(new Set<string>())
 let flashTimer: ReturnType<typeof setTimeout> | undefined
@@ -31,6 +32,7 @@ const models = computed(() => {
   const current = props.chat?.model
   return current && !aliases.includes(current) ? [current, ...aliases] : aliases
 })
+const visitorFrom = computed(() => (props.chat?.visitor === 'terminal' ? 'a terminal' : 'the desktop app'))
 const modelLabel = (model: string) => (aliases.includes(model) ? model[0]!.toUpperCase() + model.slice(1) : model)
 
 function say(message: string) {
@@ -47,6 +49,14 @@ function step(delta: number) {
 async function decide(request: PendingRequestView, decision: Decision) {
   const result = await window.office.resolveRequest(request.id, decision, 'chat')
   if ('error' in result) say(result.error)
+}
+
+async function move() {
+  if (!props.chat) return
+  moving.value = true
+  const result = await window.office.moveIntoOffice(props.chat.id).finally(() => (moving.value = false))
+  if (result && 'error' in result) say(result.error)
+  else if (result) emit('select', result.chatId)
 }
 
 async function resume() {
@@ -101,22 +111,26 @@ onUnmounted(() => {
       <span class="av" :style="{ background: agent.colour }" />
       <div>
         <h2>{{ agent.title }}</h2>
-        <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template></p>
+        <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
     </div>
-    <ShipIt v-if="chat" :chat="chat" />
+    <div v-if="chat?.visitor" class="visit" role="status">
+      <p>{{ chat.moved ? 'Moved into the office. This original stays read-only.' : `Read-only. It runs in ${visitorFrom}.` }}</p>
+      <button v-if="!chat.moved" type="button" class="btn primary sm" :disabled="moving" @click="move">Move into the office</button>
+    </div>
+    <ShipIt v-else-if="chat" :chat="chat" />
     <div class="ctl">
       <div class="tabs" role="tablist" aria-label="Chat views">
         <button type="button" role="tab" :aria-selected="tab === 'chat'" @click="tab = 'chat'">Chat</button>
         <button type="button" role="tab" :aria-selected="tab === 'review'" @click="tab = 'review'">Review</button>
       </div>
-      <select v-if="chat" aria-label="Model" :value="chat.model ?? ''" @change="setModel">
+      <select v-if="chat && !chat.visitor" aria-label="Model" :value="chat.model ?? ''" @change="setModel">
         <option v-if="!chat.model" value="">Default model</option>
         <option v-for="model in models" :key="model" :value="model">{{ modelLabel(model) }}</option>
       </select>
     </div>
-    <div v-if="chat" class="effort" role="radiogroup" aria-label="Effort" title="Effort applies from the next turn">
+    <div v-if="chat && !chat.visitor" class="effort" role="radiogroup" aria-label="Effort" title="Effort applies from the next turn">
       <span class="lbl">Effort</span>
       <button v-for="effort in efforts" :key="effort" type="button" role="radio" :aria-checked="chat.effort === effort" @click="setEffort(effort)">{{ effortLabels[effort] }}</button>
     </div>
@@ -143,7 +157,7 @@ onUnmounted(() => {
       </section>
     </div>
     <p v-if="flash" class="flash" role="status">{{ flash }}</p>
-    <Composer v-if="chat" :chat="chat" :waiting="pending[0]" @accounts="emit('accounts')" />
+    <Composer v-if="chat && !chat.visitor" :chat="chat" :waiting="pending[0]" @accounts="emit('accounts')" />
   </div>
 </template>
 
@@ -246,6 +260,33 @@ onUnmounted(() => {
 .chatp .effort button[aria-checked='true'] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.chatp .vb {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--soft);
+  font: 10.5px var(--mono);
+  color: var(--muted);
+}
+
+.chatp .visit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 16px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+}
+
+.chatp .visit p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
 }
 
 .chatp .doing {

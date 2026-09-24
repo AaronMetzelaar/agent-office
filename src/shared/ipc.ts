@@ -44,6 +44,7 @@ export interface Settings {
   phonePushAvailable: boolean
   alertsHintSeen: boolean
   editor: Editor
+  outsideChats: boolean
 }
 
 export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor'
@@ -95,6 +96,9 @@ export interface Commands {
   moveTicket(chatId: string): Promise<{ status?: string; error?: string }>
   getReviewRequests(): ReviewQueue
   startReview(url: string): Promise<StartChatResult>
+  installHook(): Promise<Settings | { error: string }>
+  uninstallHook(): Settings | { error: string }
+  moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
 }
 
 export interface Events {

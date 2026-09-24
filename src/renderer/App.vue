@@ -31,6 +31,12 @@ async function togglePhonePush() {
   if (settings.value) settings.value = await window.office.setSetting('phonePush', !settings.value.phonePush)
 }
 
+async function toggleOutsideChats() {
+  const result = settings.value?.outsideChats ? await window.office.uninstallHook() : await window.office.installHook()
+  if ('error' in result) alert(result.error)
+  else settings.value = result
+}
+
 async function setEditor(event: Event) {
   settings.value = await window.office.setSetting('editor', (event.target as HTMLSelectElement).value)
 }
@@ -75,6 +81,14 @@ onUnmounted(() => unsubscribe())
               @click="togglePhonePush"
             >
               Phone push<span class="state">{{ settings?.phonePush ? 'On' : 'Off' }}</span>
+            </button>
+            <button
+              role="menuitemcheckbox"
+              :aria-checked="!!settings?.outsideChats"
+              title="Show desktop and terminal chats live. Adds one marked hook entry to ~/.claude/settings.json, backed up first; turning it off removes exactly that entry."
+              @click="toggleOutsideChats"
+            >
+              Outside chats<span class="state">{{ settings?.outsideChats ? 'On' : 'Off' }}</span>
             </button>
             <label class="pick">
               Editor

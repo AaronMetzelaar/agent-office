@@ -107,6 +107,7 @@ export function projectOf(cwd: string): string {
 }
 
 export function captionOf(chat: ChatView, parked: boolean, now: number): string {
+  if (chat.moved) return 'Moved into the office'
   if (chat.state === 'needs-you') return `Waiting for you · ${chat.pendingRequests[0]?.tool ?? chat.pending[0]?.toolName ?? 'a decision'}`
   if (parked) return `Parked · ${ago(now - chat.lastActivityAt)}`
   return doingNow(chat, now)
@@ -178,7 +179,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       quietMs,
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
-      ...(showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
+      ...(chat.visitor ? { badge: 'Visitor' } : showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
       ...(chat.state === 'needs-you' && tool ? { request: { tool, summary: first?.summary ?? tool, dangerous: first?.dangerous ?? false } } : {}),
     }
   })
