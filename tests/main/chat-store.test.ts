@@ -61,6 +61,20 @@ describe('chat store', () => {
     expect(engine.sent.at(-1)).toEqual({ chatId: id, text: 'Now add a test' })
   })
 
+  it('titles a chat by its topic once the model names it, and keeps a title it was given', async () => {
+    const { engine, store, chat } = office
+    engine.topics.push('Bid flow rounding bug', 'Ignored')
+    const id = office.start('Currently the bid flow rounds 10.005 down, can you look at why that happens')
+    expect(chat(id).title).toBe('Currently the bid flow rounds 10.005 down, can you look at w')
+    const named = store.start('main', dir, 'Work on the ticket', undefined, undefined, { title: 'MWS-1 Fix bids' })
+    await new Promise((done) => setTimeout(done, 0))
+    expect(chat(id).title).toBe('Bid flow rounding bug')
+    expect('chatId' in named && chat(named.chatId).title).toBe('MWS-1 Fix bids')
+    office.db.close()
+    office = openOffice(dir)
+    expect(office.chat(id).title).toBe('Bid flow rounding bug')
+  })
+
   it('keeps the latest cumulative usage per chat and sums it per account', () => {
     const { engine, store, chat } = office
     const first = working()

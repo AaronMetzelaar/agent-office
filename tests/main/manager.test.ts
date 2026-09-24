@@ -148,4 +148,14 @@ describe('session manager', () => {
     engine.stop('c1')
     expect(engine.commands('c1')?.map((command) => command.name)).toEqual(['compact', 'mws-pr', 'mws-verify'])
   })
+
+  it('names a topic with a tool-less, unsaved Haiku call on the account token, cleaned to one short line', async () => {
+    const { engine } = manager()
+    sdk.messages = [{ type: 'result', subtype: 'success', is_error: false, result: '"Chip titles from conversation topic."\nextra' }]
+    expect(await engine.topic('main', 'Show the topic')).toBe('Chip titles from conversation topic')
+    expect(sdk.options).toMatchObject({ model: 'haiku', tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: { CLAUDE_CODE_OAUTH_TOKEN: token } })
+    sdk.messages = [{ type: 'result', subtype: 'error_during_execution', is_error: true }]
+    expect(await engine.topic('main', 'Show the topic')).toBeUndefined()
+    expect(await engine.topic('nobody', 'Show the topic')).toBeUndefined()
+  })
 })

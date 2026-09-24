@@ -293,6 +293,17 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
   const worktreeFailed = (chat: Chat, error: unknown) => transition(chat, 'stuck', { stuck: { reason: 'error', detail: `Couldn’t set up the worktree: ${errorText(error)}` }, setup: 'worktree-failed' })
 
+  function nameTopic(id: string, accountId: string, prompt: string) {
+    engine.topic(accountId, prompt).then(
+      (topic) => guard(id, (chat) => {
+        if (!topic) return
+        set(chat, { title: topic })
+        save(chat)
+      }),
+      () => {},
+    )
+  }
+
   function setUpWorktree(chat: Chat, plan: WorktreePlan, prompt: string) {
     const id = chat.view.id
     transition(chat, 'starting', { worktree: plan.path, cwd: plan.cwd, setup: 'worktree', stuck: undefined })
@@ -434,7 +445,8 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const chosenEffort = effort == null || effort === '' ? defaultEffort : effort
       if (!efforts.includes(chosenEffort as Effort)) return { error: 'That effort level isn’t valid.' }
       const wanted = (typeof options === 'object' && options ? options : {}) as StartOptions
-      const title = (typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : prompt).trim().split('\n')[0]!.slice(0, 60)
+      const named = typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : undefined
+      const title = (named ?? prompt).trim().split('\n')[0]!.slice(0, 60)
       let plan: WorktreePlan | undefined
       try {
         plan = wanted.worktree === true ? planWorktree(cwd, slugFor(title)) : undefined
@@ -444,6 +456,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const review = wanted.review === true
       const department: DeptId = review ? 'rev' : isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
       const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}) })
+      if (!named) nameTopic(chat.view.id, accountId, prompt)
       if (plan) {
         addRow(chat, { kind: 'user', id: randomUUID(), text: prompt })
         setUpWorktree(chat, plan, prompt)

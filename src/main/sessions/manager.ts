@@ -31,7 +31,12 @@ export interface Engine {
   running(chatId: string): boolean
   pid(chatId: string): number | undefined
   commands(chatId: string): SlashCommand[] | undefined
+  topic(accountId: string, prompt: string): Promise<string | undefined>
 }
+
+const topicPrompt = 'Name the topic of this request to a coding agent in 3 to 6 words, like a chat title. Reply with the title only: no quotes, no trailing period.'
+
+const topicOf = (reply: string) => reply.trim().split('\n')[0]!.replace(/^["'`*#\s]+|["'`*.\s]+$/g, '').slice(0, 60) || undefined
 
 export type ChatCanUseTool = (chatId: string, ...args: Parameters<CanUseTool>) => ReturnType<CanUseTool>
 
@@ -180,5 +185,13 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     running: (chatId) => sessions.has(chatId),
     pid: (chatId) => sessions.get(chatId)?.spawned.pid,
     commands: (chatId) => commands.get(chatId),
+    async topic(accountId, prompt) {
+      const token = tokenFor(accountId)
+      if (!token) return undefined
+      const { query } = await import('@anthropic-ai/claude-agent-sdk')
+      const run = query({ prompt: prompt.slice(0, 4000), options: { model: 'haiku', systemPrompt: topicPrompt, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token) } })
+      for await (const message of run) if (message.type === 'result') return message.subtype === 'success' && !message.is_error ? topicOf(message.result) : undefined
+      return undefined
+    },
   }
 }
