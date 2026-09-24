@@ -80,10 +80,17 @@ test('⌘N quick start runs a chat in the chosen folder and account; Allow in th
   await drawer().getByLabel('Prompt').fill('Run the tests [ask]')
   await drawer().getByLabel('Effort').selectOption('high')
 
+  await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0]!
+    win.isFocused = () => false
+  })
   const notified = app.evaluate(async () => {
     const started = Date.now()
     const live = (globalThis as unknown as MainGlobals).notifier.live
-    while (![...live.values()].some((note) => note.body.startsWith('Auto mode wants to'))) await new Promise((done) => setTimeout(done, 5))
+    while (![...live.values()].some((note) => note.body.startsWith('Auto mode wants to'))) {
+      if (Date.now() - started > 5000) return Infinity
+      await new Promise((done) => setTimeout(done, 5))
+    }
     return Date.now() - started
   })
   await drawer().getByRole('button', { name: 'Start agent' }).click()
