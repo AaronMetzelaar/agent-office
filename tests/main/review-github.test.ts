@@ -73,6 +73,7 @@ describe('pull request', () => {
   it('explains a missing gh, a logged-out gh and being offline', async () => {
     expect((await pullRequest('/repo', fail({ code: 'ENOENT' }))).notice).toMatch(/isn’t installed/)
     expect((await pullRequest('/repo', fail({ stderr: 'To get started with GitHub CLI, please run:  gh auth login' }))).notice).toMatch(/isn’t logged in/)
+    expect((await pullRequest('/repo', fail({ stderr: 'none of the git remotes configured for this repository point to a known GitHub host. To tell gh about a new GitHub host, please use `gh auth login`' }))).notice).toMatch(/no GitHub remote/)
     expect((await pullRequest('/repo', fail({ stderr: 'error connecting to api.github.com' }))).notice).toMatch(/Couldn’t reach GitHub/)
     expect((await pullRequest('/repo', fail({ killed: true, signal: 'SIGTERM' }))).notice).toMatch(/Couldn’t reach GitHub/)
   })

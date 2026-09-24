@@ -73,9 +73,9 @@ function failure(error: unknown): GithubState {
   const text = String(stderr || (error instanceof Error ? error.message : error))
   if (code === 'ENOENT') return { notice: 'The GitHub CLI (gh) isn’t installed, so PR and CI status are hidden.' }
   if (/no pull requests found/i.test(text)) return {}
+  if (/no git remotes|known GitHub host/i.test(text)) return { notice: 'This repository has no GitHub remote, so there’s no PR or CI.' }
   if (/gh auth login|not logged in/i.test(text)) return { notice: 'gh isn’t logged in. Run gh auth login in a terminal to see PR and CI status.' }
   if (killed || /error connecting|could not resolve|dial tcp|timed? ?out|network|offline/i.test(text)) return { notice: 'Couldn’t reach GitHub, so PR and CI status may be out of date.' }
-  if (/no git remotes|known GitHub host/i.test(text)) return { notice: 'This repository has no GitHub remote, so there’s no PR or CI.' }
   return { notice: `gh failed: ${text.trim().split('\n')[0]}` }
 }
 
