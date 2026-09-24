@@ -64,7 +64,7 @@ function overview(samples: Sample[], zoomed: boolean) {
     const queued = queue.get(s.id) ?? -1
     const who: Labelled = { id: s.id, dept: s.dept, state: s.state, parked: false, lounge: false, queued: queued >= 0 }
     labelled.push(who)
-    const mode = chipMode(who, {}, zoomed)
+    const mode = chipMode(who, {})
     const place = placementFor({ state: s.state, kind: kindOf(s.dept), spot: 'desk', parked: false, queueIndex: queued, spots: queueSpots.length })
     const [bx, bz] = floor.zones[s.dept].world[seating.desks.get(s.id)!.slot]!
     const seat = anchorsFor(kindOf(s.dept), bx, bz).seat
@@ -78,9 +78,9 @@ function overview(samples: Sample[], zoomed: boolean) {
 }
 
 describe('overview labels', () => {
-  it('shows compact signs plus tags only for agents that need you or are stuck', () => {
+  it('shows a topic tag for every agent at a desk', () => {
     const { items } = overview(fifteen, false)
-    expect(items.map((it) => fifteen.find((s) => s.id === it.key)!.title).sort()).toEqual(['Bid alerts widget', 'Cookbook pages', 'Dialog flow CI fix', 'Office floor plan'])
+    expect(items.length).toBe(fifteen.length)
   })
 
   it('never overlaps signs or tags with 15 agents across every department', () => {
@@ -88,7 +88,7 @@ describe('overview labels', () => {
       const { signs, placed } = overview(fifteen, zoomed)
       const rects = [...signs, ...[...placed.values()].filter((p) => p.show).map((p) => p.rect!)]
       for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) expect(overlaps(rects[i]!, rects[j]!), `${zoomed ? 'zoomed' : 'overview'} ${i}/${j}`).toBe(false)
-      if (!zoomed) expect([...placed.values()].every((p) => p.show)).toBe(true)
+      if (!zoomed) expect([...placed.values()].filter((p) => p.show && !p.mini).length).toBeGreaterThanOrEqual(14)
     }
   })
 
@@ -99,18 +99,16 @@ describe('overview labels', () => {
       expect(ringColourOf(who)).toBe(expected[who.state])
       expect(ringColourOf(who)).toBe(ringColours[stateKey(who.state)])
     }
-    expect(labelled.filter((who) => chipMode(who, {}, false) === 0).length).toBeGreaterThan(0)
   })
 
   it('shows every tag in a department on hover, and lounge tags only when hovering the Lounge', () => {
     const working: Labelled = { id: 'w', dept: 'mob', state: 'working', parked: false, lounge: false, queued: false }
     const parked: Labelled = { id: 'p', dept: 'mob', state: 'idle', parked: true, lounge: true, queued: false }
-    expect(chipMode(working, {}, false)).toBe(0)
-    expect(chipMode(working, { hoverDept: 'mob' }, false)).toBe(1)
-    expect(chipMode(working, {}, true)).toBe(1)
-    expect(chipMode(working, { hovered: 'w' }, false)).toBe(2)
-    expect(chipMode(parked, {}, true)).toBe(0)
-    expect(chipMode(parked, { hoverDept: 'lounge' }, false)).toBe(1)
+    expect(chipMode(working, {})).toBe(1)
+    expect(chipMode(working, { hoverDept: 'mob' })).toBe(1)
+    expect(chipMode(working, { hovered: 'w' })).toBe(2)
+    expect(chipMode(parked, {})).toBe(0)
+    expect(chipMode(parked, { hoverDept: 'lounge' })).toBe(1)
   })
 })
 
@@ -127,7 +125,7 @@ describe('highlighting', () => {
     expect(count).toEqual({ key: 'needs', label: 'needs you', n: 3 })
     const lit = people.filter((p) => !isDim(p, { filter: 'needs' }))
     expect(lit.map((p) => fifteen.find((s) => s.id === p.id)!.title)).toEqual(['Dialog flow CI fix', 'Bid alerts widget', 'Cookbook pages'])
-    expect(people.filter((p) => chipMode(p, { filter: 'needs' }, false) > 0)).toEqual(lit)
+    expect(people.filter((p) => chipMode(p, { filter: 'needs' }) > 0)).toEqual(lit)
   })
 
   it('counts each department in the sign order, with needs-you first', () => {

@@ -44,11 +44,10 @@ export function isDim(a: Labelled, f: Focus): boolean {
   return (!!f.hoverDept && !inGroup(a, f.hoverDept)) || (!!f.filter && stateKey(a.state) !== f.filter)
 }
 
-export function chipMode(a: Labelled, f: Focus, zoomed: boolean): 0 | 1 | 2 {
+export function chipMode(a: Labelled, f: Focus): 0 | 1 | 2 {
   if (a.id === f.selected || a.id === f.hovered) return 2
   if (a.lounge) return f.hoverDept === 'lounge' || (!!f.filter && stateKey(a.state) === f.filter) ? 1 : 0
-  if (f.filter) return stateKey(a.state) === f.filter ? 1 : 0
-  return loud(a) || zoomed || f.hoverDept === a.dept ? 1 : 0
+  return !f.filter || stateKey(a.state) === f.filter ? 1 : 0
 }
 
 export function chipHalfWidth(title: string, caption: string, far: boolean, extra: boolean, queued: boolean): number {
@@ -87,11 +86,6 @@ export function placeLabels(signs: readonly [number, number, number, number][], 
     out.set(it.key, { show: true, dx, lift, mini, rect })
   }
   for (const it of [...items].sort((a, b) => a.priority - b.priority || a.distance - b.distance)) {
-    if (it.priority > 1) {
-      if (fits(it, it.hw, 0, 0)) put(it, it.hw, 0, 0, false)
-      else out.set(it.key, { show: false, dx: 0, lift: 0, mini: false })
-      continue
-    }
     const full = offsets.find(([sx, lift]) => fits(it, it.hw, sx * (it.hw + 10), lift))
     if (full) {
       put(it, it.hw, full[0] * (it.hw + 10), full[1], false)
@@ -99,6 +93,10 @@ export function placeLabels(signs: readonly [number, number, number, number][], 
     }
     if (it.priority === 0) {
       put(it, it.hw, 0, 0, false)
+      continue
+    }
+    if (it.priority > 1) {
+      out.set(it.key, { show: false, dx: 0, lift: 0, mini: false })
       continue
     }
     const small = offsets.find(([sx, lift]) => fits(it, it.miniHw, sx * (it.miniHw + 10), lift)) ?? offsets[0]

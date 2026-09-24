@@ -733,7 +733,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const byKey = new Map<string, Live>()
     for (const l of live.values()) {
       const who = labelled(l)
-      const mode = l.gone ? 0 : chipMode(who, focus, zoomed)
+      const mode = l.gone ? 0 : chipMode(who, focus)
       const acts = mode && (mode === 2 || zoomed) && canRest(l.facts.state) ? (l.spot === 'lounge' ? 'done' : 'both') : undefined
       setChipActions(l.chip, acts, !!acts && removable(l.facts.id))
       if (mode) {
