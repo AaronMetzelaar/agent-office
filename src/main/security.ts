@@ -1,6 +1,6 @@
 import { join, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { dialog, net, protocol, session, shell, type BrowserWindow } from 'electron'
+import { net, protocol, session, shell, type BrowserWindow } from 'electron'
 
 const bundleScheme = 'app'
 export const bundleUrl = `${bundleScheme}://office/index.html`
@@ -78,24 +78,12 @@ export function secureSession(devServerUrl: string | undefined, rendererDir: str
 
 export function hardenWindow(win: BrowserWindow, appUrl: string): void {
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isWebUrl(url)) void openAfterConfirm(win, url)
+    if (isWebUrl(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event) => {
     if (isAppUrl(event.url, appUrl)) return
     event.preventDefault()
-    if (isWebUrl(event.url)) void openAfterConfirm(win, event.url)
+    if (isWebUrl(event.url)) void shell.openExternal(event.url)
   })
-}
-
-async function openAfterConfirm(win: BrowserWindow, url: string): Promise<void> {
-  const { response } = await dialog.showMessageBox(win, {
-    type: 'question',
-    buttons: ['Open in Browser', 'Cancel'],
-    defaultId: 1,
-    cancelId: 1,
-    message: 'Open this link in your browser?',
-    detail: url,
-  })
-  if (response === 0) await shell.openExternal(url)
 }

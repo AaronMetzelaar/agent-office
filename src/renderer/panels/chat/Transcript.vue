@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { maxRows, type ChatRow, type ChatView } from '../../../shared/chat'
+import { items } from './groups'
 import { Markdown } from './markdown'
-import { diffStats, entries, isSubagent, plainLabel, resultSummary, subagentLine, subagentState, toolDetail, toolTarget } from './rows'
+import { plainLabel, subagentState } from './rows'
+import Subagent from './Subagent.vue'
+import ToolGroup from './ToolGroup.vue'
 
 const props = defineProps<{ chat: ChatView; canSwitch?: boolean }>()
 const emit = defineEmits<{ resume: []; relogin: []; continue: [] }>()
@@ -13,7 +16,11 @@ const more = ref<boolean>()
 const loading = ref(false)
 let pinned = true
 
-const list = computed(() => entries([...older.value, ...props.chat.rows]))
+const list = computed(() => items([...older.value, ...props.chat.rows]))
+const live = computed(() => {
+  const last = list.value.at(-1)
+  return last?.kind === 'group' && props.chat.state === 'working' && !props.chat.partial ? last : undefined
+})
 const running = computed(() => new Set(props.chat.subagents.map((agent) => agent.id)))
 const canLoad = computed(() => !!props.chat.sessionId && (more.value ?? (!!props.chat.earlier || props.chat.rows.length >= maxRows)))
 const stuck = computed(() => (props.chat.state === 'stuck' ? (props.chat.stuck ?? { reason: 'crashed' as const }) : undefined))
@@ -31,7 +38,6 @@ const stuckText = computed(() => {
       return value.detail ?? 'The Claude process stopped.'
   }
 })
-const subagentLabels = { running: 'Working', done: 'Done', failed: 'Failed' }
 
 async function stick() {
   await nextTick()
@@ -79,38 +85,12 @@ watch(
 <template>
   <div ref="scroller" class="ts" role="log" aria-label="Transcript" @scroll="onScroll">
     <button v-if="canLoad" type="button" class="btn sm older" :disabled="loading" @click="loadOlder">{{ loading ? 'Loading…' : 'Load earlier messages' }}</button>
-    <template v-for="{ row, children } in list" :key="row.id">
-      <div v-if="row.kind === 'user'" class="ur">{{ row.text }}</div>
-      <Markdown v-else-if="row.kind === 'text'" class="ar" :source="row.text" />
-      <section v-else-if="row.kind === 'tool' && isSubagent(row)" :class="['sub', subagentState(row, running)]">
-        <div class="sh">
-          <span class="dot" />
-          <b>{{ toolTarget(row) || 'Subagent' }}</b>
-          <span class="st">{{ subagentLabels[subagentState(row, running)] }}</span>
-        </div>
-        <p class="sm">{{ subagentLine(row, children) }}</p>
-        <details v-if="children.length">
-          <summary>Activity</summary>
-          <ol class="steps">
-            <li v-for="child in children" :key="child.id">
-              <template v-if="child.kind === 'tool'"><b>{{ child.name }}</b> {{ toolTarget(child) }}</template>
-              <template v-else-if="child.kind === 'text'">{{ child.text.slice(0, 160) }}</template>
-            </li>
-          </ol>
-        </details>
-        <p v-if="row.result" class="rs">{{ resultSummary(row) }}</p>
-      </section>
-      <details v-else-if="row.kind === 'tool'" :class="['tr', { err: row.result?.isError, wait: !row.result }]">
-        <summary>
-          <b>{{ row.name }}</b>
-          <span class="tt">{{ toolTarget(row) }}</span>
-          <span v-if="diffStats(row)" class="ds"><i class="add">+{{ diffStats(row)!.added }}</i> <i class="del">−{{ diffStats(row)!.removed }}</i></span>
-          <span class="rs">{{ resultSummary(row) }}</span>
-        </summary>
-        <pre class="io">{{ toolDetail(row) }}</pre>
-        <pre v-if="row.result" class="io out">{{ row.result.text }}</pre>
-      </details>
-      <p v-else class="or">{{ plainLabel(row) }}</p>
+    <template v-for="item in list" :key="item.kind === 'group' ? `g:${item.id}` : item.row.id">
+      <ToolGroup v-if="item.kind === 'group'" :rows="item.rows" :summary="item.summary" :live="item === live" />
+      <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" />
+      <div v-else-if="item.row.kind === 'user'" class="ur">{{ item.row.text }}</div>
+      <Markdown v-else-if="item.row.kind === 'text'" class="ar" :source="item.row.text" />
+      <p v-else class="or">{{ plainLabel(item.row) }}</p>
     </template>
     <Markdown v-if="chat.partial" class="ar live" :source="chat.partial" />
     <div v-if="stuck" class="stuckbox" role="alert">
@@ -130,10 +110,10 @@ watch(
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 10px 16px 14px;
+  padding: 12px 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   scrollbar-width: thin;
 }
 
@@ -147,8 +127,9 @@ watch(
   background: var(--accent-soft);
   color: var(--ink);
   border-radius: 12px 12px 4px 12px;
-  padding: 8px 11px;
-  font-size: 13.5px;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -158,6 +139,13 @@ watch(
   line-height: 1.55;
   color: var(--ink2);
   overflow-wrap: anywhere;
+}
+
+.ts .ar {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  max-width: 68ch;
 }
 
 .md > :first-child {
@@ -174,12 +162,20 @@ watch(
 .md blockquote,
 .md pre,
 .md .tbl {
-  margin: 0 0 8px;
+  margin: 0 0 0.7em;
 }
 
 .md ul,
 .md ol {
-  padding-left: 20px;
+  padding-left: 1.3em;
+}
+
+.md li + li {
+  margin-top: 0.25em;
+}
+
+.md li > p {
+  margin: 0;
 }
 
 .md h1,
@@ -188,36 +184,52 @@ watch(
 .md h4,
 .md h5,
 .md h6 {
-  font-size: 13.5px;
+  font-size: 1em;
   font-weight: 600;
+  line-height: 1.4;
   color: var(--ink);
-  margin: 12px 0 6px;
+  margin: 1.1em 0 0.4em;
   display: block;
 }
 
 .md h1,
 .md h2 {
-  font-size: 14.5px;
+  font-size: 1.07em;
+}
+
+.md strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.md code {
+  font: 0.84em var(--mono);
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 5px;
+  padding: 0.1em 0.4em;
 }
 
 .md pre {
-  font: 12px/1.5 var(--mono);
+  font: 12px/1.55 var(--mono);
+  color: var(--ink2);
   background: var(--soft);
-  border: 1px solid var(--line2);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 9px 11px;
   overflow: auto;
   white-space: pre;
 }
 
 .md pre code {
-  border: 0;
+  font: inherit;
+  color: inherit;
   padding: 0;
   background: none;
 }
 
 .md blockquote {
-  border-left: 3px solid var(--line);
+  border-left: 2px solid var(--line);
   padding-left: 10px;
   color: var(--muted);
 }
@@ -232,19 +244,25 @@ watch(
 
 .md table {
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 0.9em;
 }
 
 .md th,
 .md td {
-  border: 1px solid var(--line);
-  padding: 4px 8px;
+  border-bottom: 1px solid var(--line2);
+  padding: 4px 10px 4px 0;
   text-align: left;
+}
+
+.md th {
+  font-weight: 600;
+  border-bottom-color: var(--line);
 }
 
 .md hr {
   border: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line2);
+  margin: 1em 0;
 }
 
 .ts .live::after {
@@ -253,158 +271,9 @@ watch(
   margin-left: 2px;
 }
 
-.ts .tr {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.ts .tr summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 6px 10px;
-  font: 11.5px/1.5 var(--mono);
-  color: var(--muted);
-  min-width: 0;
-}
-
-.ts .tr summary::-webkit-details-marker {
-  display: none;
-}
-
-.ts .tr summary b {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.ts .tr .tt {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  flex: 1;
-}
-
-.ts .tr .rs {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 45%;
-}
-
-.ts .tr.err {
-  border-color: #f2b8b5;
-}
-
-.ts .tr.err .rs {
-  color: var(--danger);
-}
-
-.ts .tr.wait .rs {
-  color: var(--accent);
-}
-
-.ts .ds i {
-  font-style: normal;
-}
-
-.ts .ds .add {
-  color: var(--ok);
-}
-
-.ts .ds .del {
-  color: var(--danger);
-}
-
-.ts .io {
-  margin: 0;
-  border-top: 1px solid var(--line2);
-  padding: 8px 10px;
-  font: 11.5px/1.5 var(--mono);
-  color: var(--ink2);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 260px;
-  overflow: auto;
-}
-
-.ts .io.out {
-  background: var(--soft);
-}
-
-.ts .sub {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: grid;
-  gap: 4px;
-}
-
-.ts .sub.done {
-  border-left-color: var(--ok);
-}
-
-.ts .sub.failed {
-  border-left-color: var(--danger);
-}
-
-.ts .sub .sh {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-}
-
-.ts .sub .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex: none;
-}
-
-.ts .sub.done .dot {
-  background: var(--ok);
-}
-
-.ts .sub.failed .dot {
-  background: var(--danger);
-}
-
-.ts .sub .st {
-  margin-left: auto;
-  font: 11px var(--mono);
-  color: var(--muted);
-}
-
-.ts .sub .sm,
-.ts .sub .rs {
-  margin: 0;
-  font: 11.5px var(--mono);
-  color: var(--muted);
-}
-
-.ts .sub summary {
-  cursor: pointer;
-  font: 11.5px var(--mono);
-  color: var(--muted);
-}
-
-.ts .steps {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  font: 11.5px/1.6 var(--mono);
-  color: var(--ink2);
-  overflow-wrap: anywhere;
-}
-
 .ts .or {
   margin: 0;
-  font: 11px var(--mono);
+  font-size: 12px;
   color: var(--faint);
 }
 </style>

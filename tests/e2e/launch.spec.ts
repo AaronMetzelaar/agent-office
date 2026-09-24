@@ -119,7 +119,7 @@ test('new windows and navigation away from the app are blocked', async () => {
   })
   await expect.poll(() => recorded('opened')).toEqual(['https://example.com/docs', 'https://example.com/away'])
 
-  expect(await recorded('asked')).toEqual(['https://example.com/docs', 'https://example.com/away'])
+  expect(await recorded('asked')).toEqual([])
   expect(page.url()).toBe(appUrl)
   expect(await windowStates()).toEqual([true])
 })
