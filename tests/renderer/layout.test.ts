@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { band, bandArea, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
-import { noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
+import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
 
@@ -119,23 +119,23 @@ describe('section size follows its agents', () => {
 })
 
 describe('packing Aaron’s floor', () => {
-  it('gives desks to working, needs-you, stuck and done-unread chats, and an armchair to every chat', () => {
+  it('gives desks to working, needs-you, stuck and done-unread chats, and sends the other 15 to the Lounge', () => {
     const { zones, lounge } = fixture.floor
     expect(inside.filter((id) => zones[id].shown)).toEqual(['mkt', 'plat', 'gym'])
     expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([2, 2, 2, 3])
-    expect(lounge).toMatchObject({ shown: true, seats: 21 })
+    expect(lounge).toMatchObject({ shown: true, seats: 15 })
   })
 
   it('reserves a desk for every chat active in the last day after a relaunch', () => {
     const { zones, lounge } = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), true).floor
     expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([5, 7, 9, 4])
-    expect(lounge.seats).toBe(21)
+    expect(lounge.seats).toBe(15)
   })
 
-  it('fits the building within about 1.3× the area its sections and fixed parts need', () => {
+  it('fits the building within about 1.2× the area its sections and fixed parts need', () => {
     const { floor } = fixture
-    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.3)
-    expect(area(floor.bounds)).toBeLessThan(290)
+    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.22)
+    expect(area(floor.bounds)).toBeLessThan(265)
   })
 
   it('leaves no empty floor bigger than a walkway', () => {
@@ -237,11 +237,11 @@ describe('the Lounge', () => {
   })
 
   it('never moves a seated agent when the Lounge fills up', () => {
-    const first = reseat(noSeating, atDesks({ mob: 3 }), true)
-    const next = reseat(first, atDesks({ mob: 3 }, 1), true)
-    expect(next.seats.get('mob1')).toBe(first.seats.get('mob1'))
-    expect(next.seats.get('mob2')).toBe(first.seats.get('mob2'))
-    expect(new Set(next.seats.values()).size).toBe(3)
+    const resting = (ids: string[]): Sitter[] => ids.map((id) => ({ id, dept: 'mob', spot: 'lounge', parked: false, recent: false }))
+    const first = reseat(noSeating, resting(['a', 'b', 'c']), true)
+    const next = reseat(first, resting(['a', 'b', 'c', 'd']), true)
+    for (const id of ['a', 'b', 'c']) expect(next.seats.get(id)).toBe(first.seats.get(id))
+    expect(new Set(next.seats.values()).size).toBe(4)
   })
 
   it('hides when nobody is resting', () => {
@@ -283,8 +283,12 @@ describe('folding sections', () => {
     expect(layoutFloor(hovering.size).zones.adm.shown).toBe(true)
     expect(layoutFloor(hovering.size).zones.mkt.w).toBe(layoutFloor(all.size).zones.mkt.w)
     const released = reseat(hovering, atDesks({ ...everyone, adm: 0, mkt: 1 }), true)
-    expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0, mkt: 2 }), pending: false })
+    expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0 }), pending: false })
+    expect(builtDesks(released, 'mkt')).toEqual([0, 3])
     expect(layoutFloor(released.size).zones.adm.shown).toBe(false)
+    const next = reseat(released, [...atDesks({ ...everyone, adm: 0, mkt: 1 }), { id: 'late', dept: 'plat', spot: 'desk', parked: false, recent: true }], true)
+    expect(next.size.mkt).toBe(2)
+    expect(builtDesks(next, 'mkt')).toEqual([0, 1])
   })
 
   it('seats a newcomer while zoomed in without adding the next free desk until the overview', () => {

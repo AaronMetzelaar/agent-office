@@ -164,4 +164,15 @@ describe('inbox', () => {
     ])
     expect(agents.find((agent) => agent.id === 'read')?.caption).toBe('Standby · done 2h ago')
   })
+
+  it('moves a stuck chat sent to the Lounge out of Waiting for you and into Standby, until it works again', () => {
+    const chats = new Map([['stuck', view('stuck', { state: 'stuck', stuck: { reason: 'crashed' } })]])
+    const agents = toAgents(chats.values(), accounts, Date.now(), new Map())
+    expect(buildInbox(chats, agents, []).waiting.map((item) => item.chatId)).toEqual(['stuck'])
+    const sent = buildInbox(chats, agents, [], new Set(['stuck']))
+    expect(sent.waiting).toEqual([])
+    expect(sent.standby.map((row) => row.id)).toEqual(['stuck'])
+    const busy = new Map([['stuck', view('stuck', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })]])
+    expect(buildInbox(busy, toAgents(busy.values(), accounts, Date.now(), new Map()), [], new Set(['stuck'])).waiting.map((item) => item.chatId)).toEqual(['stuck'])
+  })
 })

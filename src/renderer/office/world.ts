@@ -16,7 +16,7 @@ import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { createMovers } from './movers'
 import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, setChair, type Slot } from './props'
-import { noSeating, reseat, type Desk, type Seating } from './seating'
+import { builtDesks, noSeating, reseat, type Desk, type Seating } from './seating'
 import { canRest, spotFor, type Spot } from './standby'
 import { buildQueue, queuePositions, type QueueItem } from '../../shared/queue'
 
@@ -186,7 +186,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     sc.gi.position.set(-w / 2, 0, -d / 2)
     sc.resize(w, d)
     if (sc.side) sc.side.position.x = w - minWidth(id, sc.tier)
-    for (const s of sc.slots) placeSlot(s, ox, oz)
+    for (const s of sc.slots) if (s) placeSlot(s, ox, oz)
     if (id === 'gym') placeCoolers()
     signs.get(id)!.obj.position.set(ox + 0.25, 0.62, oz + d)
   }
@@ -235,8 +235,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
         if (d.shell === 'yard' && next.yard) sc.reach = reachOf(next.yard, z.box)
         office.setTier(sc, z.tier)
         if (a.sc < 0.01) place(d.id, a.to)
-        for (let i = sc.slots.length - 1; i >= z.desks; i--) office.removeSlot(d.id, i)
-        for (let i = sc.slots.length; i < z.desks; i++) placeSlot(office.addSlot(d.id, i, z.slots[i]![0], z.slots[i]![1]), a.ox, a.oz)
         sc.block(a.to[2], a.to[3])
       } else a.to = [a.ox, a.oz, a.w, a.d]
       a.from = [a.ox, a.oz, a.w, a.d]
@@ -302,7 +300,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   const canFold = () => !focus.hovered && !focus.hoverDept && layU >= 1 && !rig.zoomed()
 
-  function relayout(): boolean {
+  function relayout() {
     const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
     for (const l of act) {
       if (!canRest(l.facts.state)) sent.delete(l.facts.id)
@@ -314,7 +312,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     seating = next
     pendingLayout = next.pending
     for (const id of claims.keys()) if (next.desks.has(id)) claims.delete(id)
-    if (booted && !next.repack) return false
+    if (booted && !next.repack) return
     applyLayout(layoutFloor(next.size, next.lounge, floor), !booted)
     for (const l of sitting) {
       const v = seatVecs[next.seats.get(l.facts.id)!]
@@ -322,7 +320,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       l.c.walker.pos.copy(v)
       l.c.walker.goal = null
     }
-    return true
   }
 
   const slotKey = (d: Desk) => `${d.dept}:${d.slot}`
@@ -359,14 +356,22 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     }
   }
 
-  function assign(repacked: boolean) {
+  function buildDesks() {
+    for (const d of depts) {
+      const want = new Set(builtDesks(seating, d.id))
+      const sc = scenes[d.id], local = floor.zones[d.id].slots, a = anims[d.id]
+      sc.slots.forEach((_, i) => want.has(i) || office.removeSlot(d.id, i))
+      for (const i of want) if (!sc.slots[i] && local[i]) placeSlot(office.addSlot(d.id, i, local[i][0], local[i][1]), a.ox, a.oz)
+    }
+  }
+
+  function assign() {
+    buildDesks()
     const holders = new Map([...seating.desks].map(([id, d]) => [slotKey(d), id]))
-    const leaving = new Set([...ghosts.values()].map(slotKey))
-    for (const d of depts)
-      scenes[d.id].slots.forEach((s, i) => {
-        const key = slotKey({ dept: d.id, slot: i })
-        if (s.bare && !leaving.has(key) && (repacked || holders.has(key))) placeSlot(office.rebuildSlot(d.id, i, false)!, anims[d.id].ox, anims[d.id].oz)
-      })
+    for (const [id, d] of seating.desks) {
+      const s = scenes[d.dept].slots[d.slot]
+      if (s?.bare && !ghosts.has(id)) placeSlot(office.rebuildSlot(d.dept, d.slot, false)!, anims[d.dept].ox, anims[d.dept].oz)
+    }
     seatCoolers()
     for (const l of live.values()) {
       const desk = !l.gone && l.spot === 'desk' ? seating.desks.get(l.facts.id) : undefined
@@ -375,7 +380,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       l.slot = slot
       l.screenKey = ''
     }
-    for (const d of depts) scenes[d.id].slots.forEach((s, i) => paintDesk(s, holders.get(slotKey({ dept: d.id, slot: i }))))
+    for (const d of depts) scenes[d.id].slots.forEach((s, i) => s && paintDesk(s, holders.get(slotKey({ dept: d.id, slot: i }))))
   }
 
   function targetOf(l: Live): Target {
@@ -540,7 +545,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   }
 
   function refresh() {
-    assign(relayout())
+    relayout()
+    assign()
     const act = active()
     queue = buildQueue(
       act.filter((l) => !sent.has(l.facts.id)).map((l) => ({ id: l.facts.id, accountId: l.facts.accountId, state: l.facts.state, since: l.facts.since, stuckReason: l.facts.stuckReason })),
@@ -701,7 +707,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const taken = new Set([...seating.desks.values()].map(slotKey))
     for (const d of shown())
       scenes[d.id].slots.forEach((slot, i) => {
-        if (taken.has(slotKey({ dept: d.id, slot: i }))) return
+        if (!slot || taken.has(slotKey({ dept: d.id, slot: i }))) return
         const chip = deskChip(d.id, i)
         chip.position.copy(slot.chip)
         chip.visible = true
@@ -845,6 +851,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       claims.set(chatId, slot)
       refresh()
     },
+    sentAway: (): ReadonlySet<string> => sent,
     sendToLounge(chatId: string) {
       sent.add(chatId)
       refresh()

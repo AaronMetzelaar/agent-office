@@ -63,7 +63,7 @@ function push() {
   if (!w) return
   const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours)
   for (const a of agents) colours.set(a.id, a.colour)
-  inbox.value = buildInbox(projection.chats, agents, projection.logins)
+  inbox.value = buildInbox(projection.chats, agents, projection.logins, w.sentAway())
   w.sync(agents, projection.logins)
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
@@ -96,6 +96,7 @@ function say(message: string) {
 
 function toLounge(chatId: string) {
   world.value?.sendToLounge(chatId)
+  push()
   if (projection.chats.get(chatId)?.state === 'done') void window.office.markRead(chatId)
 }
 

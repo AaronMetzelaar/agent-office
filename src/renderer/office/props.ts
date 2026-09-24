@@ -42,7 +42,7 @@ export interface DeptScene {
   tint: THREE.MeshStandardMaterial
   tintLo: THREE.Color
   tintHi: THREE.Color
-  slots: Slot[]
+  slots: (Slot | undefined)[]
   tier: Tier
   back?: THREE.Group
   side?: THREE.Group
@@ -1636,7 +1636,9 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     if (!s) return
     dispose(s.g, true)
     nav.unblock(`desk:${id}:${i}`)
-    deptScenes[id].slots.length = i
+    const slots = deptScenes[id].slots
+    delete slots[i]
+    while (slots.length && !slots.at(-1)) slots.length--
   }
 
   const sun = new THREE.DirectionalLight(0xfff2df, 2.3)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
+import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { createTrips, tripSize, tripTimes, type Job } from '../../src/renderer/office/trips'
 
 const total = Object.values(tripTimes).reduce((sum, t) => sum + t, 0)
@@ -48,7 +48,7 @@ describe('the movers', () => {
     const moving = reseat(before, [{ ...chats[0]!, spot: 'gone' }, chats[1]!], true)
     expect(moving).toMatchObject({ repack: false, size: before.size })
     const after = reseat(moving, [chats[1]!], true)
-    expect(after).toMatchObject({ repack: true, size: { mkt: 2 } })
+    expect(builtDesks(after, 'mkt')).toEqual([1, 2])
   })
 
   it('shares one truck for Dones that arrive together, and queues the rest for the next trip', () => {
