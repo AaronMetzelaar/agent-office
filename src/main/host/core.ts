@@ -12,6 +12,7 @@ import type { Hub } from '../ipc'
 import { loginShellPath } from '../login-path'
 import { createWaitMetrics } from '../metrics/wait'
 import { createNotifier } from '../notify'
+import { pinnedFolders } from '../folders'
 import { configDir, createPhonePush } from '../notify/ntfy'
 import { claudeDir, createOutside, wireOutside } from '../outside'
 import { desktopDir } from '../outside/desktop-meta'
@@ -66,7 +67,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   })
   hub.handle('clearLinearKey', vault.clearLinearKey)
   hub.handle('hasLinearKey', () => vault.linearKey() !== undefined)
-  hub.handle('recentFolders', store.recentFolders)
+  hub.handle('recentFolders', () => [...new Set([...store.recentFolders(), ...pinnedFolders()])])
 
   const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest, onOpen: () => console.info('[ntfy] listening for phone decisions') })
   const editor = () => {
