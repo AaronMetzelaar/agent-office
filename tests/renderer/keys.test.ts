@@ -20,9 +20,8 @@ describe('keys', () => {
     for (const key of ['1', '2', '3']) expect(keyAction(key, { open: 'a', queue, card: card('ra', { dangerous: true }) })).toBeUndefined()
   })
 
-  it('a question only takes 3, since answering needs its options', () => {
-    expect(keyAction('1', { open: 'a', queue, card: card('ra', { tool: 'AskUserQuestion' }) })).toBeUndefined()
-    expect(keyAction('3', { open: 'a', queue, card: card('ra', { tool: 'AskUserQuestion' }) })).toMatchObject({ kind: 'decide' })
+  it('a question leaves the number keys to its own options', () => {
+    for (const key of ['1', '2', '3']) expect(keyAction(key, { open: 'a', queue, card: card('ra', { tool: 'AskUserQuestion' }) })).toBeUndefined()
   })
 
   it('an open chat without a card, or an empty queue, ignores the answer keys', () => {

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import { allowFrom, answerDecision, questionsOf } from '../../src/renderer/panels/chat/cards'
+import { allowFrom, answerDecision, questionKey, questionsOf } from '../../src/renderer/panels/chat/cards'
 import PlanCard from '../../src/renderer/panels/chat/PlanCard.vue'
 import QuestionCard from '../../src/renderer/panels/chat/QuestionCard.vue'
 import RequestCard from '../../src/renderer/panels/chat/RequestCard.vue'
@@ -72,12 +72,32 @@ describe('plan and question cards', () => {
   })
 
   it('renders each question with its options and a free answer', async () => {
-    const questions = [{ question: 'Which date library?', header: 'Library', options: [{ label: 'date-fns' }, { label: 'dayjs' }] }]
+    const questions = [{ question: 'Which date library?', header: 'Library', options: [{ label: 'date-fns', description: 'Tree-shakeable' }, { label: 'dayjs' }] }]
     const html = await render(QuestionCard, { request: request({ tool: 'AskUserQuestion', input: { questions } }), first: true })
     expect(html).toContain('Which date library?')
-    expect(html).toContain('date-fns')
+    expect(html).toMatch(/date-fns<small>Tree-shakeable<\/small><\/span><kbd>1<\/kbd>/)
+    expect(html).not.toContain('title=')
     expect(html).toContain('Or your own answer…')
     expect(html).toMatch(/Send answers<\/button>/)
+  })
+
+  it('answers questions with number keys, arrows and Enter', () => {
+    const questions = [
+      { question: 'Library?', options: [{ label: 'date-fns' }, { label: 'dayjs' }] },
+      { question: 'Targets?', multiSelect: true, options: [{ label: 'web' }, { label: 'ios' }] },
+    ]
+    const start = { question: 0, option: 0 }
+    expect(questionKey('2', questions, start, [], false)).toEqual({ focus: { question: 0, option: 1 }, picked: ['dayjs'] })
+    expect(questionKey('3', questions, start, [], false)).toBeUndefined()
+    expect(questionKey('ArrowDown', questions, start, [], false)).toEqual({ focus: { question: 0, option: 1 }, picked: ['dayjs'] })
+    expect(questionKey('ArrowUp', questions, start, ['date-fns'], false)).toEqual({ focus: start, picked: ['date-fns'] })
+    expect(questionKey('Enter', questions, start, [], false)).toEqual({ focus: start })
+    expect(questionKey('Enter', questions, start, ['dayjs'], false)).toEqual({ focus: { question: 1, option: 0 } })
+    const targets = { question: 1, option: 0 }
+    expect(questionKey('2', questions, targets, ['web'], false)).toEqual({ focus: { question: 1, option: 1 }, picked: ['web', 'ios'] })
+    expect(questionKey('ArrowDown', questions, targets, ['web'], false)).toEqual({ focus: { question: 1, option: 1 } })
+    expect(questionKey(' ', questions, targets, ['web'], false)).toEqual({ focus: targets, picked: [] })
+    expect(questionKey('Enter', questions, targets, [], true)).toEqual({ focus: targets, submit: true })
   })
 
   it('builds AskUserQuestion answers only when every question has one', () => {

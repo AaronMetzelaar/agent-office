@@ -5,6 +5,36 @@ export type Question = { question: string; header?: string; multiSelect?: boolea
 
 export const questionsOf = (request: Pick<PendingRequestView, 'input'>): Question[] => (Array.isArray(request.input.questions) ? (request.input.questions as Question[]).filter((q) => typeof q?.question === 'string') : [])
 
+export interface QuestionFocus {
+  question: number
+  option: number
+}
+
+export interface QuestionStep {
+  focus: QuestionFocus
+  picked?: string[]
+  submit?: true
+}
+
+export const toggled = (question: Question, current: readonly string[], label: string) => (current.includes(label) ? current.filter((entry) => entry !== label) : question.multiSelect ? [...current, label] : [label])
+
+export function questionKey(key: string, questions: readonly Question[], focus: QuestionFocus, current: readonly string[], typed: boolean): QuestionStep | undefined {
+  const question = questions[focus.question]
+  if (!question) return undefined
+  const options = question.options ?? []
+  const digit = /^[1-9]$/.test(key) ? Number(key) : 0
+  if (digit && digit <= options.length) return { focus: { ...focus, option: digit - 1 }, picked: toggled(question, current, options[digit - 1]!.label) }
+  const step = key === 'ArrowDown' ? 1 : key === 'ArrowUp' ? -1 : 0
+  if (step && options.length) {
+    const option = Math.min(options.length - 1, Math.max(0, focus.option + step))
+    return { focus: { ...focus, option }, ...(question.multiSelect ? {} : { picked: [options[option]!.label] }) }
+  }
+  if (key === ' ' && question.multiSelect && options[focus.option]) return { focus, picked: toggled(question, current, options[focus.option]!.label) }
+  if (key !== 'Enter') return undefined
+  if (!current.length && !typed) return { focus }
+  return focus.question + 1 < questions.length ? { focus: { question: focus.question + 1, option: 0 } } : { focus, submit: true }
+}
+
 export const planOf = (request: Pick<PendingRequestView, 'input'>) => (typeof request.input.plan === 'string' ? request.input.plan : '')
 
 export function answerDecision(questions: readonly Question[], picked: Record<string, string[]>, other: Record<string, string>): Decision | undefined {
