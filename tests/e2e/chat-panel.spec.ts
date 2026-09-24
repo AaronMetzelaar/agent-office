@@ -55,7 +55,8 @@ test('opening a chat shows its transcript, and a draft survives leaving and comi
   await drawer().getByLabel('Message').fill('half a thought')
   await drawer().getByRole('button', { name: 'Back to inbox' }).click()
   await expect(drawer().getByRole('heading', { name: /^Waiting for you/ })).toBeVisible()
-  await drawer().locator('.brow', { hasText: 'Tidy the bid flow' }).click()
+  await drawer().locator('.standby summary', { hasText: 'Standby' }).click({ position: { x: 12, y: 12 } })
+  await drawer().locator('.standby .brow', { hasText: 'Tidy the bid flow' }).click()
   await expect(drawer().getByLabel('Message')).toHaveValue('half a thought')
 })
 

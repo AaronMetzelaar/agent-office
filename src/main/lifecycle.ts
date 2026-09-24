@@ -12,6 +12,13 @@ interface Closable {
   on(event: 'close', listener: (event: { preventDefault(): void }) => void): unknown
 }
 
+interface Stageable {
+  show(): void
+  hide(): void
+  focus(): void
+  isVisible(): boolean
+}
+
 interface Revealable {
   isMinimized(): boolean
   restore(): void
@@ -51,4 +58,18 @@ export function reveal(win: Revealable): void {
   if (win.isMinimized()) win.restore()
   win.show()
   win.focus()
+}
+
+export function offstage(win: Stageable): void {
+  let visible = false
+  Object.assign(win, {
+    show: () => {
+      visible = true
+    },
+    hide: () => {
+      visible = false
+    },
+    focus: () => {},
+    isVisible: () => visible,
+  })
 }

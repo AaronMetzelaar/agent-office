@@ -72,6 +72,8 @@ test('starting from the free Mobile desk walks a new character in from the entra
   expect(chat).toMatchObject({ department: 'mob', cwd: mobile, accountId })
   await expect.poll(async () => (await views()).find((view) => view.id === chat.id)?.rows.map((row) => ('text' in row ? row.text : row.kind))).toEqual(['Push notification deep links', 'Sure, done.'])
   expect(chat).toMatchObject({ model: expect.any(String), effort: 'medium' })
+  await page.evaluate((id) => window.office.sendMessage(id, 'Keep going [hang]'), chat.id)
+  await expect.poll(async () => (await views()).find((view) => view.id === chat.id)?.state).toBe('working')
 
   await page.getByRole('button', { name: 'Overview' }).click()
   await page.waitForTimeout(1500)

@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
 import { version } from '../../package.json'
 import type { Events, HostStatus, Navigate } from '../shared/ipc'
 import { createCore, prepareCore, type Core } from './host/core'
@@ -10,7 +10,7 @@ import { localUi, noteBridge, spawnHost, uiState } from './host/link'
 import type { Welcome } from './host/server'
 import type { StripState } from './tray/strip'
 import { guard, handle, send, windowHub } from './ipc'
-import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
+import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createTray } from './tray'
@@ -18,7 +18,13 @@ import { createTray } from './tray'
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 const appUrl = devServerUrl ?? bundleUrl
 const inlineHost = !app.isPackaged && process.env.AGENT_OFFICE_INLINE_HOST === '1'
+const hidden = !app.isPackaged && process.env.AGENT_OFFICE_HIDDEN === '1'
 const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests'] satisfies (keyof Events)[])
+
+if (hidden) {
+  process.on('uncaughtException', (error) => console.error('[main] uncaught exception', error))
+  Notification.prototype.show = () => {}
+}
 
 if (process.argv.includes(hostFlag)) {
   require(join(__dirname, 'host.js'))
@@ -173,8 +179,10 @@ function createWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: false,
+      backgroundThrottling: !hidden,
     },
   })
+  if (hidden) offstage(win)
   hardenWindow(win, appUrl)
   forwardRendererErrors(win.webContents)
   void win.loadURL(appUrl)

@@ -44,7 +44,7 @@ const maxDraft = 100_000
 const needsLogin: Refusal = { error: 'This account needs a new login. Add its token again in Accounts, then try again.', code: 'needs-login' }
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
-const modelOrDefault = (model: unknown) => (model === undefined || model === '' || model === 'default' ? defaultModel : model)
+const modelOrDefault = (model: unknown) => (model == null || model === '' || model === 'default' ? defaultModel : model)
 
 export function describeTool(name: string, input: unknown): string {
   const args = (input ?? {}) as Record<string, unknown>
@@ -407,7 +407,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (typeof prompt !== 'string' || !prompt.trim()) return { error: 'Write a prompt first.' }
       const chosenModel = modelOrDefault(model)
       if (typeof chosenModel !== 'string' || !modelPattern.test(chosenModel)) return { error: 'That model name isn’t valid.' }
-      const chosenEffort = effort === undefined || effort === '' ? defaultEffort : effort
+      const chosenEffort = effort == null || effort === '' ? defaultEffort : effort
       if (!efforts.includes(chosenEffort as Effort)) return { error: 'That effort level isn’t valid.' }
       const wanted = (typeof options === 'object' && options ? options : {}) as StartOptions
       const title = (typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : prompt).trim().split('\n')[0]!.slice(0, 60)
