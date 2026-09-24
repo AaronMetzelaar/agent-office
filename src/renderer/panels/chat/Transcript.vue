@@ -21,7 +21,7 @@ const live = computed(() => {
   const last = list.value.at(-1)
   return last?.kind === 'group' && props.chat.state === 'working' && !props.chat.partial ? last : undefined
 })
-const running = computed(() => new Map(props.chat.subagents.map((agent) => [agent.id, agent.activity ?? ''])))
+const running = computed(() => new Set(props.chat.subagents.map((agent) => agent.id)))
 const canLoad = computed(() => !!props.chat.sessionId && (more.value ?? (!!props.chat.earlier || props.chat.rows.length >= maxRows)))
 const stuck = computed(() => (props.chat.state === 'stuck' ? (props.chat.stuck ?? { reason: 'crashed' as const }) : undefined))
 const stuckText = computed(() => {
@@ -87,7 +87,7 @@ watch(
     <button v-if="canLoad" type="button" class="btn sm older" :disabled="loading" @click="loadOlder">{{ loading ? 'Loading…' : 'Load earlier messages' }}</button>
     <template v-for="item in list" :key="item.kind === 'group' ? `g:${item.id}` : item.row.id">
       <ToolGroup v-if="item.kind === 'group'" :rows="item.rows" :summary="item.summary" :live="item === live" />
-      <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" :activity="running.get(item.row.id)" />
+      <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" />
       <div v-else-if="item.row.kind === 'user'" class="ur">{{ item.row.text }}</div>
       <Markdown v-else-if="item.row.kind === 'text'" class="ar" :source="item.row.text" />
       <p v-else class="or">{{ plainLabel(item.row) }}</p>
