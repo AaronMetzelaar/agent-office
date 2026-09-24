@@ -40,6 +40,7 @@ const office: OfficeApi = {
   getSettings: () => ipcRenderer.invoke('getSettings'),
   setSetting: (name, value) => ipcRenderer.invoke('setSetting', name, value),
   openNotificationSettings: () => ipcRenderer.invoke('openNotificationSettings'),
+  simulatorScreenshot: (device) => ipcRenderer.invoke('simulatorScreenshot', device),
   getReview: (chatId) => ipcRenderer.invoke('getReview', chatId),
   getCiLog: (chatId, checkId) => ipcRenderer.invoke('getCiLog', chatId, checkId),
   openInEditor: (chatId, path, line) => ipcRenderer.invoke('openInEditor', chatId, path, line),

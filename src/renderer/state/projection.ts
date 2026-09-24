@@ -1,5 +1,5 @@
 import { Color } from 'three'
-import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
+import { ago, applyPatch, doingNow, usingSimulator, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
 import type { Finished, FinishedMany } from '../../shared/housekeeping'
 import type { AccountView } from '../../shared/ipc'
 import { showsAccountBadge } from '../../shared/departments'
@@ -101,6 +101,7 @@ export interface Agent {
   createdAt: number
   colour: number
   badge?: string
+  sim: boolean
   request?: { tool: string; summary: string; dangerous: boolean }
 }
 
@@ -184,6 +185,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       lastActivityAt: chat.lastActivityAt,
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
+      sim: usingSimulator(chat),
       ...(chat.visitor ? { badge: 'Visitor' } : showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
       ...(chat.state === 'needs-you' && tool ? { request: { tool, summary: first?.summary ?? tool, dangerous: first?.dangerous ?? false } } : {}),
     }

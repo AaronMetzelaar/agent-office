@@ -115,6 +115,7 @@ export interface Chip {
   number: HTMLSpanElement
   extra: HTMLSpanElement
   badge: HTMLSpanElement
+  sim: HTMLSpanElement
   acts: HTMLSpanElement
   lounge: HTMLButtonElement
   remove: HTMLButtonElement
@@ -156,6 +157,10 @@ export function createChip(on: { click(): void; enter(): void; leave(): void; ac
   const caption = span('dn', tx)
   const extra = span('ex', el)
   const badge = span('ab', el)
+  const sim = span('sim', el)
+  sim.textContent = '📱'
+  sim.title = 'Using the iOS Simulator'
+  sim.setAttribute('aria-hidden', 'true')
   const acts = span('acts', el)
   acts.hidden = true
   const labels: Record<ChipAction, [string, string]> = {
@@ -178,7 +183,7 @@ export function createChip(on: { click(): void; enter(): void; leave(): void; ac
   const obj = new CSS2DObject(el)
   obj.center.set(0.5, 1)
   obj.visible = false
-  return { el, obj, title, caption, dot, bubble, number, extra, badge, acts, lounge: lounge!, remove: remove!, key: '', dx: 0, lift: 0, mini: false }
+  return { el, obj, title, caption, dot, bubble, number, extra, badge, sim, acts, lounge: lounge!, remove: remove!, key: '', dx: 0, lift: 0, mini: false }
 }
 
 export function createDeskChip(label: string, click: () => void): CSS2DObject {
@@ -209,6 +214,7 @@ export interface ChipView {
   dim: boolean
   subs: number
   badge?: string
+  sim: boolean
 }
 
 export function renderChip(chip: Chip, v: ChipView) {
@@ -229,7 +235,8 @@ export function renderChip(chip: Chip, v: ChipView) {
   chip.extra.textContent = extra ? `+${v.subs}` : ''
   chip.badge.hidden = !v.badge
   chip.badge.textContent = v.badge ?? ''
-  chip.el.setAttribute('aria-label', `${v.title}, ${queued ? `number ${v.queueIndex + 1} at your door, ` : ''}${v.caption}`)
+  chip.sim.hidden = !v.sim
+  chip.el.setAttribute('aria-label', `${v.title}, ${queued ? `number ${v.queueIndex + 1} at your door, ` : ''}${v.caption}${v.sim ? ', using the iOS Simulator' : ''}`)
   return true
 }
 

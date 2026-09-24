@@ -189,3 +189,30 @@ export function doingNow(chat: ChatFields, now: number): string {
     }
   }
 }
+
+export const simulatorTool = 'mcp__Claude_Code_iOS_Simulator__control'
+export type SimulatorShot = { image: string } | { error: string }
+const udid = /\b[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}\b/i
+const deviceId = /^(booted|[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12})$/i
+
+export const isSimulatorDevice = (value: unknown): value is string => typeof value === 'string' && deviceId.test(value)
+
+function simulatorIn(row: ChatRow): string | undefined {
+  if (row.kind !== 'tool') return undefined
+  const input = (row.input ?? {}) as { device?: unknown; command?: unknown }
+  if (row.name === simulatorTool) return isSimulatorDevice(input.device) ? input.device : 'booted'
+  if (row.name === 'Bash' && typeof input.command === 'string' && /\bsimctl (boot|install|launch|terminate|openurl|io|spawn|ui|status_bar|push|privacy|addmedia|location)\b|\b(detox|maestro) test\b/.test(input.command)) return udid.exec(input.command)?.[0] ?? 'booted'
+  return undefined
+}
+
+export function simulatorOf(rows: readonly ChatRow[], thisTurn = false): string | undefined {
+  for (let index = rows.length - 1; index >= 0; index--) {
+    const row = rows[index]!
+    if (thisTurn && row.kind === 'user') return undefined
+    const device = simulatorIn(row)
+    if (device) return device
+  }
+  return undefined
+}
+
+export const usingSimulator = (chat: Pick<ChatView, 'state' | 'rows'>) => isBusy(chat.state) && simulatorOf(chat.rows, true) !== undefined
