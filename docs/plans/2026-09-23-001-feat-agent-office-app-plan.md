@@ -739,6 +739,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Stop processes: signal the agent's child processes, never the office itself. Parking already does this for long-running children (dev servers, watchers, docker compose); they restart on demand.
   - Archive chat.
   - Remove worktree: `git worktree remove` without force, allowed only when clean, or when fully pushed with the PR merged.
+- Visitors (built 2026-09-24): `createHousekeeping` takes the visitor list. Visitor cwds add repos to the worktree scan; quiet visitors join the candidates; `removeVisitorWorktree(chatId)` looks the worktree up from the visitor record, so the renderer never passes a path. Every removal refuses while a visitor in that worktree is Working, Needs you or active in the last 10 minutes (`visitorHold` in `src/shared/housekeeping.ts`), and archives the visitors in a worktree it removes. A visitor's RAM comes from a `claude` process whose arguments carry its session id; a `--fork-session` process isn't counted.
 - "Clean up safe" previews the list, runs the allowed actions, and reports what was freed (GB and worktree count).
 - Everything runs through argument-array process launches. Nothing is deleted when the git state can't be determined.
 
@@ -893,6 +894,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - **The desktop metadata watcher** supplies titles, archived state and account (from the instance folder).
 - Reading a visitor in the office stores a read mark per session (`readSessions`), compared with the transcript's last turn end, so a read visitor stays read across rescans and relaunches until a new turn finishes (2026-09-24).
 - **Move into the office** confirms, forks via `resume` with `forkSession`, and marks the original Moved.
+- **Archive** (built 2026-09-24) confirms in a native dialog, then stores `[sessionId, archivedAt]` pairs under the `archivedVisitors` setting in office.db. Backfill skips the chat until its transcript mtime passes `archivedAt`. Hook events bring it back, except SessionStart, SessionEnd and notifications other than permission prompts. Nothing is written to the desktop app's metadata.
+- **Worktree retention:** discovery keeps a transcript older than a day when its project folder's cwd sits in a linked worktree (a `.git` file pointing into `…/worktrees/`). The cwd is read once per folder from a transcript head, and the `.git` check runs once per folder per scan. Retained visitors carry `retained: true`: `toAgents` leaves them out, so they never reach the office scene, the lounge or the frame budget, and Housekeeping lists them under "Visitors in worktrees". Any hook activity clears the flag.
 
 **Test scenarios:**
 - Happy path: a PreToolUse → Notification → Stop sequence for an outside session shows it Working, then Needs you (read-only), then Done.
@@ -996,6 +999,10 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] A brand-new outside chat appears at its first tool call or Stop: SessionStart and the first UserPromptSubmit arrive before its transcript exists, and the listener drops events without one. Retry once after a second if that feels slow. Unit 13.
 - [ ] Terminal chats show the account as unknown; nothing on disk ties a terminal login to an office account label. Unit 13.
 - [ ] Moving a chat into the office starts nothing: the fork happens on the first message sent there. If the original was mid-turn, that message has to say to carry on. Unit 13.
+- [x] Archive visitor chats office-side, remove a visitor's worktree under the cleanup rules, and include visitors in Housekeeping. Units 13 and 15.
+- [ ] The drawer board and ⌘K don't list retained visitors yet (21 on Aaron's machine on 2026-09-24, 14 blocked by uncommitted changes). They're only in Housekeeping. Add them under Housekeeping there if wanted.
+- [ ] Retention only sees worktrees whose `.git` file sits at or above the chat's cwd. A transcript folder whose first transcript has no `cwd` in its first 256 KB is never retained. Unit 13.
+- [ ] A `claude` process that uses a visitor's worktree blocks removal, but the row only explains it after you press Remove worktree. Unit 15.
 
 ## System-Wide Impact
 

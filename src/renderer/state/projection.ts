@@ -154,7 +154,7 @@ const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.tes
 export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
   const research = new Set(accounts.filter(isResearch).map((account) => account.id))
   const labels = new Map(accounts.map((account) => [account.id, account.label]))
-  const live = [...chats].filter((chat) => !chat.archived)
+  const live = [...chats].filter((chat) => !chat.archived && !chat.retained)
   const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research.has(chat.accountId)) }))
   const colours = assignColours(
     placed.map(({ chat, dept }) => ({ id: chat.id, dept, createdAt: chat.createdAt, fixed: hexColour(chat.colour) })),

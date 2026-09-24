@@ -102,9 +102,3 @@ export function subagentState(row: ToolRow, running: ReadonlySet<string>): 'runn
 }
 
 export const plainLabel = (row: ChatRow) => ('label' in row && typeof row.label === 'string' ? row.label : String((row as { kind?: unknown }).kind ?? 'event'))
-
-export function subagentLine(row: ToolRow, children: readonly ChatRow[]): string {
-  const kind = text(((row.input ?? {}) as Record<string, unknown>).subagent_type)
-  const calls = children.filter((child) => child.kind === 'tool').length
-  return [kind, `${calls} tool call${calls === 1 ? '' : 's'}`].filter(Boolean).join(' · ')
-}

@@ -90,6 +90,7 @@ export interface Commands {
   archiveChat(chatId: string): Promise<StopReport>
   cleanUp(chatIds?: string[]): Promise<CleanupSummary>
   removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
+  removeVisitorWorktree(chatId: string): Promise<{ error?: string; bytes?: number }>
   setThresholds(thresholds: Thresholds): HousekeepingView
   getShipIt(chatId: string): Promise<ShipIt>
   lookupTicket(text: string): Promise<TicketLookup>
@@ -99,6 +100,7 @@ export interface Commands {
   installHook(): Promise<Settings | { error: string }>
   uninstallHook(): Settings | { error: string }
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
+  archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
 }
 
 export interface Events {

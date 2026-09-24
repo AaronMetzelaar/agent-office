@@ -134,4 +134,13 @@ export function wireOutside(win: BrowserWindow, appUrl: string, { visitors, path
     visitors.markMoved(visitor.id)
     return { chatId: moved }
   })
+
+  handle('archiveVisitor', win, appUrl, async (chatId) => {
+    const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
+    if (!visitor) return { error: 'That chat isn’t in the office any more.' }
+    const detail = visitor.visitor === 'terminal' ? 'Hidden from the office. It comes back if the chat gets new activity.' : 'Hidden from the office. It stays in the desktop app until you archive it there.'
+    if (!(await confirm('Archive this chat in the office?', detail, 'Archive'))) return undefined
+    visitors.archive(visitor.id)
+    return {}
+  })
 }

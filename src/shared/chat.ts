@@ -60,6 +60,7 @@ export interface ChatFields {
   forkPending?: boolean
   visitor?: Visitor
   moved?: boolean
+  retained?: boolean
   colour?: string
   department?: string
   review?: boolean

@@ -31,6 +31,7 @@ export const unknownAccount = 'unknown'
 const movedKey = 'movedSessions'
 const readKey = 'readSessions'
 const maxMoved = 500
+const archivedKey = 'archivedVisitors'
 const permissionPrompts = new Set(['permission_prompt', 'elicitation_dialog'])
 const midTurn = new Set<ChatState>(['working', 'needs-you'])
 const refreshOn = new Set<HookEvent['hook_event_name']>(['UserPromptSubmit', 'Notification', 'Stop'])
@@ -38,6 +39,8 @@ const refreshMs = 500
 const hookQuietMs = 30 * 60_000
 
 const asksPermission = (event: HookEvent) => (event.notification_type ? permissionPrompts.has(event.notification_type) : /permission/i.test(event.message ?? ''))
+const isActivity = (event: HookEvent) => (event.hook_event_name === 'Notification' ? asksPermission(event) : event.hook_event_name !== 'SessionStart' && event.hook_event_name !== 'SessionEnd')
+const isArchiveEntry = (value: unknown): value is [string, number] => Array.isArray(value) && typeof value[0] === 'string' && typeof value[1] === 'number'
 
 export function createVisitors({ patch, accounts, rules, officeSessions, describe, settings, log = (message) => console.warn(`[outside] ${message}`), now = Date.now }: VisitorOptions) {
   const visitors = new Map<string, Entry>()
@@ -47,6 +50,8 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
   const read = new Map(savedRead && typeof savedRead === 'object' ? Object.entries(savedRead).filter((entry): entry is [string, number] => typeof entry[1] === 'number') : [])
   const unreadDone = (seed: VisitorSeed) => seed.state === 'done' && (read.get(seed.sessionId) ?? -1) < (seed.endedAt ?? seed.lastActivityAt)
   const stateOf = (seed: VisitorSeed): ChatState => (seed.state === 'done' && !unreadDone(seed) ? 'idle' : seed.state)
+  const savedArchive = settings.setting(archivedKey)
+  const archived = new Map(Array.isArray(savedArchive) ? savedArchive.filter(isArchiveEntry) : [])
   let open: string | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -56,6 +61,13 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     return accounts().find((account) => isResearch(account) === research)?.id ?? unknownAccount
   }
   const inResearch = (accountId: string) => isResearch({ label: accounts().find((account) => account.id === accountId)?.label ?? '' })
+  const retainedAt = (id: string, lastActivityAt: number) => !moved.has(id) && now() - lastActivityAt > activeWindowMs
+  const saveArchived = () => settings.saveSetting(archivedKey, [...archived].slice(-maxMoved))
+  const unarchive = (id: string) => archived.delete(id) && saveArchived()
+  const hidden = (seed: VisitorSeed) => {
+    if (seed.writtenAt > (archived.get(seed.sessionId) ?? Infinity)) unarchive(seed.sessionId)
+    return archived.has(seed.sessionId)
+  }
 
   const set = (entry: Entry, fields: Partial<ChatFields>) => {
     Object.assign(entry.view, fields)
@@ -94,6 +106,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       lastActivityAt: seed.lastActivityAt,
       rows: [],
       ...(moved.has(seed.sessionId) ? { moved: true, parked: true } : {}),
+      ...(retainedAt(seed.sessionId, seed.lastActivityAt) ? { retained: true } : {}),
     }
     const entry: Entry = { view, tally: newTally(), titled: seed.titled }
     for (const events of seed.evidence) view.department = placed(entry, events) ?? view.department
@@ -162,7 +175,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       for (const seed of seeds) {
         if (office.has(seed.sessionId)) continue
         const entry = visitors.get(seed.sessionId)
-        if (seed.archived) {
+        if (seed.archived || hidden(seed)) {
           if (entry) remove(entry)
           continue
         }
@@ -176,6 +189,8 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         const accountId = accountFor(seed.instance)
         if (accountId !== entry.view.accountId) fields.accountId = accountId
         if (seed.lastActivityAt > entry.view.lastActivityAt) fields.lastActivityAt = seed.lastActivityAt
+        const retained = retainedAt(entry.view.id, fields.lastActivityAt ?? entry.view.lastActivityAt)
+        if (retained !== !!entry.view.retained) fields.retained = retained
         const hookGoneQuiet = entry.view.state === 'working' && now() - (entry.hookAt ?? 0) > hookQuietMs
         if ((entry.hookAt === undefined || hookGoneQuiet) && stateOf(seed) !== entry.view.state) Object.assign(fields, { state: stateOf(seed), stateSince: now(), unread: unreadDone(seed) })
         if (Object.keys(fields).length) set(entry, fields)
@@ -187,6 +202,10 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     hook(event: HookEvent): void {
       const id = event.session_id
       if (officeSessions().has(id)) return
+      if (archived.has(id)) {
+        if (!isActivity(event)) return
+        unarchive(id)
+      }
       let entry = visitors.get(id)
       if (!entry) {
         const seed = describe(id)
@@ -195,6 +214,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       }
       entry.hookAt = now()
       apply(entry, event)
+      if (entry.view.retained) set(entry, { retained: false })
       if (open !== id || !refreshOn.has(event.hook_event_name)) return
       clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => void refresh(id), refreshMs)
@@ -218,11 +238,21 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       set(entry, { state: 'idle', stateSince: now(), unread: false })
     },
 
+    archive(chatId: string): boolean {
+      const entry = visitors.get(chatId)
+      if (!entry) return false
+      archived.delete(chatId)
+      archived.set(chatId, now())
+      saveArchived()
+      remove(entry)
+      return true
+    },
+
     markMoved(chatId: string): void {
       moved.add(chatId)
       settings.saveSetting(movedKey, [...moved].slice(-maxMoved))
       const entry = visitors.get(chatId)
-      if (entry) set(entry, { moved: true, parked: true })
+      if (entry) set(entry, { moved: true, parked: true, retained: false })
     },
   }
 }
