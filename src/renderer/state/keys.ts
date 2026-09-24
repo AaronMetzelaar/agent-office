@@ -20,7 +20,7 @@ export function keyAction(key: string, { open, queue, card }: KeyContext): KeyAc
     }
     if (!card || card.dangerous) return undefined
     if (decision.kind === 'always' && !card.alwaysAllow) return undefined
-    if (card.tool === 'AskUserQuestion' && decision.kind !== 'deny') return undefined
+    if (card.tool === 'AskUserQuestion') return undefined
     return { kind: 'decide', requestId: card.id, decision }
   }
   const step = steps[key]
