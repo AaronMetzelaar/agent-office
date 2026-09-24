@@ -66,6 +66,7 @@ export interface ChatFields {
   review?: boolean
   archived: boolean
   parked?: boolean
+  finished?: number
   state: ChatState
   stuck?: Stuck
   stateSince: number

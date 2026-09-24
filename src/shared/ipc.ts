@@ -92,8 +92,8 @@ export interface Commands {
   removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
   removeVisitorWorktree(chatId: string): Promise<{ error?: string; bytes?: number }>
   setThresholds(thresholds: Thresholds): HousekeepingView
-  finishChat(chatId: string): Promise<Finished | undefined>
-  finishChats(chatIds: string[]): Promise<FinishedMany | undefined>
+  finishChat(chatId: string, removeWorktree?: boolean): Promise<Finished | undefined>
+  finishChats(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>
   getShipIt(chatId: string): Promise<ShipIt>
   lookupTicket(text: string): Promise<TicketLookup>
   moveTicket(chatId: string): Promise<{ status?: string; error?: string }>

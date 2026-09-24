@@ -10,12 +10,12 @@ import Chat from '../panels/Chat.vue'
 import Housekeeping from '../panels/Housekeeping.vue'
 import Inbox from '../panels/Inbox.vue'
 import NewAgent from '../panels/NewAgent.vue'
-import { buildInbox, emptyInbox } from '../state/inbox'
+import { buildInbox, emptyInbox, finishedOf } from '../state/inbox'
 import { keyAction } from '../state/keys'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
 import { createCamera, type View } from './camera'
-import type { StateKey } from './labels'
-import { createWorld, type World, type WorldUi } from './world'
+import { stateKey, type ChipAction, type StateKey } from './labels'
+import { createWorld, type AgentEntry, type World, type WorldUi } from './world'
 
 const props = defineProps<{ accounts: AccountView[]; source: ChatSource }>()
 const emit = defineEmits<{ accounts: [] }>()
@@ -42,7 +42,11 @@ const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
 const toast = ref('')
 const demoMode = !!import.meta.env.RENDERER_VITE_OFFICE_DEMO
 let toastTimer: ReturnType<typeof setTimeout> | undefined
-const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
+const loose = shallowRef<AgentEntry>()
+const shownAgent = computed(() => ui.selected ?? loose.value)
+const openChat = computed(() => (tick.value, shownAgent.value ? projection.chats.get(shownAgent.value.id) : undefined))
+const finished = computed(() => finishedOf(chatList.value, props.accounts))
+const removable = (chatId: string) => !!house.value?.removable.includes(chatId)
 let pendingSelect: string | undefined
 let pendingView: View = 'fly'
 const tallyLabels: [StateKey, string][] = [
@@ -55,7 +59,8 @@ const tallyLabels: [StateKey, string][] = [
 const tally = computed(() => tallyLabels.map(([key, label]) => ({ key, label, n: ui.counts.find((c) => c.key === key)?.n ?? 0 })).filter((c) => c.key !== 'stuck' || c.n || ui.filter === 'stuck'))
 const matches = computed(() => {
   const q = palette.query.trim().toLowerCase()
-  return ui.agents.filter((a) => !q || a.title.toLowerCase().includes(q) || a.dept.toLowerCase().includes(q)).slice(0, 8)
+  const done = finished.value.map((row) => ({ id: row.id, title: row.title, colour: row.colour, dept: row.dept, caption: 'Finished', state: 'idle' as StateKey }))
+  return [...ui.agents, ...done].filter((a) => !q || a.title.toLowerCase().includes(q) || a.dept.toLowerCase().includes(q)).slice(0, 8)
 })
 
 function push() {
@@ -68,10 +73,20 @@ function push() {
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
   if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingView)
+  const back = loose.value && agents.some((a) => a.id === loose.value!.id) ? loose.value.id : undefined
+  if (back) select(back, 'keep')
 }
 
 function select(chatId: string | undefined, view: View = 'fly') {
   mode.value = 'inbox'
+  loose.value = undefined
+  const chat = chatId ? projection.chats.get(chatId) : undefined
+  if (chat?.finished !== undefined) {
+    const row = finished.value.find((r) => r.id === chat.id)
+    world.value?.select(undefined, 'keep')
+    loose.value = { id: chat.id, title: chat.title, colour: row?.colour ?? '#9ca3af', dept: row?.dept ?? '', caption: `Finished · ${chat.cwd.split('/').pop()}`, state: stateKey(chat.state) }
+    return
+  }
   pendingSelect = chatId && !projection.chats.has(chatId) ? chatId : undefined
   pendingView = view
   if (!pendingSelect) world.value?.select(chatId, chatId ? view : 'overview')
@@ -100,20 +115,25 @@ function toLounge(chatId: string) {
   if (projection.chats.get(chatId)?.state === 'done') void window.office.markRead(chatId)
 }
 
-async function finish(chatIds: string[]) {
+async function finish(chatIds: string[], withTrees = false) {
   const { finishChat, finishChats } = props.source
   if (!chatIds.length || !finishChat || !finishChats) return
   world.value?.finishing(chatIds, true)
   if (chatIds.length === 1) {
-    const result: Finished | undefined = await finishChat(chatIds[0]!).catch((error: unknown) => ({ error: String(error) }))
+    const result: Finished | undefined = await finishChat(chatIds[0]!, withTrees).catch((error: unknown) => ({ error: String(error) }))
     if (!result || (result.error && !result.kept)) world.value?.finishing(chatIds, false)
     if (result?.error) say(result.error)
     return
   }
-  const result = await finishChats(chatIds).catch(() => undefined)
+  const result = await finishChats(chatIds, withTrees).catch(() => undefined)
   const done = new Set(result?.finished ?? [])
   world.value?.finishing(chatIds.filter((id) => !done.has(id)), false)
   if (result?.skipped.length) say(`Kept ${plural(result.skipped.length, 'chat')}: ${result.skipped.map((skip) => skip.reason).join('; ')}`)
+}
+
+function act(action: ChipAction, chatId: string) {
+  if (action === 'lounge') toLounge(chatId)
+  else void finish([chatId], action === 'done-remove')
 }
 
 function demoFinish() {
@@ -166,7 +186,7 @@ const Scene = defineComponent({
     const { scene, renderer, advance } = useTres()
     const { onBeforeRender, render } = useLoop()
     const gl = renderer as WebGLRenderer
-    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }), onAction: (action, chatId) => (action === 'lounge' ? toLounge(chatId) : void finish([chatId])) })
+    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }), onAction: act, removable })
     world.value = w
     if (probeEnabled) {
       const probe = w.probe
@@ -217,7 +237,7 @@ async function openPalette() {
 
 function jump(id: string | undefined) {
   palette.open = false
-  if (id) world.value?.select(id, 'fly')
+  if (id) select(id)
 }
 
 function onKey(event: KeyboardEvent) {
@@ -293,8 +313,8 @@ onUnmounted(() => {
   <aside class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
-    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
-    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
+    <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
+    <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">

@@ -32,6 +32,7 @@ const movedKey = 'movedSessions'
 const readKey = 'readSessions'
 const maxMoved = 500
 const archivedKey = 'archivedVisitors'
+const finishedKey = 'finishedVisitors'
 const permissionPrompts = new Set(['permission_prompt', 'elicitation_dialog'])
 const midTurn = new Set<ChatState>(['working', 'needs-you'])
 const refreshOn = new Set<HookEvent['hook_event_name']>(['UserPromptSubmit', 'Notification', 'Stop'])
@@ -52,6 +53,14 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
   const stateOf = (seed: VisitorSeed): ChatState => (seed.state === 'done' && !unreadDone(seed) ? 'idle' : seed.state)
   const savedArchive = settings.setting(archivedKey)
   const archived = new Map(Array.isArray(savedArchive) ? savedArchive.filter(isArchiveEntry) : [])
+  const savedFinished = settings.setting(finishedKey)
+  const finished = new Map(Array.isArray(savedFinished) ? savedFinished.filter(isArchiveEntry) : [])
+  const saveFinished = () => settings.saveSetting(finishedKey, [...finished].slice(-maxMoved))
+  const finishedAt = (seed: VisitorSeed) => {
+    const at = finished.get(seed.sessionId)
+    if (at !== undefined && seed.writtenAt > at && finished.delete(seed.sessionId)) saveFinished()
+    return finished.get(seed.sessionId)
+  }
   let open: string | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -107,6 +116,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       rows: [],
       ...(moved.has(seed.sessionId) ? { moved: true, parked: true } : {}),
       ...(retainedAt(seed.sessionId, seed.lastActivityAt) ? { retained: true } : {}),
+      ...(finishedAt(seed) !== undefined ? { finished: finishedAt(seed) } : {}),
     }
     const entry: Entry = { view, tally: newTally(), titled: seed.titled }
     for (const events of seed.evidence) view.department = placed(entry, events) ?? view.department
@@ -189,6 +199,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         const accountId = accountFor(seed.instance)
         if (accountId !== entry.view.accountId) fields.accountId = accountId
         if (seed.lastActivityAt > entry.view.lastActivityAt) fields.lastActivityAt = seed.lastActivityAt
+        if (entry.view.finished !== undefined && finishedAt(seed) === undefined) fields.finished = undefined
         const retained = retainedAt(entry.view.id, fields.lastActivityAt ?? entry.view.lastActivityAt)
         if (retained !== !!entry.view.retained) fields.retained = retained
         const hookGoneQuiet = entry.view.state === 'working' && now() - (entry.hookAt ?? 0) > hookQuietMs
@@ -214,6 +225,11 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       }
       entry.hookAt = now()
       apply(entry, event)
+      if (entry.view.finished !== undefined && isActivity(event)) {
+        finished.delete(id)
+        saveFinished()
+        set(entry, { finished: undefined })
+      }
       if (entry.view.retained) set(entry, { retained: false })
       if (open !== id || !refreshOn.has(event.hook_event_name)) return
       clearTimeout(refreshTimer)
@@ -245,6 +261,17 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       archived.set(chatId, now())
       saveArchived()
       remove(entry)
+      return true
+    },
+
+    finish(chatId: string): boolean {
+      const entry = visitors.get(chatId)
+      if (!entry) return false
+      const at = now()
+      finished.delete(chatId)
+      finished.set(chatId, at)
+      saveFinished()
+      set(entry, { finished: at, unread: false })
       return true
     },
 

@@ -177,12 +177,12 @@ export function createDemoSource(fixture = false): ChatSource & { stop(): void }
     if (next !== chat.state) move(chat.id, next)
   })
 
-  const archive = (ids: string[]) => push(ids.filter((id) => chats.has(id)).map((id) => ({ id, fields: { archived: true } })))
+  const finish = (ids: string[]) => push(ids.filter((id) => chats.has(id)).map((id) => ({ id, fields: { finished: Date.now(), unread: false } })))
 
   return {
     getSnapshot: async () => ({ seq, chats: structuredClone([...chats.values()]), logins: [] }),
-    finishChat: async (chatId) => (archive([chatId]), {}),
-    finishChats: async (chatIds) => (archive(chatIds), { finished: chatIds, skipped: [], removed: 0 }),
+    finishChat: async (chatId) => (finish([chatId]), {}),
+    finishChats: async (chatIds) => (finish(chatIds), { finished: chatIds, skipped: [], removed: 0 }),
     onChatPatches(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)

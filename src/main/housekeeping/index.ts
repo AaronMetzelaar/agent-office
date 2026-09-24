@@ -29,7 +29,7 @@ export interface Settings {
 
 export type Housekeeping = ReturnType<typeof createHousekeeping>
 
-export type VisitorList = Pick<Visitors, 'views' | 'view' | 'archive'>
+export type VisitorList = Pick<Visitors, 'views' | 'view' | 'archive' | 'finish'>
 
 type Listed = Worktree & { repo: string }
 
@@ -50,7 +50,8 @@ const sizeTtlMs = 60 * 60_000
 const settled = new Set<ChatState>(['idle', 'done', 'stuck'])
 const total = (items: readonly { bytes: number }[]) => items.reduce((sum, item) => sum + item.bytes, 0)
 const noStop: StopReport = { freedBytes: 0, stopped: 0, stubborn: [] }
-const noVisitors: VisitorList = { views: () => [], view: () => undefined, archive: () => false }
+const noVisitors: VisitorList = { views: () => [], view: () => undefined, archive: () => false, finish: () => false }
+const gitTtlMs = 60_000
 const gone = 'That chat isn’t in the office any more.'
 
 interface FinishPlan {
@@ -60,11 +61,12 @@ interface FinishPlan {
   steps: FinishSteps
 }
 
-export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'park' | 'archive' | 'stopChat'>, engine: Pick<Engine, 'pid' | 'stop'>, settings: Settings, system: System, notifyCleanup: (count: number) => void = () => {}, visitors: VisitorList = noVisitors) {
+export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'park' | 'archive' | 'stopChat' | 'finish'>, engine: Pick<Engine, 'pid' | 'stop'>, settings: Settings, system: System, notifyCleanup: (count: number) => void = () => {}, visitors: VisitorList = noVisitors) {
   const events = new EventEmitter<{ view: [HousekeepingView] }>()
   const repos = new Map<string, string>()
   const sizes = new Map<string, { bytes: number; at: number }>()
   const git = new Map<string, GitSafety>()
+  const gitAt = new Map<string, number>()
   const stubborn = new Map<string, Proc[]>()
   const cwds = new Map<number, string>()
   let thresholds = readThresholds(settings.setting('thresholds'))
@@ -93,6 +95,11 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     })
     const bytes = total(agents) + total(visiting) + total(outside)
     const chats = [...live(), ...visitors.views()]
+    const removable = chats.flatMap((chat) => {
+      const tree = worktreeOf(chat.cwd)
+      const ok = tree && git.get(tree.path)?.safe === true && !tree.locked && !usedOutside(tree.path) && !heldBy(tree.path) && !live().some((other) => other.id !== chat.id && inside(other.cwd, tree.path))
+      return ok ? [chat.id] : []
+    })
     return {
       at: now,
       totalMemory: system.totalMemory,
@@ -104,6 +111,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       thresholds,
       candidates,
       safe,
+      removable,
       stubborn: Object.fromEntries(stubborn),
     }
   }
@@ -163,6 +171,8 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       else stubborn.delete(chatId)
     }
     worktrees = await listAll()
+    const stale = worktrees.filter((tree) => system.now() - (gitAt.get(tree.path) ?? -Infinity) >= gitTtlMs)
+    await Promise.all(stale.map(async (tree) => checkGit(tree.path)))
     return publish()
   }
 
@@ -193,21 +203,27 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     await Promise.all(parked.map((chatId) => stopTree(chatId, false)))
   }
 
+  async function checkGit(path: string): Promise<GitSafety> {
+    const safety = await gitSafety(path, system.gh)
+    git.set(path, safety)
+    gitAt.set(path, system.now())
+    return safety
+  }
+
   async function blockedReason(tree: Listed): Promise<string | undefined> {
     if (tree.locked) return 'the worktree is locked'
     if (usedOutside(tree.path)) return 'a claude process outside the office is using it'
     const held = heldBy(tree.path)
     if (held) return held
-    const safety = await gitSafety(tree.path, system.gh)
-    git.set(tree.path, safety)
+    const safety = await checkGit(tree.path)
     return safety.safe ? undefined : safety.blocked
   }
 
-  async function remove(tree: Listed): Promise<string | undefined> {
+  async function remove(tree: Listed, archiveVisitors = true): Promise<string | undefined> {
     const error = await removeWorktree(system.run, tree.repo, tree.path)
     if (error) return error
     git.delete(tree.path)
-    for (const chat of visitors.views()) if (inside(chat.cwd, tree.path)) visitors.archive(chat.id)
+    if (archiveVisitors) for (const chat of visitors.views()) if (inside(chat.cwd, tree.path)) visitors.archive(chat.id)
     return undefined
   }
 
@@ -222,11 +238,11 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     return bytes === undefined ? {} : { bytes }
   }
 
-  async function planFinish(chatId: unknown): Promise<FinishPlan | { error: string }> {
+  async function planFinish(chatId: unknown, removing: boolean): Promise<FinishPlan | { error: string }> {
     const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
     const chat = typeof chatId === 'string' ? (store.view(chatId) ?? visitor) : undefined
     if (!chat || chat.archived) return { error: gone }
-    const tree = worktreeOf(chat.cwd)
+    const tree = removing ? worktreeOf(chat.cwd) : undefined
     const shared = tree && live().some((other) => other.id !== chat.id && inside(other.cwd, tree.path)) ? 'another chat still works in it' : undefined
     const blocked = tree && (shared ?? (await blockedReason(tree)))
     return { chat, visitor: !!visitor, tree, steps: finishSteps(chat, tree && { name: basename(tree.path), blocked }) }
@@ -238,16 +254,16 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     if (isBusy(now.state) && (visitor || !steps.stop)) return { error: 'It started working again, so nothing was changed.' }
     const keep = tree && !steps.remove ? { kept: tree.path } : {}
     if (visitor) {
-      const error = tree && steps.remove ? await remove(tree) : undefined
-      visitors.archive(chat.id)
+      const error = tree && steps.remove ? await remove(tree, false) : undefined
+      visitors.finish(chat.id)
       return error ? { error, kept: tree!.path } : tree && steps.remove ? { removed: tree.path } : keep
     }
     const report = await stopTree(chat.id, true)
     if (isBusy(now.state)) store.stopChat(chat.id)
-    store.archive(chat.id)
+    store.finish(chat.id)
     if (!tree || !steps.remove) return keep
     if (report.stubborn.length) return { error: 'A process didn’t exit, so the worktree was kept.', kept: tree.path }
-    const error = await remove(tree)
+    const error = await remove(tree, false)
     if (error) return { error, kept: tree.path }
     sizes.delete(tree.path)
     return { removed: tree.path }
@@ -359,26 +375,26 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       return removeListed(tree)
     },
 
-    async finish(chatId: unknown, ask: Confirm): Promise<Finished | undefined> {
+    async finish(chatId: unknown, removing: unknown, ask: Confirm): Promise<Finished | undefined> {
       await sample()
-      const plan = await planFinish(chatId)
+      const plan = await planFinish(chatId, removing === true)
       if ('error' in plan) return plan
       const { steps } = plan
       if (steps.refuse) return { error: steps.refuse }
-      if (steps.stop && !(await ask('Stop and finish this chat?', 'It’s still working. Stopping interrupts its turn, then the chat is archived.', 'Stop and finish'))) return undefined
-      if (steps.keep && !(await ask(steps.keep, 'The chat is archived and the worktree stays on disk.', 'Archive only'))) return undefined
+      if (steps.stop && !(await ask('Stop and finish this chat?', 'It’s still working. Stopping interrupts its turn, then the chat moves to Finished.', 'Stop and finish'))) return undefined
+      if (steps.keep && !(await ask(steps.keep, 'The chat moves to Finished and the worktree stays on disk.', 'Finish only'))) return undefined
       const result = await runFinish(plan)
       await sample()
       return result
     },
 
-    async finishMany(chatIds: unknown, ask: Confirm): Promise<FinishedMany | undefined> {
+    async finishMany(chatIds: unknown, withTrees: unknown, ask: Confirm): Promise<FinishedMany | undefined> {
       await sample()
       const ids = [...new Set(Array.isArray(chatIds) ? chatIds.filter((id): id is string => typeof id === 'string') : [])]
       const out: FinishedMany = { finished: [], skipped: [], removed: 0 }
       const plans: FinishPlan[] = []
       for (const chatId of ids) {
-        const plan = await planFinish(chatId)
+        const plan = await planFinish(chatId, withTrees === true)
         const reason = 'error' in plan ? plan.error : plan.steps.refuse ?? (plan.steps.stop ? 'it’s still working' : undefined)
         if (reason) out.skipped.push({ chatId, reason })
         else plans.push(plan as FinishPlan)
@@ -387,9 +403,9 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       const removing = plans.filter((plan) => plan.steps.remove)
       const keeping = plans.filter((plan) => plan.steps.keep)
       const lines = [
-        `Archive ${plural(plans.length, 'chat')}.`,
+        `Finish ${plural(plans.length, 'chat')}. ${plans.length === 1 ? 'It stays' : 'They stay'} in the drawer under Finished.`,
         ...(removing.length ? [`Remove ${plural(removing.length, 'worktree')}: ${removing.map((plan) => basename(plan.tree!.path)).join(', ')}.`] : []),
-        ...keeping.map((plan) => `Keep ${plan.steps.keep!.replace(/: archive only and keep the worktree\?$/, '')}.`),
+        ...keeping.map((plan) => `Keep ${plan.steps.keep!.replace(/: finish only and keep the worktree\?$/, '')}.`),
         ...out.skipped.map((skip) => `Skip ${store.view(skip.chatId)?.title ?? visitors.view(skip.chatId)?.title ?? 'a chat'}: ${skip.reason.replace(/\.$/, '')}.`),
       ]
       if (!(await ask(`Clear ${plural(plans.length, 'chat')}?`, lines.join('\n'), 'Clear'))) return undefined
@@ -425,8 +441,8 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
 }
 
 export function wireHousekeeping(win: BrowserWindow, appUrl: string, house: Housekeeping, confirm: Confirm = async () => false): void {
-  handle('finishChat', win, appUrl, (chatId) => house.finish(chatId, confirm))
-  handle('finishChats', win, appUrl, (chatIds) => house.finishMany(chatIds, confirm))
+  handle('finishChat', win, appUrl, (chatId, removing) => house.finish(chatId, removing, confirm))
+  handle('finishChats', win, appUrl, (chatIds, removing) => house.finishMany(chatIds, removing, confirm))
   handle('getHousekeeping', win, appUrl, async (fresh) => (fresh === true ? house.refresh() : house.view()))
   handle('stopProcesses', win, appUrl, house.stopChat)
   handle('archiveChat', win, appUrl, house.archive)

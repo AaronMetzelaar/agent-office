@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPatchSync } from '../../src/main/store/ipc-sync'
 import { stripState } from '../../src/main/tray/strip'
-import { buildInbox } from '../../src/renderer/state/inbox'
+import { buildInbox, finishedOf } from '../../src/renderer/state/inbox'
 import { createProjection, toAgents, type ChatSource } from '../../src/renderer/state/projection'
 import { emptyUsage, type ChatPatchBatch, type ChatView } from '../../src/shared/chat'
 import type { AccountView } from '../../src/shared/ipc'
@@ -163,6 +163,21 @@ describe('inbox', () => {
       { id: 'old', dept: 'Marketplace', dozing: true },
     ])
     expect(agents.find((agent) => agent.id === 'read')?.caption).toBe('Standby · done 2h ago')
+  })
+
+  it('keeps finished chats off the floor and lists them in Finished, newest first, with department and when they finished', () => {
+    const now = Date.now()
+    const chats = new Map([
+      ['live', view('live')],
+      ['older', view('older', { state: 'idle', finished: now - 7_200_000 })],
+      ['newer', view('newer', { state: 'done', accountId: 'research', finished: now - 60_000, visitor: 'desktop' })],
+      ['gone', view('gone', { state: 'idle', finished: now, archived: true })],
+    ])
+    expect(toAgents(chats.values(), accounts, now, new Map()).map((agent) => agent.id)).toEqual(['live'])
+    expect(finishedOf(chats.values(), accounts)).toMatchObject([
+      { id: 'newer', dept: 'Research gym', at: now - 60_000, visitor: true },
+      { id: 'older', dept: 'Marketplace', at: now - 7_200_000, visitor: false },
+    ])
   })
 
   it('moves a stuck chat sent to the Lounge out of Waiting for you and into Standby, until it works again', () => {

@@ -1,5 +1,6 @@
 import type { ChatView, LoginItem, StuckReason } from '../../shared/chat'
-import { hexOf, type DeptId } from '../../shared/office'
+import type { AccountView } from '../../shared/ipc'
+import { departmentOf, hexOf, isResearch, type DeptId } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import { buildQueue, type QueueItem } from '../../shared/queue'
 import { countsFor, stateKey, type StateKey } from '../office/labels'
@@ -49,6 +50,27 @@ export interface StandbyRow {
   accent: string
   at: number
   dozing: boolean
+}
+
+export interface FinishedRow {
+  id: string
+  title: string
+  colour: string
+  dept: string
+  accent: string
+  at: number
+  visitor: boolean
+}
+
+export function finishedOf(chats: Iterable<ChatView>, accounts: readonly AccountView[]): FinishedRow[] {
+  const research = new Set(accounts.filter(isResearch).map((account) => account.id))
+  return [...chats]
+    .filter((chat) => chat.finished !== undefined && !chat.archived)
+    .sort((a, b) => b.finished! - a.finished!)
+    .map((chat) => {
+      const d = dept[departmentOf(chat, research.has(chat.accountId))]
+      return { id: chat.id, title: chat.title, colour: chat.colour ?? '#9ca3af', dept: d.name, accent: hexOf(d.accent), at: chat.finished!, visitor: !!chat.visitor }
+    })
 }
 
 export interface Inbox {

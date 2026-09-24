@@ -261,7 +261,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
     const view = chat.view
     addRow(chat, { kind: 'user', id: randomUUID(), text })
-    if (view.parked) set(chat, { parked: false })
+    if (view.parked || view.finished) set(chat, { parked: false, finished: undefined })
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
     run(chat, text, fork)
   }
@@ -478,6 +478,14 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const chat = create({ ...init, state: 'idle', activity: '', forkPending: true })
       addRow(chat, { kind: 'other', id: randomUUID(), label: 'Moved into the office. Your next message continues a copy; the original stays as it is.' })
       return chat.view.id
+    },
+
+    finish(chatId: string): boolean {
+      const chat = chats.get(chatId)
+      if (!chat || chat.view.archived || midTurn.has(chat.view.state)) return false
+      set(chat, { finished: Date.now(), unread: false })
+      save(chat)
+      return true
     },
 
     park(chatId: string): void {

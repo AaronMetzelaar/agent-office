@@ -15,8 +15,8 @@ import ShipIt from './chat/ShipIt.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
-const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; finish: [chatIds: string[]] }>()
+const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean; removable?: boolean }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; finish: [chatIds: string[], withTrees?: boolean] }>()
 
 const tab = ref<'chat' | 'review'>('chat')
 const flash = ref('')
@@ -56,13 +56,6 @@ async function move() {
   const result = await window.office.moveIntoOffice(props.chat.id).finally(() => (moving.value = false))
   if (result && 'error' in result) say(result.error)
   else if (result) emit('select', result.chatId)
-}
-
-async function archive() {
-  if (!props.chat) return
-  const result = await window.office.archiveVisitor(props.chat.id)
-  if (result?.error) say(result.error)
-  else if (result) emit('select', undefined)
 }
 
 async function resume() {
@@ -120,14 +113,16 @@ onUnmounted(() => {
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <div class="hact">
-        <button v-if="chat && canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
-        <button v-if="chat" type="button" class="btn sm" title="Finish: archive the chat and clean up its worktree" @click="emit('finish', [chat.id])">Done</button>
+        <template v-if="chat && chat.finished === undefined">
+          <button v-if="canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
+          <button type="button" class="btn sm" title="Finish: clear the desk and move the chat to Finished" @click="emit('finish', [chat.id])">Done</button>
+          <button v-if="removable" type="button" class="btn sm" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [chat.id], true)">Done + worktree</button>
+        </template>
         <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
       </div>
     </div>
     <div v-if="chat?.visitor" class="visit" role="status">
       <p>{{ chat.moved ? 'Moved into the office. This original stays read-only.' : `Read-only. It runs in ${runsIn(chat)}.` }}</p>
-      <button type="button" class="btn sm" @click="archive">Archive</button>
       <button v-if="!chat.moved" type="button" class="btn primary sm" :disabled="moving" @click="move">Move into the office</button>
     </div>
     <ShipIt v-else-if="chat" :chat="chat" />

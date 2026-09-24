@@ -9,7 +9,7 @@ import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region, type View } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { createGuard } from './guard'
-import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
+import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, stateKey, type Chip, type ChipAction, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
 import { dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, ZF, type Bounds, type Box, type DeptId, type Floor, type YardSide } from './layout'
 import { createIntray } from './intray'
 import { createNav, newWalker } from './nav'
@@ -86,7 +86,8 @@ export interface WorldOptions {
   ui: WorldUi
   reduce: boolean
   onNewDesk?: (dept: DeptId, slot: number) => void
-  onAction?: (action: 'lounge' | 'done', chatId: string) => void
+  onAction?: (action: ChipAction, chatId: string) => void
+  removable?: (chatId: string) => boolean
 }
 
 const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
@@ -96,7 +97,7 @@ const reachOf = (side: YardSide, box: Box): [number, number, number, number] => 
 
 export type World = ReturnType<typeof createWorld>
 
-export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk, onAction }: WorldOptions) {
+export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk, onAction, removable = () => false }: WorldOptions) {
   const motion = reduce ? 0.25 : 1
   const guard = createGuard()
   scene.background = new THREE.Color(0xedeff2)
@@ -736,7 +737,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       const who = labelled(l)
       const mode = l.gone ? 0 : chipMode(who, focus, zoomed)
       const acts = mode && (mode === 2 || zoomed) && canRest(l.facts.state) ? (l.spot === 'lounge' ? 'done' : 'both') : undefined
-      setChipActions(l.chip, acts)
+      setChipActions(l.chip, acts, !!acts && removable(l.facts.id))
       if (mode) {
         projected.copy(l.c.chipAt)
         const distance = projected.distanceToSquared(camera.position)
@@ -748,7 +749,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
             key: f.id,
             x: ((projected.x + 1) / 2) * w,
             y: ((1 - projected.y) / 2) * h,
-            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0 && f.subagents.length < 3, l.queueIndex >= 0) + (acts === 'both' ? 50 : acts ? 22 : 0),
+            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0 && f.subagents.length < 3, l.queueIndex >= 0) + (acts === 'both' ? 50 : acts ? 22 : 0) + (acts && removable(f.id) ? 50 : 0),
             miniHw: l.queueIndex >= 0 ? 22 : 14,
             h: (far ? 32 : 38) + (bubble ? (far ? 30 : 36) : 0),
             priority: mode === 2 ? 0 : loud(who) ? 1 : stateKey(f.state) === 'working' ? 2 : f.state === 'done' ? 3 : 4,

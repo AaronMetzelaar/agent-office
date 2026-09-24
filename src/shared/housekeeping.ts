@@ -68,6 +68,7 @@ export interface HousekeepingView {
   thresholds: Thresholds
   candidates: string[]
   safe: string[]
+  removable: string[]
   stubborn: Record<string, Proc[]>
 }
 
