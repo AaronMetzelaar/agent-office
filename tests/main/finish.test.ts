@@ -7,6 +7,7 @@ import type { BrowserWindow } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultRules } from '../../src/shared/departments'
 import { wireHousekeeping } from '../../src/main/housekeeping'
+import { windowHub } from '../../src/main/ipc'
 import { finishSteps } from '../../src/main/housekeeping/finish'
 import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
 import { createDiscovery } from '../../src/main/outside/transcripts'
@@ -292,7 +293,7 @@ describe('Done IPC', () => {
     const appUrl = 'app://office/index.html'
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
     const confirm = vi.fn(async () => true)
-    wireHousekeeping(win, appUrl, house, confirm)
+    wireHousekeeping(windowHub(win, appUrl), house, confirm)
     const trusted = { sender: win.webContents, senderFrame: { url: appUrl } }
     const invoke = (name: string, ...args: unknown[]) => handlers.get(name)!(trusted, ...args)
 

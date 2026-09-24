@@ -117,10 +117,19 @@ Two more, added during planning:
   - Diffs are per-chat patches, coalesced in main and flushed once per frame tick. The message rate stays bounded however many chats stream.
   - While no window is visible, main pushes only state transitions (for the tray and notifications), not text deltas.
 - **The ChatStore keeps each chat's in-flight partial message and a bounded recent message list in memory.** That copy feeds live diffs and snapshots, so a snapshot taken mid-stream is complete. Older history pages in from the chat's JSONL transcript on demand. The metadata database never holds message content.
-- **Session orchestration stays in the Electron main process; transcript indexing does not.**
-  - Generation happens in each session's own `claude` subprocess, so main only routes events.
-  - Rejected alternative: running the session engine in a `utilityProcess`, which adds a second IPC hop for little v1 benefit.
-  - Mitigations: per-chat event handling runs inside an error boundary, so one session's exception can't take down the others, the tray or notifications.
+- **Process model: a long-lived agent host owns the sessions; the window app is a client (decided 2026-09-24).** Aaron updates the app constantly, and every restart used to interrupt running agents.
+  - **Agent host.** A second, windowless instance of the same Electron binary, started with `--agent-host`. `src/main/index.ts` hands off to `out/main/host.js` when it sees the flag. The host owns the session engine and SDK queries, the ChatStore and `office.db`, the permission broker and rules, phone push (posting and the reply listener), the outside-chats hook listener and scan, housekeeping sampling, and the workflow and review-queue polling. It hides its Dock icon, and it keeps its Chromium profile and singleton lock in `<userData>/host`, so it never clashes with the window app's lock.
+  - **Why Electron and not Node.** The host needs `safeStorage` for account tokens, the Linear key and the ntfy key. On macOS, Electron keeps the `safeStorage` key in the Keychain item `<app name> Safe Storage`, and the item's access list names the app's binary. The host runs the same binary under the same app name, so it opens the item the single-process app created, with no new Keychain prompt. Plain Node can't decrypt. A `utilityProcess` dies with the app, so it doesn't qualify.
+  - **Window app.** Keeps the window, the renderer, the tray strip, the menu and native notifications. It connects to the host, or spawns it (detached, `stdio` to `<userData>/host.log`) and then connects. Renderer IPC handlers keep today's sender guard and forward each command to the host unchanged.
+  - **Transport.** A Unix domain socket at `<userData>/host.sock`, mode 0600, carrying newline-delimited JSON frames: calls with ids, replies, and events. The first call must be `hello` with the per-install secret from `<userData>/host.secret` (mode 0600, compared with `timingSafeEqual`); anything else closes the connection. Commands and events reuse `src/shared/ipc.ts`. The host adds a few of its own: `uiState` (window visible and focused), `noteEvent` (a notification's action, reply, click or close), `busy`, `exit` and `exitWhenIdle`. The window app answers the host's `confirm` calls with its native dialog, and receives `strip`, `show`, `notify` and `unnotify` events for the tray, window and notifications.
+  - **Seams.** Everything host-side takes a `Hub` (`handle`, `send`) and a `Ui` (window state, confirm, show, notification, strip). The socket server with `remoteUi` implements them in the host. `windowHub` with `localUi` implements them in-process for `AGENT_OFFICE_INLINE_HOST=1`, which the existing end-to-end tests use so they can still reach `store`, `notifier` and `dialog` in one process. Packaged builds ignore the flag.
+  - **Reconnecting.** The client retries with backoff (50 ms doubling to 2 s) and spawns the host at most once every 5 seconds while the socket is missing or refuses. The renderer keeps its last office and shows "Reconnecting to agent host…". After a reconnect the window app re-sends window state and the open chat, and nudges the renderer to take a fresh snapshot and account list.
+  - **Lifecycle.** ⌘Q and "Quit Window App Only" quit the window app only. "Quit and Stop All Agents" in the tray, and Settings → Stop agent host, ask first if any chat is mid-turn (the same "Agents are still working" dialog), then stop the host and quit. An idle host stays up. SIGTERM, `exit` and restarts all run the same shutdown: stop every session and mark mid-turn chats Stuck (interrupted), as before.
+  - **Host updates.** The build hash is the first 16 hex digits of the SHA-256 of `out/main/host.js`. Rollup names shared chunks by content hash, and `host.js` requires them by name, so any change to host-side code changes it, while renderer, preload and window-only main changes don't. When the running host's hash differs from the one on disk, the window app shows "Agent host update ready" and sends `exitWhenIdle`. The host exits once no office chat is Starting, Working or Needs you, and the client's reconnect loop spawns the new one. "Restart now" sends `exit` at once. If every window app disconnects first, the host cancels the pending restart and keeps running.
+  - **Dev mode.** `pnpm dev` spawns the host the same way. electron-vite only kills the window app it started, so a dev restart or HMR never touches agents, and a main-side rebuild shows up as an update.
+  - **Migration.** The host uses the same `userData` folder, so its first start takes over `office.db`, `accounts.json`, `secrets/` and the settings as they are.
+  - Rejected alternatives: a `utilityProcess` host (dies with the app), a plain Node host (can't read `safeStorage`), and a launchd agent (a second install step and code-signing identity to manage, for no gain over a detached child).
+  - Generation still happens in each session's own `claude` subprocess, so the host only routes events. Per-chat event handling runs inside an error boundary, so one session's exception can't take down the others.
   - FTS indexing runs in a utility process, and SQLite writes are batched, so the one-second notification target isn't competing with background work.
 - **The renderer is treated as reachable by untrusted content.** Transcripts contain model output, file contents and fetched web pages, and the renderer can reach the approval path. Hardening:
   - The window runs with `sandbox`, context isolation, no node integration and `webviewTag` off.
@@ -257,7 +266,7 @@ Aaron kept these as built. Reverting either one is a small change in Units 5 and
 
 ```mermaid
 flowchart LR
-  subgraph Main["Main process (Node)"]
+  subgraph Main["Agent host (windowless Electron, --agent-host)"]
     ACC[Accounts\nsafeStorage tokens] --> SM[SessionManager\none SDK query per chat]
     SM -->|normalized events| CS[ChatStore\nstate machines + SQLite]
     SM -->|canUseTool| PR[PendingRequest registry\nresolveRequest id]
@@ -267,11 +276,18 @@ flowchart LR
     DEP[Department classifier] --> CS
     HB[Hook bridge\nlocalhost + secret] --> CS
     DM[Desktop metadata watcher] --> CS
-    CS --> TRAY[Tray strip]
-    CS --> NOTIF[Notifications]
+    CS --> NOTIF[Notifier + phone push]
     NOTIF -->|Allow / Deny / reply| PR
   end
-  CS <-->|typed IPC: snapshots, diffs, commands| R
+  subgraph UI["Window app (Electron main)"]
+    TRAY[Tray strip]
+    NATIVE[Native notifications]
+    FWD[Guarded IPC forwarder]
+  end
+  CS <-->|Unix socket + secret: snapshots, patches, commands| FWD
+  CS --> TRAY
+  NOTIF --> NATIVE
+  FWD <-->|typed IPC| R
   subgraph R["Renderer (Vue 3 + TresJS)"]
     OFFICE[Office scene] --- INBOX[Inbox]
     INBOX --- CHAT[Chat panel]
@@ -1031,7 +1047,7 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
   - SDK errors become typed Stuck reasons per chat; account-level failures are raised once per account.
   - Hook-script failures must never propagate into outside sessions: fail fast and silent.
 - **State lifecycle risks:**
-  - Pending requests are memory-only, since their callbacks die with the process, and turn into Stuck on restart.
+  - Pending requests are memory-only, since their callbacks die with the host process, and turn into Stuck when the host restarts. Restarting the window app doesn't touch them.
   - Worktree creation must clean up after itself on failure.
   - The FTS index tracks per-file offsets.
 - **API surface parity:** a permission decision must behave identically from the chat, inbox, queue, keyboard and notification, which is enforced by the single `resolveRequest`.

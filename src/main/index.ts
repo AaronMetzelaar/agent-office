@@ -1,156 +1,139 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron'
 import { version } from '../../package.json'
-import { departmentOf, deptNames, isResearch } from '../shared/office'
-import type { Navigate, SettingName } from '../shared/ipc'
-import { isEditor } from '../shared/review'
-import { createAccounts, fakeValidator, validateWithSdk } from './accounts/health'
-import { openVault } from './accounts/tokens'
-import { createPlacement, loadRules } from './departments/classifier'
-import { handle, send } from './ipc'
+import type { Events, HostStatus, Navigate } from '../shared/ipc'
+import { createCore, prepareCore, type Core } from './host/core'
+import { forwarded } from './host/forwarded'
+import { hostBuild, hostFlag, hostSecret, socketPath } from './host/identity'
+import { connectHost } from './host/client'
+import { localUi, noteBridge, spawnHost, uiState } from './host/link'
+import type { Welcome } from './host/server'
+import type { StripState } from './tray/strip'
+import { guard, handle, send, windowHub } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
-import { createHousekeeping, realSystem, wireHousekeeping } from './housekeeping'
-import { loginShellPath } from './login-path'
-import { createWaitMetrics } from './metrics/wait'
-import { createNotifier } from './notify'
-import { configDir, createPhonePush } from './notify/ntfy'
-import { claudeDir, createOutside, wireOutside } from './outside'
-import { desktopDir } from './outside/desktop-meta'
-import { createBroker, windowResolver } from './permissions/registry'
-import { createRules } from './permissions/rules'
-import { wireReview } from './review'
-import { run } from './review/git'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
-import { createSessionManager, type Engine } from './sessions/manager'
-import { createChatStore } from './store/chats'
-import { openDb } from './store/db'
-import { loginItems, wireChats } from './store/ipc-sync'
 import { createTray } from './tray'
-import { stripState } from './tray/strip'
-import { wireWorkflow } from './workflow'
-import { createLinear } from './workflow/linear'
-
-if (process.env.AGENT_OFFICE_USER_DATA) app.setPath('userData', process.env.AGENT_OFFICE_USER_DATA)
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 const appUrl = devServerUrl ?? bundleUrl
+const inlineHost = !app.isPackaged && process.env.AGENT_OFFICE_INLINE_HOST === '1'
+const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests'] satisfies (keyof Events)[])
 
-if (app.requestSingleInstanceLock()) {
-  registerBundleScheme()
-  void app.whenReady().then(start)
+if (process.argv.includes(hostFlag)) {
+  require(join(__dirname, 'host.js'))
 } else {
-  app.quit()
+  if (process.env.AGENT_OFFICE_USER_DATA) app.setPath('userData', process.env.AGENT_OFFICE_USER_DATA)
+  if (app.requestSingleInstanceLock()) {
+    registerBundleScheme()
+    void app.whenReady().then(start)
+  } else {
+    app.quit()
+  }
 }
 
 async function start(): Promise<void> {
-  if (app.isPackaged) process.env.PATH = await loginShellPath()
-  const fakeEngine = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_ENGINE === '1' ? (await import('../../tests/fakes/fake-engine')).createFakeEngine({ auto: true }) : undefined
-  const fakeGithub = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_GH === '1' ? (await import('../../tests/fakes/github')).createFakeGithub() : undefined
+  const prepared = inlineHost ? await prepareCore() : undefined
   secureSession(devServerUrl, join(__dirname, '../renderer'))
   const win = createWindow()
-  const userData = app.getPath('userData')
-  const vault = openVault(userData)
-  const db = openDb(join(userData, 'office.db'))
-  const useFakeValidator = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_VALIDATOR === '1'
-  const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validateWithSdk, db)
-  const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
-  const rules = createRules(db.sql, engine)
-  const deptRules = loadRules(configDir())
-  const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
-  const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
-  if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
-  const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
-  const sync = wireChats(win, appUrl, store, outside.visitors)
-  createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
-  handle('departmentRules', win, appUrl, () => deptRules)
-  sync.setAccounts(accounts.list())
-  handle('resolveRequest', win, appUrl, windowResolver(broker, () => win.isFocused()))
-  handle('listRules', win, appUrl, rules.list)
-  handle('revokeRule', win, appUrl, rules.revoke)
+  const dataDir = app.getPath('userData')
+  let status: HostStatus = { connected: inlineHost, updateReady: false }
+  let changed = () => {}
+  const setStatus = (next: HostStatus) => {
+    status = next
+    send(win, 'hostStatus', status)
+  }
   const show = (to?: Navigate) => {
     reveal(win)
-    sync.setVisible(true)
+    changed()
     send(win, 'windowVisibility', { visible: true })
     if (to) send(win, 'navigate', to)
   }
   const hide = () => {
     win.hide()
-    sync.setVisible(false)
+    changed()
     send(win, 'windowVisibility', { visible: false })
   }
-  confirmQuitWhileBusy(app, store.busy, () => confirmQuit(win), store.shutdown)
+  const confirm = async (message: string, detail: string, action = 'Move') => (await dialog.showMessageBox(win, { type: 'question', buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
+  let quitFromTray = () => app.quit()
+  const strip = createTray(() => show({ to: 'inbox' }), () => quitFromTray())
+  let core: Core | undefined
+  if (inlineHost) confirmQuitWhileBusy(app, () => core?.busy() ?? false, () => confirmQuit(win), () => core?.shutdown())
   hideOnClose(app, win, hide)
+  win.on('focus', () => changed())
+  win.on('blur', () => changed())
   win.once('ready-to-show', () => {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
   handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version }))
-  handle('listAccounts', win, appUrl, accounts.list)
-  handle('addAccount', win, appUrl, accounts.add)
-  handle('removeAccount', win, appUrl, accounts.remove)
-  handle('revalidateAccount', win, appUrl, accounts.revalidate)
-  handle('setLinearKey', win, appUrl, (key) => {
-    if (typeof key === 'string' && key.trim()) vault.setLinearKey(key.trim())
-  })
-  handle('clearLinearKey', win, appUrl, vault.clearLinearKey)
-  handle('hasLinearKey', win, appUrl, () => vault.linearKey() !== undefined)
-  handle('recentFolders', win, appUrl, store.recentFolders)
   handle('pickFolder', win, appUrl, async () => {
     const picked = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose' })
     return picked.canceled ? undefined : picked.filePaths[0]
   })
-
-  const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest, onOpen: () => console.info('[ntfy] listening for phone decisions') })
-  const editor = () => {
-    const saved = db.setting('editor')
-    return isEditor(saved) ? saved : 'code'
-  }
-  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor(), outsideChats: outside.installed() })
-  handle('getSettings', win, appUrl, settings)
-  wireReview(win, appUrl, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
-  const linear = createLinear(() => vault.linearKey())
-  const confirm = async (message: string, detail: string, action = 'Move') => (await dialog.showMessageBox(win, { type: 'question', buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
-  const reviews = wireWorkflow(win, appUrl, { store, engine, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm })
-  wireOutside(win, appUrl, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm })
-  handle('setSetting', win, appUrl, (name: SettingName, value: boolean | string) => {
-    if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
-    if (typeof value !== 'boolean') return settings()
-    if (name === 'phonePush') phone.set(value)
-    if (name === 'alertsHintSeen') db.saveSetting(name, value)
-    return settings()
-  })
   handle('openNotificationSettings', win, appUrl, () => void shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings.extension'))
+  handle('getHostStatus', win, appUrl, () => status)
 
-  const research = () => new Set(accounts.list().filter(isResearch).map((account) => account.id))
-  const notifier = createNotifier({
-    store,
-    department: (chat) => deptNames[departmentOf(chat, research().has(chat.accountId))],
-    resolve: (requestId, decision) => broker.resolveRequest(requestId, decision, 'notification'),
-    sendMessage: store.sendMessage,
-    open: show,
-    notification: (options) => new Notification(options),
-    push: phone.post,
-    shown: (chatId) => win.isVisible() && win.isFocused() && sync.openChat() === chatId,
-  })
-  const house = createHousekeeping(store, engine, db, fakeEngine ? { ...realSystem(), ...fakeEngine.processes, graceMs: 1000 } : realSystem(), notifier.cleanup, outside.visitors)
-  wireHousekeeping(win, appUrl, house, confirm)
-  house.start()
-  const strip = createTray(() => show({ to: 'inbox' }), () => stripState([...store.views(), ...outside.visitors.views()], loginItems(accounts.list())))
-  store.events.on('patch', (patch) => {
-    if (patch.fields && ('state' in patch.fields || 'pendingRequests' in patch.fields || 'archived' in patch.fields)) strip.update()
-  })
-  setInterval(strip.update, 60_000)
-  accounts.events.on('needs-login', notifier.login)
-  accounts.events.on('changed', (list) => {
-    send(win, 'accountsChanged', list)
-    sync.setAccounts(list)
-    outside.rescan()
-    strip.update()
-    for (const account of list) if (account.health.status !== 'needs-login') notifier.loginFixed(account.id)
-  })
-  accounts.events.on('removed', store.accountRemoved)
+  if (prepared) {
+    const ui = localUi({ win, confirm, show, strip: strip.update })
+    changed = ui.changed
+    core = createCore(dataDir, windowHub(win, appUrl), ui, prepared)
+    ui.changed()
+    handle('restartHost', win, appUrl, () => {})
+    handle('stopHost', win, appUrl, async () => app.quit())
+  } else {
+    let everConnected = false
+    let openChat: unknown[] = []
+    const notes = noteBridge((key, event, args) => void host.call('noteEvent', [key, event, args]).catch(() => {}))
+    const onEvent = (name: string, payload: unknown) => {
+      if (name === 'strip') strip.update(payload as StripState)
+      else if (name === 'show') show((payload ?? undefined) as Navigate | undefined)
+      else if (name === 'notify') notes.show(payload as Electron.NotificationConstructorOptions)
+      else if (name === 'unnotify') notes.close(String(payload))
+      else if (rendererEvents.has(name)) send(win, name as keyof Events, payload as never)
+    }
+    const onWelcome = (welcome: Welcome | undefined) => {
+      if (!welcome) return setStatus({ connected: false, updateReady: false })
+      const updateReady = welcome.build !== hostBuild(__dirname)
+      setStatus({ connected: true, updateReady })
+      changed()
+      if (updateReady) void host.call('exitWhenIdle').catch(() => {})
+      if (!everConnected) return void (everConnected = true)
+      send(win, 'windowVisibility', { visible: win.isVisible() })
+      void host.call('setOpenChat', openChat).catch(() => {})
+      void host.call('listAccounts').then((list) => send(win, 'accountsChanged', list as Events['accountsChanged']))
+    }
+    const host = connectHost({
+      path: socketPath(dataDir),
+      secret: hostSecret(dataDir),
+      spawn: () => spawnHost(dataDir),
+      status: onWelcome,
+      event: onEvent,
+      call: (name, args) => (name === 'confirm' ? confirm(String(args[0]), String(args[1]), typeof args[2] === 'string' ? args[2] : undefined) : undefined),
+    })
+    changed = () => void host.call('uiState', [uiState(win)]).catch(() => {})
+    for (const name of forwarded) {
+      guard(name, win, appUrl, (...args: unknown[]) => {
+        if (name === 'setOpenChat') openChat = args
+        return host.call(name, args)
+      })
+    }
+    const stopAgents = async () => {
+      if ((await host.call('busy')) === true && !(await confirmQuit(win))) return
+      await host.call('exit').catch(() => {})
+      host.close()
+      app.quit()
+    }
+    quitFromTray = async () => {
+      const { response } = await dialog.showMessageBox({ type: 'question', buttons: ['Quit Window App Only', 'Quit and Stop All Agents', 'Cancel'], defaultId: 0, cancelId: 2, message: 'Quit Agent Office?', detail: 'Agents keep running in the agent host while the window app is closed.' })
+      if (response === 0) app.quit()
+      if (response === 1) await stopAgents()
+    }
+    handle('restartHost', win, appUrl, () => void host.call('exit').catch(() => {}))
+    handle('stopHost', win, appUrl, stopAgents)
+    app.on('before-quit', host.close)
+  }
   Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
-  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine, fakeGithub, reviews, outside })
+  Object.assign(globalThis, { tray: strip.tray })
   app.on('second-instance', () => show())
   app.on('activate', () => show())
 }

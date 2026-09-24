@@ -1,10 +1,9 @@
 import { EventEmitter } from 'node:events'
 import { totalmem } from 'node:os'
 import { basename } from 'node:path'
-import type { BrowserWindow } from 'electron'
 import { isBusy, type ChatState, type ChatView } from '../../shared/chat'
 import { hotShare, plural, visitorHold, type AgentMemory, type CleanupSummary, type Finished, type FinishedMany, type GitSafety, type HousekeepingView, type OutsideMemory, type Proc, type StopReport } from '../../shared/housekeeping'
-import { handle, send } from '../ipc'
+import type { Hub } from '../ipc'
 import type { Visitors } from '../outside/visitors'
 import { repoRoot } from '../permissions/repo-root'
 import { run as runCommand, type Run } from '../review/git'
@@ -440,15 +439,15 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   }
 }
 
-export function wireHousekeeping(win: BrowserWindow, appUrl: string, house: Housekeeping, confirm: Confirm = async () => false): void {
-  handle('finishChat', win, appUrl, (chatId, removing) => house.finish(chatId, removing, confirm))
-  handle('finishChats', win, appUrl, (chatIds, removing) => house.finishMany(chatIds, removing, confirm))
-  handle('getHousekeeping', win, appUrl, async (fresh) => (fresh === true ? house.refresh() : house.view()))
-  handle('stopProcesses', win, appUrl, house.stopChat)
-  handle('archiveChat', win, appUrl, house.archive)
-  handle('cleanUp', win, appUrl, house.cleanUp)
-  handle('removeWorktree', win, appUrl, house.removeWorktree)
-  handle('removeVisitorWorktree', win, appUrl, house.removeVisitorWorktree)
-  handle('setThresholds', win, appUrl, house.setThresholds)
-  house.events.on('view', (view) => send(win, 'housekeeping', view))
+export function wireHousekeeping(hub: Hub, house: Housekeeping, confirm: Confirm = async () => false): void {
+  hub.handle('finishChat', (chatId, removing) => house.finish(chatId, removing, confirm))
+  hub.handle('finishChats', (chatIds, removing) => house.finishMany(chatIds, removing, confirm))
+  hub.handle('getHousekeeping', async (fresh) => (fresh === true ? house.refresh() : house.view()))
+  hub.handle('stopProcesses', house.stopChat)
+  hub.handle('archiveChat', house.archive)
+  hub.handle('cleanUp', house.cleanUp)
+  hub.handle('removeWorktree', house.removeWorktree)
+  hub.handle('removeVisitorWorktree', house.removeVisitorWorktree)
+  hub.handle('setThresholds', house.setThresholds)
+  house.events.on('view', (view) => hub.send('housekeeping', view))
 }

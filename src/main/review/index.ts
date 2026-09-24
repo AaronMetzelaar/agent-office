@@ -1,8 +1,7 @@
 import { spawn } from 'node:child_process'
 import { resolve, sep } from 'node:path'
-import type { BrowserWindow } from 'electron'
 import type { Editor, Review } from '../../shared/review'
-import { handle } from '../ipc'
+import type { Hub } from '../ipc'
 import type { ChatStore } from '../store/chats'
 import { changedFiles, defaultBranch, gitStatus, run, toplevel, unpushedCommits, type Run } from './git'
 import { ciLog, pullRequest } from './github'
@@ -43,15 +42,15 @@ export async function editorTarget(cwd: string, path: unknown, line: unknown): P
   return { file, ...(Number.isInteger(line) && (line as number) > 0 ? { line: line as number } : {}) }
 }
 
-export function wireReview(win: BrowserWindow, appUrl: string, store: Pick<ChatStore, 'view'>, editor: () => Editor): void {
+export function wireReview(hub: Hub, store: Pick<ChatStore, 'view'>, editor: () => Editor): void {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
     return cwd
   }
-  handle('getReview', win, appUrl, (chatId) => loadReview(cwdOf(chatId)))
-  handle('getCiLog', win, appUrl, async (chatId, checkId) => ciLog(cwdOf(chatId), String(checkId)))
-  handle('openInEditor', win, appUrl, async (chatId, path, line) => {
+  hub.handle('getReview', (chatId) => loadReview(cwdOf(chatId)))
+  hub.handle('getCiLog', async (chatId, checkId) => ciLog(cwdOf(chatId), String(checkId)))
+  hub.handle('openInEditor', async (chatId, path, line) => {
     const target = await editorTarget(cwdOf(chatId), path, line)
     if ('error' in target) return target
     const error = await launch(editor(), editorArgs(editor(), target.file, target.line))

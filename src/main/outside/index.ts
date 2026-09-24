@@ -1,10 +1,9 @@
 import { statSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { BrowserWindow } from 'electron'
 import { defaultAccount, homeDept, isResearch, type DeptId, type DeptRule } from '../../shared/departments'
 import type { AccountView, Settings } from '../../shared/ipc'
-import { handle } from '../ipc'
+import type { Hub } from '../ipc'
 import type { ChatStore } from '../store/chats'
 import { createDesktopMeta } from './desktop-meta'
 import { endpointSecret, install, isInstalled, uninstall, writeEndpoint, type HookPaths } from './installer'
@@ -105,7 +104,7 @@ export function createOutside({ store, accounts, rules, settings, claudeDir, des
   }
 }
 
-export function wireOutside(win: BrowserWindow, appUrl: string, { visitors, paths }: Outside, { store, accounts, rules, settings, confirm }: WireOutsideDeps): void {
+export function wireOutside(hub: Hub, { visitors, paths }: Outside, { store, accounts, rules, settings, confirm }: WireOutsideDeps): void {
   const attempt = (change: () => unknown): Settings | { error: string } => {
     try {
       change()
@@ -115,10 +114,10 @@ export function wireOutside(win: BrowserWindow, appUrl: string, { visitors, path
     }
   }
 
-  handle('installHook', win, appUrl, async () => ((await confirm('Show outside chats in the office?', consentText, 'Install')) ? attempt(() => install(paths)) : settings()))
-  handle('uninstallHook', win, appUrl, () => attempt(() => uninstall(paths)))
+  hub.handle('installHook', async () => ((await confirm('Show outside chats in the office?', consentText, 'Install')) ? attempt(() => install(paths)) : settings()))
+  hub.handle('uninstallHook', () => attempt(() => uninstall(paths)))
 
-  handle('moveIntoOffice', win, appUrl, async (chatId) => {
+  hub.handle('moveIntoOffice', async (chatId) => {
     const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
     if (!visitor || visitor.moved) return undefined
     if (!statSync(visitor.cwd, { throwIfNoEntry: false })?.isDirectory()) return { error: 'This chat’s folder no longer exists, so it can’t move into the office.' }
@@ -135,7 +134,7 @@ export function wireOutside(win: BrowserWindow, appUrl: string, { visitors, path
     return { chatId: moved }
   })
 
-  handle('archiveVisitor', win, appUrl, async (chatId) => {
+  hub.handle('archiveVisitor', async (chatId) => {
     const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
     if (!visitor) return { error: 'That chat isn’t in the office any more.' }
     const detail = visitor.visitor === 'terminal' ? 'Hidden from the office. It comes back if the chat gets new activity.' : 'Hidden from the office. It stays in the desktop app until you archive it there.'

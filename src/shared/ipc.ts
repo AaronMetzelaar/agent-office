@@ -49,6 +49,11 @@ export interface Settings {
 
 export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor'
 
+export interface HostStatus {
+  connected: boolean
+  updateReady: boolean
+}
+
 export interface Commands {
   getAppInfo(): AppInfo
   listAccounts(): AccountView[]
@@ -103,6 +108,9 @@ export interface Commands {
   uninstallHook(): Settings | { error: string }
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
   archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
+  getHostStatus(): HostStatus
+  restartHost(): void
+  stopHost(): Promise<void>
 }
 
 export interface Events {
@@ -112,6 +120,7 @@ export interface Events {
   navigate: Navigate
   housekeeping: HousekeepingView
   reviewRequests: ReviewQueue
+  hostStatus: HostStatus
 }
 
 export type OfficeApi = {
@@ -123,4 +132,5 @@ export type OfficeApi = {
   onNavigate(listener: (payload: Events['navigate']) => void): () => void
   onHousekeeping(listener: (payload: Events['housekeeping']) => void): () => void
   onReviewRequests(listener: (payload: Events['reviewRequests']) => void): () => void
+  onHostStatus(listener: (payload: Events['hostStatus']) => void): () => void
 }
