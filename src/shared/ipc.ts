@@ -1,5 +1,6 @@
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
+import type { CleanupSummary, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
 
@@ -35,7 +36,7 @@ export interface AccountView {
 
 export type AddAccountResult = { account: AccountView } | { error: string }
 
-export type Navigate = { to: 'inbox' } | { to: 'chat'; chatId: string } | { to: 'new' } | { to: 'accounts' }
+export type Navigate = { to: 'inbox' } | { to: 'chat'; chatId: string } | { to: 'new' } | { to: 'accounts' } | { to: 'housekeeping' }
 
 export interface Settings {
   phonePush: boolean
@@ -57,7 +58,7 @@ export interface Commands {
   hasLinearKey(): boolean
   getSnapshot(): ChatSnapshot
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): StartChatResult
-  continueOnAccount(chatId: string, accountId: string): Refusal | undefined
+  continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined
   departmentRules(): DeptRule[]
   sendMessage(chatId: string, text: string): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
@@ -82,6 +83,12 @@ export interface Commands {
   getReview(chatId: string): Promise<Review>
   getCiLog(chatId: string, checkId: string): Promise<CiLog>
   openInEditor(chatId: string, path: string, line?: number): Promise<{ error: string } | undefined>
+  getHousekeeping(fresh?: boolean): Promise<HousekeepingView>
+  stopProcesses(chatId: string): Promise<StopReport>
+  archiveChat(chatId: string): Promise<StopReport>
+  cleanUp(chatIds?: string[]): Promise<CleanupSummary>
+  removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
+  setThresholds(thresholds: Thresholds): HousekeepingView
 }
 
 export interface Events {
@@ -89,6 +96,7 @@ export interface Events {
   accountsChanged: AccountView[]
   chatPatches: ChatPatchBatch
   navigate: Navigate
+  housekeeping: HousekeepingView
 }
 
 export type OfficeApi = {
@@ -98,4 +106,5 @@ export type OfficeApi = {
   onAccountsChanged(listener: (payload: Events['accountsChanged']) => void): () => void
   onChatPatches(listener: (payload: Events['chatPatches']) => void): () => void
   onNavigate(listener: (payload: Events['navigate']) => void): () => void
+  onHousekeeping(listener: (payload: Events['housekeeping']) => void): () => void
 }

@@ -8,6 +8,7 @@ import Onboarding from './panels/Onboarding.vue'
 import type { ChatSource } from './state/projection'
 
 const version = ref('')
+const office = ref<{ openHousekeeping(): void }>()
 const accounts = ref<AccountView[]>()
 const source = shallowRef<ChatSource>()
 const menuOpen = ref(false)
@@ -15,6 +16,11 @@ const accountsOpen = ref(false)
 const settings = ref<Settings>()
 const needsLogin = computed(() => accounts.value?.some((account) => account.health.status === 'needs-login'))
 let unsubscribe = () => {}
+
+function openHousekeeping() {
+  menuOpen.value = false
+  office.value?.openHousekeeping()
+}
 
 function openAccounts() {
   menuOpen.value = false
@@ -51,13 +57,14 @@ onUnmounted(() => unsubscribe())
   <template v-if="accounts && source">
     <Onboarding v-if="accounts.length === 0" />
     <template v-else>
-      <Office :accounts="accounts" :source="source" @accounts="openAccounts">
+      <Office ref="office" :accounts="accounts" :source="source" @accounts="openAccounts">
         <div class="settings">
           <button class="tbtn" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen" @keydown.esc="menuOpen = false">
             Settings<span v-if="needsLogin" class="alert" aria-label="An account needs login" />
           </button>
           <div v-if="menuOpen" class="menu" role="menu">
             <button role="menuitem" @click="openAccounts">Accounts</button>
+            <button role="menuitem" @click="openHousekeeping">Housekeeping</button>
             <button role="menuitem" disabled>Permissions</button>
             <button role="menuitem" disabled>Stats</button>
             <button

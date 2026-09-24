@@ -4,8 +4,8 @@ import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
 import type { Inbox, WaitingItem } from '../state/inbox'
 
-const props = defineProps<{ inbox: Inbox; canSwitch?: boolean }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string] }>()
+const props = defineProps<{ inbox: Inbox; canSwitch?: boolean; cleanup?: number }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: [] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
@@ -137,7 +137,9 @@ onUnmounted(() => {
       </button>
     </section>
     <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
-    <p v-if="inbox.parked" class="pfoot"><b>{{ inbox.parked }} parked</b> · quiet for a day or more</p>
+    <button v-if="inbox.parked || cleanup" type="button" class="pfoot" @click="emit('house')">
+      <span><b>{{ inbox.parked }} parked</b> · quiet for a while</span><span>{{ cleanup ? `${cleanup} to clean up →` : 'Housekeeping →' }}</span>
+    </button>
   </div>
   <div class="ifoot">
     <span><kbd>1</kbd> opens the first in line, then <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answer</span>
@@ -513,9 +515,28 @@ onUnmounted(() => {
 }
 
 .pfoot {
-  margin: 12px 4px 0;
-  font-size: 12px;
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
   color: var(--muted);
+}
+
+.pfoot:hover {
+  border-color: #cbd0d8;
+  color: var(--ink);
+}
+
+.pfoot:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
 .ifoot {

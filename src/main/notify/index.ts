@@ -178,6 +178,12 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
       void push({ kind: 'needs', title: clip(`${account.label} needs login`, 60), message: 'Add its token again in Accounts' })
     },
     loginFixed: (accountId: string) => close(`login:${accountId}`),
+    cleanup(count: number) {
+      const toHousekeeping = () => open({ to: 'housekeeping' })
+      const title = `${count} chat${count === 1 ? ' is' : 's are'} ready for cleanup`
+      show('cleanup', { title, body: 'Quiet for days. Review them in Housekeeping.', silent: true }, [['Open Housekeeping', toHousekeeping]], toHousekeeping)
+      void push({ kind: 'housekeeping', title, message: 'Review them in Housekeeping' })
+    },
     stop: () => store.events.off('patch', onPatch),
   }
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import type { CanUseTool, PermissionResult, SDKMessage, SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
+import { run, type Run } from '../../src/main/review/git'
 import type { ChatCanUseTool, Engine, EngineEvents, SessionPermissions, StartOptions } from '../../src/main/sessions/manager'
 
 const message = (fields: Record<string, unknown>) => ({ uuid: randomUUID(), session_id: 'fake', ...fields }) as unknown as SDKMessage
@@ -34,6 +35,13 @@ interface FakeSession {
   sessionId: string
   initialized: boolean
   permissions?: SessionPermissions
+  pid: number
+}
+
+interface FakeProcess {
+  ppid: number
+  kb: number
+  args: string
 }
 
 type AskOptions = Partial<Parameters<CanUseTool>[2]>
@@ -55,6 +63,10 @@ export function createFakeEngine({ auto = false } = {}) {
   const starts: { chatId: string; options: StartOptions }[] = []
   const sent: { chatId: string; text: string }[] = []
   const calls: string[] = []
+  const table = new Map<number, FakeProcess>()
+  const signals: { pid: number; signal: string }[] = []
+  const ignoresTerm = new Set<number>()
+  let nextPid = 70_000
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
 
   function ask(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
@@ -107,7 +119,10 @@ export function createFakeEngine({ auto = false } = {}) {
     events,
     start(chatId, options) {
       starts.push({ chatId, options })
-      live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false, permissions: options.permissions })
+      const pid = (nextPid += 10)
+      table.set(pid, { ppid: process.pid, kb: 250_000, args: '/fake/bin/claude --output-format stream-json' })
+      table.set(pid + 1, { ppid: pid, kb: 300_000, args: 'node /fake/node_modules/.bin/vite --port 5173' })
+      live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false, permissions: options.permissions, pid })
     },
     send(chatId, text) {
       if (!live.has(chatId)) throw new Error('This chat has no running session')
@@ -119,7 +134,11 @@ export function createFakeEngine({ auto = false } = {}) {
       if (auto && live.has(chatId)) emit(chatId, sdk.errorResult('[Request interrupted by user]'))
     },
     stop(chatId) {
+      const pid = live.get(chatId)?.pid
       live.delete(chatId)
+      if (!pid) return
+      table.delete(pid)
+      for (const proc of table.values()) if (proc.ppid === pid) proc.ppid = 1
     },
     async setModel(chatId, model) {
       calls.push(`setModel:${chatId}:${model}`)
@@ -137,8 +156,21 @@ export function createFakeEngine({ auto = false } = {}) {
       calls.push(`setPermissions:${chatId}:${permissions.allow.join(',')}`)
     },
     running: (chatId) => live.has(chatId),
-    pid: (chatId) => (live.has(chatId) ? 4242 : undefined),
+    pid: (chatId) => live.get(chatId)?.pid,
   } satisfies Engine
+
+  const processes = {
+    table,
+    signals,
+    ignoresTerm,
+    run: (async (command, args, cwd) => (command === 'ps' ? [...table].map(([pid, proc]) => `${pid} ${proc.ppid} ${proc.kb} ${proc.args}`).join('\n') : run(command, args, cwd))) as Run,
+    kill(pid: number, signal: NodeJS.Signals) {
+      signals.push({ pid, signal })
+      if (!table.has(pid)) throw Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' })
+      if (!ignoresTerm.has(pid)) table.delete(pid)
+    },
+    alive: (pid: number) => table.has(pid),
+  }
 
   const fake = Object.assign(engine, {
     canUseTool: undefined as ChatCanUseTool | undefined,
@@ -149,6 +181,7 @@ export function createFakeEngine({ auto = false } = {}) {
     calls,
     emit,
     init,
+    processes,
     sessionId: (chatId: string) => live.get(chatId)?.sessionId,
     exit(chatId: string, error?: string) {
       live.delete(chatId)

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3'
 import { safeStorage } from 'electron'
-import type { ChatState, Effort, Stuck, Usage } from '../../shared/chat'
+import type { ChatMode, ChatState, Effort, Stuck, Usage } from '../../shared/chat'
 import type { AccountHealth } from '../../shared/ipc'
 
 export interface ChatRecord {
@@ -14,9 +14,11 @@ export interface ChatRecord {
   department?: string
   model?: string
   effort?: Effort
+  permissionMode?: ChatMode
   state: ChatState
   stuck?: Stuck
   archived: boolean
+  parked?: boolean
   unread: boolean
   createdAt: number
   lastActivityAt: number
@@ -54,6 +56,11 @@ create table if not exists account_health (account_id text primary key, health t
 create table if not exists settings (key text primary key, value text not null);
 `
 
+const addedColumns: [string, string][] = [
+  ['permission_mode', 'text'],
+  ['parked', 'integer not null default 0'],
+]
+
 const columns: [keyof ChatRecord, string][] = [
   ['id', 'id'],
   ['sessionId', 'session_id'],
@@ -65,9 +72,11 @@ const columns: [keyof ChatRecord, string][] = [
   ['department', 'department'],
   ['model', 'model'],
   ['effort', 'effort'],
+  ['permissionMode', 'permission_mode'],
   ['state', 'state'],
   ['stuck', 'stuck'],
   ['archived', 'archived'],
+  ['parked', 'parked'],
   ['unread', 'unread'],
   ['createdAt', 'created_at'],
   ['lastActivityAt', 'last_activity_at'],
@@ -76,7 +85,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['usage', 'usage'],
 ]
 const json = new Set<keyof ChatRecord>(['stuck', 'usage'])
-const flags = new Set<keyof ChatRecord>(['archived', 'unread'])
+const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'unread'])
 
 function toRow(record: ChatRecord): Row {
   const row: Row = {}
@@ -104,6 +113,8 @@ export function openDb(file: string) {
   db.pragma('journal_mode = WAL')
   db.pragma('busy_timeout = 5000')
   db.exec(schema)
+  const existing = new Set((db.prepare('pragma table_info(chats)').all() as { name: string }[]).map((column) => column.name))
+  for (const [name, type] of addedColumns) if (!existing.has(name)) db.exec(`alter table chats add column ${name} ${type}`)
   const names = columns.map(([, column]) => column)
   const saveChat = db.prepare(`insert or replace into chats (${names.join(', ')}) values (${names.map((name) => `@${name}`).join(', ')})`)
   const listChats = db.prepare('select * from chats order by created_at')

@@ -10,7 +10,7 @@ import { createNav, newWalker, stepWalker } from '../../src/renderer/office/nav'
 import { placementFor } from '../../src/renderer/office/pose'
 import { buildQueue, queuePositions } from '../../src/shared/queue'
 import { assignColours, createProjection, projectOf, toAgents, type ChatSource } from '../../src/renderer/state/projection'
-import { departmentOf, parkAfterMs } from '../../src/shared/office'
+import { departmentOf } from '../../src/shared/office'
 import type { ChatPatchBatch, ChatView } from '../../src/shared/chat'
 import type { AccountView } from '../../src/shared/ipc'
 import { sdk } from '../fakes/fake-engine'
@@ -144,9 +144,10 @@ describe('placement and colour', () => {
     expect(projectOf('/Users/a/Documents/GitHub/cookbook/.claude/worktrees/pages')).toBe('cookbook')
   })
 
-  it('parks a chat that has been quiet for a day', () => {
+  it('walks a chat the store parked to the lounge, with how long it has been quiet', () => {
     const now = Date.now()
-    const chat = { id: 'p', accountId: 'main', cwd: '/x/portfolio', title: 'Old', archived: false, state: 'idle', stateSince: now - 2 * parkAfterMs, lastActivityAt: now - 2 * parkAfterMs, createdAt: 0, pending: [], pendingRequests: [], subagents: [] } as unknown as ChatView
+    const day = 86_400_000
+    const chat = { id: 'p', accountId: 'main', cwd: '/x/portfolio', title: 'Old', archived: false, parked: true, state: 'idle', stateSince: now - 2 * day, lastActivityAt: now - 2 * day, createdAt: 0, pending: [], pendingRequests: [], subagents: [] } as unknown as ChatView
     expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Parked · 2d' })
   })
 

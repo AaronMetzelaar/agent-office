@@ -62,23 +62,31 @@ describe('continue on the other account', () => {
     return id
   }
 
-  it('forks a rate-limited chat under the other account’s token, keeps its department and walks it back to work', () => {
+  it('forks a rate-limited chat into a new chat under the other account’s token and parks the original', () => {
     const id = rateLimited('main', join(dir, 'monorepo/frontend/marketplace'))
     const original = office.chat(id).sessionId
-    expect(office.store.continueOnAccount(id, 'research')).toBeUndefined()
-    expect(office.engine.starts.at(-1)?.options).toMatchObject({ accountId: 'research', resume: original, forkSession: true })
-    expect(office.engine.sent.at(-1)).toEqual({ chatId: id, text: 'Continue where you left off.' })
-    expect(office.chat(id)).toMatchObject({ accountId: 'research', department: 'mkt', state: 'working' })
-    office.engine.init(id)
-    expect(office.chat(id).sessionId).not.toBe(original)
-    expect(office.db.listChats()[0]).toMatchObject({ accountId: 'research', department: 'mkt' })
+    office.store.setPlanMode(id, true)
+    const result = office.store.continueOnAccount(id, 'research')
+    if (!result || !('chatId' in result)) throw new Error('expected a new chat')
+    expect(result.chatId).not.toBe(id)
+    expect(office.engine.starts.at(-1)).toMatchObject({ chatId: result.chatId, options: { accountId: 'research', resume: original, forkSession: true, permissionMode: 'plan' } })
+    expect(office.engine.sent.at(-1)).toEqual({ chatId: result.chatId, text: 'Continue where you left off.' })
+    expect(office.chat(result.chatId)).toMatchObject({ accountId: 'research', department: 'mkt', title: 'Czechia auction visibility', state: 'starting' })
+    expect(office.chat(result.chatId).rows[0]).toMatchObject({ kind: 'user', text: 'Czechia auction visibility' })
+    expect(office.chat(id)).toMatchObject({ accountId: 'main', state: 'idle', parked: true, stuck: undefined, sessionId: original })
+    expect(office.chat(id).rows.at(-1)).toMatchObject({ kind: 'other', label: 'Continued on research in a new chat' })
+    office.engine.init(result.chatId)
+    expect(office.chat(result.chatId).sessionId).not.toBe(original)
+    expect(office.db.listChats().find((record) => record.id === id)).toMatchObject({ parked: true, state: 'idle' })
   })
 
   it('moves a gym chat to its folder’s department when it continues on main', () => {
     const id = rateLimited('research', join(dir, 'enigma-rsa'))
     expect(office.chat(id).department).toBe('gym')
-    office.store.continueOnAccount(id, 'main')
-    expect(office.chat(id)).toMatchObject({ accountId: 'main', department: 'side' })
+    const result = office.store.continueOnAccount(id, 'main')
+    if (!result || !('chatId' in result)) throw new Error('expected a new chat')
+    expect(office.chat(result.chatId)).toMatchObject({ accountId: 'main', department: 'side' })
+    expect(office.chat(id)).toMatchObject({ accountId: 'research', department: 'gym', parked: true })
   })
 
   it('refuses an account that needs login, and ignores the same account or a chat that is not stuck', () => {

@@ -2,8 +2,10 @@ import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { confirmQuitWhileBusy, hideOnClose } from '../../src/main/lifecycle'
+import { emptyUsage } from '../../src/shared/chat'
 import { createFakeEngine, sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
 
@@ -156,6 +158,36 @@ describe('relaunch', () => {
     engine.init(id)
     expect(after.chat(id)).toMatchObject({ state: 'working', sessionId })
     after.db.close()
+  })
+
+  it('keeps each chat’s permission mode, so a plan-mode chat resumes in plan mode', async () => {
+    const before = openOffice(dir)
+    const planning = workingChat(before)
+    await before.store.setPlanMode(planning, true)
+    const accepting = workingChat(before)
+    before.engine.emit(accepting, sdk.status('acceptEdits'))
+    const auto = workingChat(before)
+    before.store.shutdown()
+    before.db.close()
+
+    const engine = createFakeEngine()
+    const after = openOffice(dir, engine)
+    expect([after.chat(planning).permissionMode, after.chat(accepting).permissionMode, after.chat(auto).permissionMode]).toEqual(['plan', 'acceptEdits', undefined])
+    after.store.resumeChat(planning)
+    expect(engine.starts.at(-1)?.options.permissionMode).toBe('plan')
+    after.db.close()
+  })
+
+  it('opens a database written before permission modes and parking were saved', () => {
+    const legacy = new Database(join(dir, 'office.db'))
+    legacy.exec(`create table chats (id text primary key, session_id text, account_id text not null, cwd text not null, worktree text, title text not null, colour text, department text, model text, effort text, state text not null, stuck text, archived integer not null default 0, unread integer not null default 0, created_at integer not null, last_activity_at integer not null, done_at integer, read_at integer, usage text not null)`)
+    legacy.prepare(`insert into chats (id, account_id, cwd, title, state, created_at, last_activity_at, usage) values ('old', 'main', ?, 'Old chat', 'idle', 1, 1, ?)`).run(dir, JSON.stringify(emptyUsage()))
+    legacy.close()
+
+    const office = openOffice(dir)
+    expect(office.chat('old')).toMatchObject({ title: 'Old chat', parked: false })
+    expect(office.chat('old').permissionMode).toBeUndefined()
+    office.db.close()
   })
 
   it('replays a Stuck chat’s earlier turns from its transcript', async () => {

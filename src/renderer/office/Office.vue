@@ -3,8 +3,10 @@ import { TresCanvas, useLoop, useTres } from '@tresjs/core'
 import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import type { DeptId } from '../../shared/departments'
+import { gb, plural, type HousekeepingView } from '../../shared/housekeeping'
 import type { AccountView, Navigate } from '../../shared/ipc'
 import Chat from '../panels/Chat.vue'
+import Housekeeping from '../panels/Housekeeping.vue'
 import Inbox from '../panels/Inbox.vue'
 import NewAgent from '../panels/NewAgent.vue'
 import { buildInbox, emptyInbox } from '../state/inbox'
@@ -26,12 +28,15 @@ const camera = createCamera()
 const ui = reactive<WorldUi>({ counts: [], queue: [], agents: [] })
 const world = shallowRef<World>()
 const projection = createProjection(props.source)
+const tick = ref(0)
 const colours = new Map<string, number>()
 const palette = reactive({ open: false, query: '' })
 const inbox = shallowRef(emptyInbox)
-const mode = ref<'inbox' | 'new'>('inbox')
+const mode = ref<'inbox' | 'new' | 'house'>('inbox')
+const house = shallowRef<HousekeepingView>()
+const chatList = computed(() => (tick.value, [...projection.chats.values()]))
+const worktreeCount = computed(() => house.value?.worktrees.length ?? 0)
 const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
-const tick = ref(0)
 const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
 let pendingSelect: string | undefined
 let pendingFly = true
@@ -81,14 +86,23 @@ const usable = computed(() => props.accounts.filter((account) => account.health.
 
 async function continueElsewhere(chatId: string) {
   const other = usable.value.find((account) => account.id !== projection.chats.get(chatId)?.accountId)
-  if (other) await window.office.continueOnAccount(chatId, other.id)
+  const result = other && (await window.office.continueOnAccount(chatId, other.id))
+  if (result && 'chatId' in result) select(result.chatId)
+}
+
+function openHousekeeping() {
+  world.value?.select(undefined, false)
+  mode.value = mode.value === 'house' ? 'inbox' : 'house'
 }
 
 function navigate(to: Navigate) {
   if (to.to === 'accounts') return emit('accounts')
   if (to.to === 'new') return openNew()
+  if (to.to === 'housekeeping') return void (mode.value !== 'house' && openHousekeeping())
   select(to.to === 'chat' ? to.chatId : undefined)
 }
+
+defineExpose({ openHousekeeping: () => navigate({ to: 'housekeeping' }) })
 
 watch(
   () => [openChat.value?.id, openChat.value?.state],
@@ -175,11 +189,11 @@ function onKey(event: KeyboardEvent) {
   const typing = !!(event.target as HTMLElement).closest?.('input,textarea,select')
   if (event.key === 'Escape') {
     if (palette.open) palette.open = false
-    else if (mode.value === 'new') mode.value = 'inbox'
+    else if (mode.value !== 'inbox') mode.value = 'inbox'
     else if (!typing) world.value?.escape()
     return
   }
-  if (typing || palette.open || mode.value === 'new' || event.metaKey || event.ctrlKey || event.altKey) return
+  if (typing || palette.open || mode.value !== 'inbox' || event.metaKey || event.ctrlKey || event.altKey) return
   const action = keyAction(event.key, { open: ui.selected?.id, queue: inbox.value.waiting, card: openChat.value?.pendingRequests[0] })
   if (!action) return
   event.preventDefault()
@@ -188,10 +202,13 @@ function onKey(event: KeyboardEvent) {
 }
 
 const offNavigate = window.office.onNavigate(navigate)
+const offHousekeeping = window.office.onHousekeeping((view) => (house.value = view))
+void window.office.getHousekeeping().then((view) => (house.value ??= view))
 onMounted(() => addEventListener('keydown', onKey))
 onUnmounted(() => {
   removeEventListener('keydown', onKey)
   offNavigate()
+  offHousekeeping()
   clearInterval(captions)
   offProjection()
   projection.stop()
@@ -214,12 +231,24 @@ onUnmounted(() => {
     </div>
     <button type="button" class="tbtn" @click="world?.overview()">Overview</button>
     <button type="button" class="tbtn" aria-haspopup="dialog" @click="openPalette">Jump to agent <kbd>⌘K</kbd></button>
+    <button
+      type="button"
+      :class="['tbtn', 'res', { hot: house?.hot }]"
+      :aria-expanded="mode === 'house'"
+      :aria-label="house ? `Housekeeping. RAM ${gb(house.bytes)}${house.hot ? ', high' : ''}. ${plural(worktreeCount, 'worktree')}.` : 'Housekeeping'"
+      title="Housekeeping: memory and worktrees"
+      @click="openHousekeeping"
+    >
+      <span class="rg"><i :style="{ width: house ? `${Math.min(100, (house.bytes / house.totalMemory) * 100).toFixed(1)}%` : '0%' }" /></span>
+      <span class="rl">RAM</span><b>{{ house ? gb(house.bytes) : '–' }}</b> · <b>{{ worktreeCount }}</b><span class="rl">{{ worktreeCount === 1 ? 'worktree' : 'worktrees' }}</span>
+    </button>
     <slot />
   </header>
   <aside class="inbox" aria-label="Inbox">
-    <NewAgent v-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
-    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" @select="select" @accounts="emit('accounts')" />
-    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" />
+    <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
+    <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
+    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" />
+    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">
@@ -342,6 +371,59 @@ onUnmounted(() => {
 
 .sd.stuck {
   background: var(--danger);
+}
+
+.tbtn.res {
+  font: 500 11.5px var(--mono);
+  gap: 6px;
+}
+
+.tbtn.res b {
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.tbtn.res .rg {
+  width: 26px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.tbtn.res .rg i {
+  display: block;
+  height: 100%;
+  background: var(--ink2);
+  border-radius: 3px;
+}
+
+.tbtn.res.hot {
+  border-color: #f3c77a;
+  background: var(--needs-bg);
+  color: var(--needs-ink);
+}
+
+.tbtn.res.hot b {
+  color: var(--needs-ink);
+}
+
+.tbtn.res.hot .rg i {
+  background: var(--needs);
+}
+
+.tbtn.res[aria-expanded='true'] b {
+  color: #fff;
+}
+
+.tbtn.res[aria-expanded='true'] .rg {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.tbtn.res[aria-expanded='true'] .rg i {
+  background: #fff;
 }
 
 kbd {

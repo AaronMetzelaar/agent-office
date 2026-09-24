@@ -1,11 +1,12 @@
 import { join } from 'node:path'
 import { vi } from 'vitest'
+import { createHousekeeping, realSystem, type System } from '../../src/main/housekeeping'
 import { createWaitMetrics } from '../../src/main/metrics/wait'
 import { createBroker } from '../../src/main/permissions/registry'
 import { createRules } from '../../src/main/permissions/rules'
 import { createChatStore } from '../../src/main/store/chats'
 import { openDb } from '../../src/main/store/db'
-import { createFakeEngine } from './fake-engine'
+import { createFakeEngine, sdk } from './fake-engine'
 
 export function openOffice(dir: string, engine = createFakeEngine()) {
   const db = openDb(join(dir, 'office.db'))
@@ -26,5 +27,22 @@ export function openOffice(dir: string, engine = createFakeEngine()) {
     if ('error' in result) throw new Error(result.error)
     return result.chatId
   }
-  return { engine, db, accounts, loggedOut, rules, store, waits, broker, chat, start }
+  const finish = (id: string) => {
+    engine.init(id)
+    engine.emit(id, sdk.text('Done.'))
+    engine.emit(id, sdk.result())
+  }
+  return { engine, db, accounts, loggedOut, rules, store, waits, broker, chat, start, finish }
+}
+
+export const ghMissing = async (): Promise<string> => {
+  throw Object.assign(new Error('spawn gh ENOENT'), { code: 'ENOENT' })
+}
+
+export function openHousekeeping(office: ReturnType<typeof openOffice>, overrides: Partial<System> = {}) {
+  const clock = { now: Date.now() }
+  const notices: number[] = []
+  const system: System = { ...realSystem(), ...office.engine.processes, gh: ghMissing, graceMs: 50, totalMemory: 64 * 2 ** 30, now: () => clock.now, ...overrides }
+  const house = createHousekeeping(office.store, office.engine, office.db, system, (count) => notices.push(count))
+  return { house, clock, notices }
 }

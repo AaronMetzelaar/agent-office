@@ -2,8 +2,6 @@ import type { DeptId } from './departments'
 
 export { departmentOf, deptIds, deptNames, isDeptId, isResearch, type DeptId } from './departments'
 
-export const parkAfterMs = 24 * 60 * 60 * 1000
-
 export const palette = [
   0xf0463c, 0x3b7bff, 0x2fb344, 0xffc21a, 0x8b5cf6, 0xff7a59, 0x14b8a6, 0xf25ca2, 0x38bdf8, 0x84cc16, 0xfb923c,
   0x5b5bd6, 0xe879f9, 0x0e7490, 0x10b981, 0xfda4af, 0x9f1239, 0x6ee7b7, 0xc2410c, 0x1e40af, 0xa3a3ff, 0xfdba74,

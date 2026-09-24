@@ -1,5 +1,4 @@
 import type { ChatFields, LoginItem } from '../../shared/chat'
-import { parkAfterMs } from '../../shared/office'
 import { buildQueue } from '../../shared/queue'
 
 export type Dot = 'working' | 'done'
@@ -11,14 +10,14 @@ export interface StripState {
 
 export const maxDots = 8
 
-export function stripState(chats: readonly Readonly<ChatFields>[], logins: readonly LoginItem[], now: number): StripState {
+export function stripState(chats: readonly Readonly<ChatFields>[], logins: readonly LoginItem[]): StripState {
   const live = chats.filter((chat) => !chat.archived)
   const queue = buildQueue(
     live.map((chat) => ({ id: chat.id, accountId: chat.accountId, state: chat.state, since: chat.oldestPendingAt ?? chat.stateSince, stuckReason: chat.stuck?.reason })),
     logins,
   )
   const working = live.filter((chat) => chat.state === 'working' || chat.state === 'starting').map((): Dot => 'working')
-  const done = live.filter((chat) => chat.state === 'done' && now - chat.lastActivityAt < parkAfterMs).map((): Dot => 'done')
+  const done = live.filter((chat) => chat.state === 'done' && !chat.parked).map((): Dot => 'done')
   return { needs: queue.length, dots: [...working, ...done].slice(0, maxDots) }
 }
 

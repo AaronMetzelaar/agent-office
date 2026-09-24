@@ -2,7 +2,7 @@ import { Color } from 'three'
 import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
 import { showsAccountBadge } from '../../shared/departments'
-import { departmentOf, isResearch, palette, parkAfterMs, type DeptId } from '../../shared/office'
+import { departmentOf, isResearch, palette, type DeptId } from '../../shared/office'
 
 export interface ChatSource {
   getSnapshot(): Promise<ChatSnapshot>
@@ -160,7 +160,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
   )
   return placed.map(({ chat, dept }) => {
     const quietMs = now - chat.lastActivityAt
-    const parked = (chat.state === 'idle' || chat.state === 'done') && quietMs >= parkAfterMs
+    const parked = chat.parked === true
     const first = chat.pendingRequests[0]
     const tool = first?.tool ?? chat.pending[0]?.toolName
     return {

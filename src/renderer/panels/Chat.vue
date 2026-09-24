@@ -12,8 +12,8 @@ import RequestCard from './chat/RequestCard.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
-const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[] }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: [] }>()
+const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string] }>()
 
 const aliases = ['opus', 'sonnet', 'haiku']
 const tab = ref<'chat' | 'review'>('chat')
@@ -120,7 +120,7 @@ onUnmounted(() => {
     </div>
     <p :class="['doing', agent.state]">{{ agent.caption }}</p>
     <template v-if="tab === 'chat'">
-      <Transcript v-if="chat" :chat="chat" @resume="resume" @relogin="emit('accounts')" />
+      <Transcript v-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
     </template>
     <Review v-else-if="chat" :chat="chat" />
     <div v-if="chat && (pending.length || elsewhere.length)" class="cards">

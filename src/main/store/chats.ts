@@ -113,7 +113,7 @@ function fromRecord(record: ChatRecord): Chat {
 }
 
 function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
-  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, permissionMode: _m, answered: _n, earlier: _e, ...fields } = view
+  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, answered: _n, earlier: _e, ...fields } = view
   return { ...fields, doneAt, readAt }
 }
 
@@ -178,6 +178,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         if (event.mode === view.permissionMode) break
         if (event.mode === 'plan') chat.previousMode = view.permissionMode ?? 'auto'
         set(chat, { permissionMode: event.mode })
+        save(chat)
         break
       case 'text-delta':
         view.partial += event.text
@@ -250,6 +251,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
     const view = chat.view
     addRow(chat, { kind: 'user', id: randomUUID(), text })
+    if (view.parked) set(chat, { parked: false })
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
     run(chat, text, fork)
   }
@@ -290,6 +292,35 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       [...chats.values()].filter(({ view }) => !view.archived && view.colour).map(({ view }) => ({ colour: view.colour, dept: deptOf(view) })),
       deptOf(chat),
     )
+
+  function create(init: Pick<ChatView, 'accountId' | 'cwd' | 'title' | 'department'> & Partial<ChatView>): Chat {
+    const now = Date.now()
+    const colour = colourFor(init)
+    const view: ChatView = {
+      id: randomUUID(),
+      ...(colour ? { colour } : {}),
+      archived: false,
+      state: 'starting',
+      stateSince: now,
+      unread: false,
+      activity: 'Thinking',
+      pending: [],
+      pendingRequests: [],
+      subagents: [],
+      usage: emptyUsage(),
+      partial: '',
+      createdAt: now,
+      lastActivityAt: now,
+      rows: [],
+      ...init,
+    }
+    const chat: Chat = { view, background: new Set(), interrupting: false }
+    chats.set(view.id, chat)
+    save(chat)
+    const { rows, ...fields } = view
+    emit({ id: view.id, fields, rows, replaceRows: true })
+    return chat
+  }
 
   for (const record of db.listChats()) {
     const chat = fromRecord(record)
@@ -361,6 +392,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (on) chat.previousMode = current
       const mode = on ? 'plan' : current === 'plan' ? (chat.previousMode ?? 'auto') : current
       set(chat, { permissionMode: mode })
+      save(chat)
       if (engine.running(chat.view.id)) await engine.setPermissionMode(chat.view.id, mode)
     },
 
@@ -378,42 +410,20 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       } catch (error) {
         return { error: errorText(error) }
       }
-      const now = Date.now()
       const department: DeptId = isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
-      const colour = colourFor({ accountId, cwd, department })
-      const view: ChatView = {
-        id: randomUUID(),
+      const chat = create({
         accountId,
         cwd,
         department,
-        ...(colour ? { colour } : {}),
         title: prompt.trim().split('\n')[0]!.slice(0, 60),
         ...(model ? { model: model as string } : {}),
         ...(effort ? { effort: effort as Effort } : {}),
-        archived: false,
-        state: 'starting',
-        stateSince: now,
-        unread: false,
-        activity: 'Thinking',
-        pending: [],
-        pendingRequests: [],
-        subagents: [],
-        usage: emptyUsage(),
-        partial: '',
-        createdAt: now,
-        lastActivityAt: now,
-        rows: [],
-      }
-      const chat: Chat = { view, background: new Set(), interrupting: false }
-      chats.set(view.id, chat)
-      save(chat)
-      const { rows: _rows, ...fields } = view
-      emit({ id: view.id, fields, rows: [], replaceRows: true })
+      })
       if (plan) {
         addRow(chat, { kind: 'user', id: randomUUID(), text: prompt })
         setUpWorktree(chat, plan, prompt)
       } else send(chat, prompt)
-      return { chatId: view.id }
+      return { chatId: chat.view.id }
     },
 
     sendMessage(chatId: unknown, text: unknown): Refusal | undefined {
@@ -436,16 +446,46 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       return undefined
     },
 
-    continueOnAccount(chatId: unknown, accountId: unknown): Refusal | undefined {
+    continueOnAccount(chatId: unknown, accountId: unknown): { chatId: string } | Refusal | undefined {
       const chat = find(chatId)
       const view = chat?.view
       if (!chat || !view?.sessionId || view.state !== 'stuck' || typeof accountId !== 'string' || accountId === view.accountId || !accounts.exists(accountId)) return undefined
       if (accounts.needsLogin(accountId)) return needsLogin
       engine.stop(view.id)
-      const research = isResearch({ label: accounts.label(accountId) ?? '' })
-      set(chat, { accountId, department: view.department === 'gym' && !research ? homeDept(view.cwd, false, rules) : view.department })
-      send(chat, resumePrompt, {}, true)
-      return undefined
+      const label = accounts.label(accountId) ?? 'the other account'
+      const research = isResearch({ label })
+      const copy = create({
+        accountId,
+        cwd: view.cwd,
+        title: view.title,
+        department: view.department === 'gym' && !research ? homeDept(view.cwd, false, rules) : view.department,
+        sessionId: view.sessionId,
+        ...(view.worktree ? { worktree: view.worktree } : {}),
+        ...(view.model ? { model: view.model } : {}),
+        ...(view.effort ? { effort: view.effort } : {}),
+        ...(view.permissionMode ? { permissionMode: view.permissionMode } : {}),
+        rows: structuredClone(view.rows),
+      })
+      addRow(chat, { kind: 'other', id: randomUUID(), label: `Continued on ${label} in a new chat` })
+      transition(chat, 'idle', { stuck: undefined, parked: true })
+      send(copy, resumePrompt, {}, true)
+      return { chatId: copy.view.id }
+    },
+
+    park(chatId: string): void {
+      const chat = chats.get(chatId)
+      if (!chat || chat.view.parked || chat.view.archived) return
+      set(chat, { parked: true })
+      save(chat)
+    },
+
+    archive(chatId: string): boolean {
+      const chat = chats.get(chatId)
+      if (!chat || chat.view.archived || midTurn.has(chat.view.state)) return false
+      engine.stop(chatId)
+      set(chat, { archived: true, parked: false, unread: false })
+      save(chat)
+      return true
     },
 
     setDepartment(chatId: string, department: DeptId): void {
@@ -490,7 +530,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (chat?.view.state !== 'done') return
       chat.readAt = Date.now()
       if (chat.doneAt) events.emit('read', chat.view.id, chat.doneAt, chat.readAt)
-      transition(chat, 'idle', { unread: false })
+      transition(chat, 'idle', { unread: false, lastActivityAt: chat.view.lastActivityAt })
     },
 
     context(chatId: string): { accountId: string; cwd: string } | undefined {

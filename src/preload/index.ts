@@ -43,10 +43,17 @@ const office: OfficeApi = {
   getReview: (chatId) => ipcRenderer.invoke('getReview', chatId),
   getCiLog: (chatId, checkId) => ipcRenderer.invoke('getCiLog', chatId, checkId),
   openInEditor: (chatId, path, line) => ipcRenderer.invoke('openInEditor', chatId, path, line),
+  getHousekeeping: (fresh) => ipcRenderer.invoke('getHousekeeping', fresh),
+  stopProcesses: (chatId) => ipcRenderer.invoke('stopProcesses', chatId),
+  archiveChat: (chatId) => ipcRenderer.invoke('archiveChat', chatId),
+  cleanUp: (chatIds) => ipcRenderer.invoke('cleanUp', chatIds),
+  removeWorktree: (path) => ipcRenderer.invoke('removeWorktree', path),
+  setThresholds: (thresholds) => ipcRenderer.invoke('setThresholds', thresholds),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
   onAccountsChanged: (listener) => subscribe('accountsChanged', listener),
   onChatPatches: (listener) => subscribe('chatPatches', listener),
   onNavigate: (listener) => subscribe('navigate', listener),
+  onHousekeeping: (listener) => subscribe('housekeeping', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

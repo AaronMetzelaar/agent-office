@@ -91,6 +91,7 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     lastActivityAt: at,
     rows: [],
     ...(state === 'stuck' ? { stuck: { reason: 'error' as const, detail: 'pnpm build still failing' } } : {}),
+    ...((state === 'idle' || state === 'done') && minutes >= 24 * 60 ? { parked: true } : {}),
   }
 }
 
@@ -115,7 +116,7 @@ export function createDemoSource(): ChatSource & { stop(): void } {
 
   const move = (id: string, state: ChatState, fields: Partial<ChatFields> & Record<string, unknown> = {}) => {
     const at = Date.now()
-    const base: Record<string, unknown> = { state, stateSince: at, lastActivityAt: at, unread: state === 'done', pending: [], pendingRequests: [], oldestPendingAt: undefined, stuck: undefined }
+    const base: Record<string, unknown> = { state, stateSince: at, lastActivityAt: at, unread: state === 'done', parked: false, pending: [], pendingRequests: [], oldestPendingAt: undefined, stuck: undefined }
     if (state === 'needs-you') {
       const [tool, summary] = asks[Math.floor(rnd() * asks.length)]!
       Object.assign(base, { pending: [{ id: `${id}-${at}`, toolName: tool }], pendingRequests: [request(`${id}-${at}`, tool, summary, at, summary.includes('-D '))], oldestPendingAt: at })

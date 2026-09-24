@@ -693,7 +693,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - For a real chat's worktree, the panel matches `git diff` and `gh pr view` output.
 
-- [ ] **Unit 15: Housekeeping (parking, resources, cleanup)**
+- [x] **Unit 15: Housekeeping (parking, resources, cleanup)**
 
 **Goal:** Keep worktrees, processes and RAM under control. Park stale chats and clean up what isn't used any more, safely.
 
@@ -953,8 +953,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 Gaps reported by the unit builders. Each is assigned to the unit that will close it.
 
-- [ ] Save each chat's permission mode in office.db, so it survives a relaunch (the chat returns to Auto today). Unit 15.
-- [ ] "Continue on the other account" should fork into a new chat and park the original, and the chat panel's Stuck banner should offer it too. Today it switches the same chat, from the inbox only. Unit 15, which adds parking.
+- [x] Save each chat's permission mode in office.db, so it survives a relaunch (the chat returns to Auto today). Unit 15.
+- [x] "Continue on the other account" should fork into a new chat and park the original, and the chat panel's Stuck banner should offer it too. Today it switches the same chat, from the inbox only. Unit 15, which adds parking.
 - [ ] Transcript gap when more than 200 new rows arrive after loading older history. Unit 12.
 - [ ] Department moves are held by polling the open panel once a second, and `departments.json` is only read at startup. Watch the file and use the open-chat IPC. Unit 12.
 - [ ] Tune the classifier thresholds (60% over two evaluations) against real transcripts. After a week of real use.

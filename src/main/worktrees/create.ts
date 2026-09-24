@@ -53,7 +53,7 @@ export function planWorktree(folder: string, base: string): WorktreePlan {
   }
 }
 
-function gitError(error: unknown): string {
+export function gitError(error: unknown): string {
   const stderr = String((error as { stderr?: unknown }).stderr ?? '').trim()
   const line = stderr.split('\n').find((text) => /^(fatal|error):/.test(text)) ?? stderr.split('\n').at(-1)
   return line?.replace(/^(fatal|error):\s*/, '') || (error instanceof Error ? error.message : String(error))

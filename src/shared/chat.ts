@@ -55,6 +55,7 @@ export interface ChatFields {
   colour?: string
   department?: string
   archived: boolean
+  parked?: boolean
   state: ChatState
   stuck?: Stuck
   stateSince: number

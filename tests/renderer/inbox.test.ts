@@ -8,7 +8,6 @@ import { buildInbox } from '../../src/renderer/state/inbox'
 import { createProjection, toAgents, type ChatSource } from '../../src/renderer/state/projection'
 import { emptyUsage, type ChatPatchBatch, type ChatView } from '../../src/shared/chat'
 import type { AccountView } from '../../src/shared/ipc'
-import { parkAfterMs } from '../../src/shared/office'
 import { buildQueue } from '../../src/shared/queue'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
@@ -83,7 +82,7 @@ describe('inbox', () => {
     expect(inbox.waiting[0]).toMatchObject({ kind: 'request', chatId: id, title: 'Run the tests', dept: 'Side projects' })
     expect(inbox.waiting[0]!.requests[0]!.summary).toBe(command)
     expect(buildQueue(agents).map((item) => item.chatId)).toEqual([id])
-    expect(stripState(office.store.views(), [], Date.now()).needs).toBe(1)
+    expect(stripState(office.store.views(), []).needs).toBe(1)
   })
 
   it('lists waiting items in queue order and shows the last reply of each', async () => {
@@ -125,7 +124,7 @@ describe('inbox', () => {
       ['mkt-early', view('mkt-early', { createdAt: now - 20, stateSince: now - 5 * 60_000 })],
       ['mkt-waiting', view('mkt-waiting', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })],
       ['gym', view('gym', { accountId: 'research' })],
-      ['old', view('old', { state: 'idle', lastActivityAt: now - 2 * parkAfterMs })],
+      ['old', view('old', { state: 'idle', parked: true })],
     ])
     const agents = toAgents(chats.values(), accounts, now, new Map())
     const { board, parked } = buildInbox(chats, agents, [])

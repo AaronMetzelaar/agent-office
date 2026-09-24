@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stripBitmap, stripState, type StripState } from '../../src/main/tray/strip'
 import { emptyUsage, type ChatFields } from '../../src/shared/chat'
-import { parkAfterMs } from '../../src/shared/office'
 import { openOffice } from '../fakes/office'
 
 vi.mock('electron', () => import('../fakes/electron'))
@@ -41,15 +40,15 @@ describe('menu bar strip', () => {
       chat('busy', { state: 'working' }),
       chat('boot', { state: 'starting' }),
       chat('fresh', { state: 'done' }),
-      chat('stale', { state: 'done', lastActivityAt: now - parkAfterMs - 1 }),
+      chat('stale', { state: 'done', parked: true }),
       chat('gone', { state: 'needs-you', archived: true }),
     ]
-    expect(stripState(chats, [{ accountId: 'research', label: 'research' }], now)).toEqual({ needs: 3, dots: ['working', 'working', 'done'] })
+    expect(stripState(chats, [{ accountId: 'research', label: 'research' }])).toEqual({ needs: 3, dots: ['working', 'working', 'done'] })
   })
 
   it('caps the dots and widens the image by one column per two dots', () => {
     const many = Array.from({ length: 12 }, (_, i) => chat(`w${i}`, { state: 'working' }))
-    expect(stripState(many, [], now).dots).toHaveLength(8)
+    expect(stripState(many, []).dots).toHaveLength(8)
     const width = (state: StripState) => stripBitmap(state).width
     expect(width({ needs: 0, dots: [] })).toBe(32)
     expect(width({ needs: 0, dots: ['working'] })).toBe(47)
@@ -70,9 +69,9 @@ describe('menu bar strip', () => {
     const id = office.start('Run the tests')
     office.engine.init(id)
     const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
-    expect(stripState(office.store.views(), [], Date.now())).toEqual({ needs: 1, dots: [] })
+    expect(stripState(office.store.views(), [])).toEqual({ needs: 1, dots: [] })
     office.broker.resolveRequest(office.chat(id).pendingRequests[0]!.id, { kind: 'allow' }, 'inbox')
     await decision
-    expect(stripState(office.store.views(), [], Date.now())).toEqual({ needs: 0, dots: ['working'] })
+    expect(stripState(office.store.views(), [])).toEqual({ needs: 0, dots: ['working'] })
   })
 })

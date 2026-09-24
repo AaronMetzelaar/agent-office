@@ -4,8 +4,8 @@ import { maxRows, type ChatRow, type ChatView } from '../../../shared/chat'
 import { Markdown } from './markdown'
 import { diffStats, entries, isSubagent, plainLabel, resultSummary, subagentLine, subagentState, toolDetail, toolTarget } from './rows'
 
-const props = defineProps<{ chat: ChatView }>()
-const emit = defineEmits<{ resume: []; relogin: [] }>()
+const props = defineProps<{ chat: ChatView; canSwitch?: boolean }>()
+const emit = defineEmits<{ resume: []; relogin: []; continue: [] }>()
 
 const scroller = ref<HTMLElement>()
 const older = ref<ChatRow[]>([])
@@ -118,6 +118,7 @@ watch(
       <span class="btns">
         <button v-if="stuck.reason === 'needs-login'" type="button" class="btn sm" @click="emit('relogin')">Re-login</button>
         <button type="button" class="btn sm" @click="emit('resume')">{{ stuck.reason === 'interrupted' || stuck.reason === 'needs-login' ? 'Resume' : 'Retry' }}</button>
+        <button v-if="canSwitch && stuck.reason === 'rate-limited' && chat.sessionId" type="button" class="btn sm" title="Continue in a new chat on the other account; this one is parked" @click="emit('continue')">Other account</button>
       </span>
     </div>
     <p v-if="!list.length && !chat.partial && !stuck" class="none">No messages yet.</p>

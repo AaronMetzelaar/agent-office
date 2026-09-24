@@ -183,6 +183,14 @@ describe('notifications', () => {
     expect(notifier.live.has(shownRequest.id)).toBe(false)
   })
 
+  it('a cleanup notice is quiet on the Mac, low priority on the phone, and opens Housekeeping', () => {
+    notifier.cleanup(3)
+    expect(notes[0]!.options).toMatchObject({ title: '3 chats are ready for cleanup', silent: true, actions: [{ type: 'button', text: 'Open Housekeeping' }] })
+    expect(pushes).toEqual([{ kind: 'housekeeping', title: '3 chats are ready for cleanup', message: 'Review them in Housekeeping' }])
+    notes[0]!.emit('action', {}, 0)
+    expect(opened).toEqual([{ to: 'housekeeping' }])
+  })
+
   it('summaries stay short and never carry whole commands, secrets or file contents', () => {
     const summary = (tool: string, input: Record<string, unknown>) => wants({ tool, input })
     expect(summary('Bash', { command: 'API_KEY=sk-ant-abcdef0123456789abcdef deploy --prod' })).toBe('run: … deploy …')

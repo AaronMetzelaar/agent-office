@@ -9,6 +9,8 @@ import { openVault } from './accounts/tokens'
 import { createPlacement, loadRules } from './departments/classifier'
 import { handle, send } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
+import { createHousekeeping, realSystem, wireHousekeeping } from './housekeeping'
+import { loginShellPath } from './login-path'
 import { createWaitMetrics } from './metrics/wait'
 import { createNotifier } from './notify'
 import { configDir, createPhonePush } from './notify/ntfy'
@@ -36,6 +38,7 @@ if (app.requestSingleInstanceLock()) {
 }
 
 async function start(): Promise<void> {
+  if (app.isPackaged) process.env.PATH = await loginShellPath()
   const fakeEngine = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_ENGINE === '1' ? (await import('../../tests/fakes/fake-engine')).createFakeEngine({ auto: true }) : undefined
   secureSession(devServerUrl, join(__dirname, '../renderer'))
   const win = createWindow()
@@ -117,7 +120,10 @@ async function start(): Promise<void> {
     push: phone.post,
     shown: (chatId) => win.isVisible() && win.isFocused() && sync.openChat() === chatId,
   })
-  const strip = createTray(() => show({ to: 'inbox' }), () => stripState(store.views(), loginItems(accounts.list()), Date.now()))
+  const house = createHousekeeping(store, engine, db, fakeEngine ? { ...realSystem(), ...fakeEngine.processes, graceMs: 1000 } : realSystem(), notifier.cleanup)
+  wireHousekeeping(win, appUrl, house)
+  house.start()
+  const strip = createTray(() => show({ to: 'inbox' }), () => stripState(store.views(), loginItems(accounts.list())))
   store.events.on('patch', (patch) => {
     if (patch.fields && ('state' in patch.fields || 'pendingRequests' in patch.fields || 'archived' in patch.fields)) strip.update()
   })
@@ -131,7 +137,7 @@ async function start(): Promise<void> {
   })
   accounts.events.on('removed', store.accountRemoved)
   Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
-  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store })
+  Object.assign(globalThis, { tray: strip.tray, notifier, phone, store, fakeEngine })
   app.on('second-instance', () => show())
   app.on('activate', () => show())
 }

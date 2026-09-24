@@ -190,3 +190,21 @@ describe('untrusted content', () => {
     expect(resultSummary({ result: { text: 'boom\ntrace', isError: true } })).toBe('Error: boom · 2 lines')
   })
 })
+
+describe('stuck banner', () => {
+  it('offers to continue a rate-limited chat on the other account, when there is one', async () => {
+    const id = office.start('Czechia auction visibility')
+    office.engine.init(id)
+    office.engine.emit(id, sdk.apiError('rate_limit'))
+    office.engine.emit(id, sdk.errorResult('You’ve hit your usage limit'))
+    const crashed = office.start('Refund webhook retries')
+    office.engine.init(crashed)
+    office.engine.exit(crashed, 'boom')
+    await flush()
+    const html = (chat: ChatView, canSwitch: boolean) => renderToString(createSSRApp({ render: () => h(Transcript, { chat, canSwitch }) }))
+    expect(view(id).stuck?.reason).toBe('rate-limited')
+    expect(await html(view(id), true)).toContain('Other account')
+    expect(await html(view(id), false)).not.toContain('Other account')
+    expect(await html(view(crashed), true)).not.toContain('Other account')
+  })
+})
