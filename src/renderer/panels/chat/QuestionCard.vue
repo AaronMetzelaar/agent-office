@@ -33,7 +33,7 @@ function submit() {
     </div>
     <fieldset v-for="question in questions" :key="question.question" class="question">
       <legend><b v-if="question.header">{{ question.header }} · </b>{{ question.question }}</legend>
-      <div class="btns">
+      <div class="btns options">
         <button v-for="option in question.options ?? []" :key="option.label" type="button" class="btn" :title="option.description" :aria-pressed="picked[question.question]?.includes(option.label) ?? false" @click="pick(question, option.label)">{{ option.label }}</button>
       </div>
       <input v-model="other[question.question]" class="other" :aria-label="`Your own answer to: ${question.question}`" placeholder="Or your own answer…" />
@@ -58,6 +58,15 @@ function submit() {
   padding: 0;
   margin-bottom: 6px;
   font-size: 13px;
+}
+
+.ask .options {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ask .options .btn {
+  text-align: left;
 }
 
 .ask .btn[aria-pressed='true'] {
