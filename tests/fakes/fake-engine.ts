@@ -39,6 +39,7 @@ interface FakeSession {
 type AskOptions = Partial<Parameters<CanUseTool>[2]>
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15))
+const pastIpcFlush = () => new Promise((resolve) => setTimeout(resolve, 40))
 
 export function ruleMatches(rule: string, toolName: string, input: Record<string, unknown>): boolean {
   const [, name, content] = /^([^(]+)(?:\((.*)\))?$/.exec(rule) ?? []
@@ -96,6 +97,8 @@ export function createFakeEngine({ auto = false } = {}) {
       if (!still()) return
       emit(chatId, sdk.delta(piece))
     }
+    await pastIpcFlush()
+    if (!still()) return
     emit(chatId, sdk.text('Sure, done.'))
     emit(chatId, sdk.result())
   }

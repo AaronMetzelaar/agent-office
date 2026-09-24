@@ -16,7 +16,9 @@ const env = { ...process.env, AGENT_OFFICE_USER_DATA: userData, AGENT_OFFICE_FAK
 
 async function launch() {
   const app = await electron.launch({ args: ['--use-mock-keychain', root], env })
-  return { app, page: await app.firstWindow() }
+  const page = await app.firstWindow()
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible())).toBe(true)
+  return { app, page }
 }
 
 const chat = (page: Page, id: string) => page.evaluate(async (chatId) => (await window.office.getSnapshot()).chats.find((view) => view.id === chatId), id)
