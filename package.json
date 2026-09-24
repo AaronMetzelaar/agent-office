@@ -11,7 +11,9 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "test": "vitest run",
-    "test:e2e": "electron-vite build && playwright test"
+    "test:e2e": "electron-vite build && playwright test",
+    "hooks": "git config core.hooksPath .githooks",
+    "postinstall": "pnpm hooks"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",

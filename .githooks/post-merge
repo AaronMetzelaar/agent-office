@@ -1,0 +1,51 @@
+#!/bin/sh
+branch="${AGENT_OFFICE_POST_MERGE_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+[ "$branch" = "main" ] || exit 0
+
+repo_root=$(git rev-parse --show-toplevel)
+
+(
+  log_dir="$HOME/Library/Logs/agent-office"
+  mkdir -p "$log_dir"
+  log="$log_dir/post-merge-e2e.log"
+  lockdir="$(git -C "$repo_root" rev-parse --git-common-dir)/agent-office-post-merge.lock"
+  worktree=""
+
+  mkdir "$lockdir" 2>/dev/null || { echo "$(date) skip: a run is already in progress" >> "$log"; exit 0; }
+  trap 'git -C "$repo_root" worktree remove --force "$worktree" >/dev/null 2>&1; rm -rf "$worktree" "$lockdir"' EXIT
+
+  notify_failure() {
+    osascript -e "display notification \"Log: $log\" with title \"Agent Office\" subtitle \"$1 failed after merge\"" >/dev/null 2>&1
+    topic_file="$HOME/.config/agent-office/ntfy-topic"
+    if [ -f "$topic_file" ]; then
+      topic=$(cat "$topic_file")
+      curl -s -o /dev/null -H "Priority: low" -d "Agent Office post-merge check failed: $1. Log: $log" "https://ntfy.sh/$topic" &
+    fi
+  }
+
+  : > "$log"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') post-merge real-floor e2e for $(git -C "$repo_root" rev-parse --short HEAD)" >> "$log"
+
+  worktree=$(mktemp -u "${TMPDIR:-/tmp}/agent-office-post-merge-XXXXXX")
+  if ! git -C "$repo_root" worktree add --detach "$worktree" HEAD >> "$log" 2>&1; then
+    echo "worktree setup failed" >> "$log"
+    notify_failure "worktree setup"
+    exit 1
+  fi
+
+  ln -s "$repo_root/node_modules" "$worktree/node_modules"
+
+  if ! (cd "$worktree" && pnpm exec electron-vite build) >> "$log" 2>&1; then
+    notify_failure "build"
+    exit 1
+  fi
+
+  if ! (cd "$worktree" && pnpm exec playwright test tests/e2e/real-floor.spec.ts) >> "$log" 2>&1; then
+    notify_failure "real-floor e2e"
+    exit 1
+  fi
+
+  echo "$(date '+%Y-%m-%d %H:%M:%S') real-floor e2e passed" >> "$log"
+) >/dev/null 2>&1 &
+disown
+exit 0
