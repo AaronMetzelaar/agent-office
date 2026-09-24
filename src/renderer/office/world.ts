@@ -438,7 +438,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function paint(l: Live) {
     const f = l.facts, dim = isDim(labelled(l), focus)
-    renderChip(l.chip, { title: f.title, caption: f.caption, colour: hexCss(f.colour), state: f.state, parked: f.parked, queueIndex: l.queueIndex, selected: focus.selected === f.id, dim, subs: f.subagents.length, badge: f.badge })
+    renderChip(l.chip, { title: f.title, caption: f.caption, colour: hexCss(f.colour), state: f.state, parked: f.parked, queueIndex: l.queueIndex, selected: focus.selected === f.id, dim, subs: f.subagents.length, badge: f.badge, sim: f.sim })
     l.c.ring.material.color.set(ringColourOf(f))
     kit.tint(l.c, f.colour, f.parked && !l.gone)
     if (!l.slot) return

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
-import { defaultModel, effortLabels, efforts, modelLabels, type ChatView, type Effort } from '../../shared/chat'
+import { defaultModel, effortLabels, efforts, modelLabels, simulatorOf, usingSimulator, type ChatView, type Effort } from '../../shared/chat'
 import { canRest } from '../office/standby'
 import { runsIn } from '../../shared/housekeeping'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
@@ -12,13 +12,14 @@ import PlanCard from './chat/PlanCard.vue'
 import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
 import ShipIt from './chat/ShipIt.vue'
+import Simulator from './chat/Simulator.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
 const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean; removable?: boolean }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; finish: [chatIds: string[], withTrees?: boolean] }>()
 
-const tab = ref<'chat' | 'review'>('chat')
+const tab = ref<'chat' | 'review' | 'simulator'>('chat')
 const flash = ref('')
 const moving = ref(false)
 const seen = shallowReactive(new Map<string, PendingRequestView>())
@@ -27,6 +28,7 @@ let flashTimer: ReturnType<typeof setTimeout> | undefined
 
 const waiting = computed(() => [...new Set(props.queue.flatMap((item) => (item.chatId ? [item.chatId] : [])))])
 const at = computed(() => waiting.value.indexOf(props.agent.id))
+const device = computed(() => (props.chat ? simulatorOf(props.chat.rows) : undefined))
 const pending = computed(() => props.chat?.pendingRequests ?? [])
 const elsewhere = computed(() => answeredElsewhere(seen, pending.value, props.chat?.answered).filter((card) => !dismissed.has(card.request.id)))
 const models = computed(() => {
@@ -80,7 +82,7 @@ watch(
   (chatId) => {
     seen.clear()
     dismissed.clear()
-    tab.value = 'chat'
+    tab.value = props.chat && usingSimulator(props.chat) ? 'simulator' : 'chat'
     flash.value = ''
     void window.office.setOpenChat(chatId)
   },
@@ -130,6 +132,7 @@ onUnmounted(() => {
       <div class="tabs" role="tablist" aria-label="Chat views">
         <button type="button" role="tab" :aria-selected="tab === 'chat'" @click="tab = 'chat'">Chat</button>
         <button type="button" role="tab" :aria-selected="tab === 'review'" @click="tab = 'review'">Review</button>
+        <button v-if="device" type="button" role="tab" :aria-selected="tab === 'simulator'" @click="tab = 'simulator'">Simulator</button>
       </div>
       <select v-if="chat && !chat.visitor" aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
         <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
@@ -143,7 +146,8 @@ onUnmounted(() => {
     <template v-if="tab === 'chat'">
       <Transcript v-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
     </template>
-    <Review v-else-if="chat" :chat="chat" />
+    <Simulator v-else-if="tab === 'simulator' && device" :key="device" :device="device" />
+    <Review v-else-if="tab === 'review' && chat" :chat="chat" />
     <div v-if="chat && (pending.length || elsewhere.length)" class="cards">
       <template v-for="(request, index) in pending" :key="request.id">
         <PlanCard v-if="request.tool === 'ExitPlanMode'" :request="request" :first="index === 0" @decide="decide(request, $event)" />

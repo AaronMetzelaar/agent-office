@@ -198,6 +198,12 @@ code {
   white-space: pre;
 }
 
+.chip .sim {
+  margin-left: 6px;
+  font-size: 13px;
+  line-height: 1;
+}
+
 .chip .ab {
   margin-left: 7px;
   padding: 0 5px;

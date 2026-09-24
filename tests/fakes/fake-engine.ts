@@ -98,6 +98,7 @@ export function createFakeEngine({ auto = false } = {}) {
     if (!still()) return
     if (!session?.initialized) init(chatId)
     if (text.includes('[hang]')) return
+    if (text.includes('[simulator]')) return void emit(chatId, sdk.toolUse([{ id: randomUUID(), name: 'mcp__Claude_Code_iOS_Simulator__control', input: { action: 'screenshot', device: 'C4E6C1AB-97B3-410B-98C9-2F544E48EE48' } }]))
     if (text.includes('[ask]') || text.includes('[danger]')) {
       const command = text.includes('[danger]') ? 'rm -rf dist' : 'pnpm test'
       const suggestions = [{ type: 'addRules' as const, rules: [{ toolName: 'Bash', ruleContent: command }], behavior: 'allow' as const, destination: 'localSettings' as const }]

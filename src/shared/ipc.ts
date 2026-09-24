@@ -1,5 +1,5 @@
 import type { CommandList, CommandTarget } from './commands'
-import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
+import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
@@ -88,6 +88,7 @@ export interface Commands {
   getSettings(): Settings
   setSetting(name: SettingName, value: boolean | string): Settings
   openNotificationSettings(): void
+  simulatorScreenshot(device: string): Promise<SimulatorShot>
   getReview(chatId: string): Promise<Review>
   getCiLog(chatId: string, checkId: string): Promise<CiLog>
   openInEditor(chatId: string, path: string, line?: number): Promise<{ error: string } | undefined>

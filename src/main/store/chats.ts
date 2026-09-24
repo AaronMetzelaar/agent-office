@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
 import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
@@ -66,6 +66,8 @@ export function describeTool(name: string, input: unknown): string {
     case 'WebFetch':
     case 'WebSearch':
       return 'Searching the web'
+    case simulatorTool:
+      return `Using the simulator · ${String(args.action ?? '')}`
     default:
       return `Using ${name}`
   }

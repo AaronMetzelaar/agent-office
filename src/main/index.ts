@@ -14,6 +14,7 @@ import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle
 import { pinFolder } from './folders'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
+import { simulatorScreenshot } from './simulator'
 import { createTray } from './tray'
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
@@ -80,6 +81,7 @@ async function start(): Promise<void> {
     return path
   })
   handle('openNotificationSettings', win, appUrl, () => void shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings.extension'))
+  handle('simulatorScreenshot', win, appUrl, simulatorScreenshot)
   handle('getHostStatus', win, appUrl, () => status)
 
   if (prepared) {
