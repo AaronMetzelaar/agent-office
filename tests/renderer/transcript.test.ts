@@ -88,23 +88,25 @@ describe('streaming', () => {
     expect(count(settled, /<strong>BidFlow\.vue<\/strong>/)).toBe(1)
   })
 
-  it('shows a tool call and its result as one row with a result summary', async () => {
+  it('shows a running tool call inline, then folds it into a collapsed summary', async () => {
     const id = await working()
     office.engine.emit(id, sdk.toolUse([{ id: 't1', name: 'Bash', input: { command: 'pnpm test' } }]))
     await flush()
-    expect(await render(view(id))).toContain('running…')
+    expect(await render(view(id))).toContain('Running <code>pnpm test</code>…')
 
     office.engine.emit(id, sdk.toolResult('t1', 'PASS 12 tests\nall green'))
+    office.engine.emit(id, sdk.text('Tests pass.'))
     await flush()
     const tools = view(id).rows.filter((row) => row.kind === 'tool')
     expect(tools).toHaveLength(1)
     const html = await render(view(id))
-    expect(count(html, /class="tr/)).toBe(1)
-    expect(html).toContain('PASS 12 tests · 2 lines')
-    expect(html).toContain('pnpm test')
+    expect(html).toContain('Ran 1 command')
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).not.toContain('class="tr')
+    expect(html).toContain('Tests pass.')
   })
 
-  it('shows edit diff stats and nests a subagent’s steps inside its card', async () => {
+  it('summarises an edit and nests a subagent’s steps inside its card', async () => {
     const id = await working()
     office.engine.emit(id, sdk.toolUse([{ id: 'e1', name: 'Edit', input: { file_path: '/repo/BidFlow.vue', old_string: 'a\nb', new_string: 'a\nb\nc' } }]))
     office.engine.emit(id, sdk.toolUse([{ id: 'agent1', name: 'Agent', input: { description: 'Find bid dialog callers', subagent_type: 'Explore' } }]))
@@ -116,16 +118,15 @@ describe('streaming', () => {
       ['agent1', ['r1']],
     ])
     const html = await render(view(id))
-    expect(html).toContain('+3')
-    expect(html).toContain('−2')
+    expect(html).toContain('Edited 1 file')
     expect(html).toContain('Find bid dialog callers')
-    expect(html).toContain('Explore · 1 tool call')
+    expect(html).toContain('Explore · Searched once')
     expect(html).toContain('Working')
   })
 })
 
 describe('unknown events', () => {
-  it('render as plain rows, never as errors', async () => {
+  it('fold into the tool group or render as plain rows, never as errors', async () => {
     const id = await working()
     office.engine.emit(id, { type: 'hologram_event', uuid: 'x', session_id: 'fake' } as unknown as SDKMessage)
     office.engine.emit(id, { type: 'system', subtype: 'time_travel', uuid: 'y', session_id: 'fake' } as unknown as SDKMessage)
@@ -133,11 +134,9 @@ describe('unknown events', () => {
     await flush()
     const future = { kind: 'mystery', id: 'm1' } as unknown as ChatRow
     const html = await render({ ...view(id), rows: [...view(id).rows, future] })
-    expect(html).toContain('<p class="or">hologram_event</p>')
-    expect(html).toContain('<p class="or">system:time_travel</p>')
+    expect(html).toContain('Used Frobnicate')
     expect(html).toContain('<p class="or">mystery</p>')
-    expect(html).toContain('Frobnicate')
-    expect(html).toContain('the widget')
+    expect(html).not.toContain('hologram_event')
     expect(view(id).state).toBe('working')
   })
 })
