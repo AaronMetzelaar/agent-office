@@ -807,11 +807,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const crew = guard.run('movers', undefined, () => movers.step(dt, t))
     if (crew) {
       for (const job of crew.picked) {
-        const s = office.rebuildSlot(job.dept, job.slot, true)
-        if (s) placeSlot(s, anims[job.dept].ox, anims[job.dept].oz)
+        office.removeSlot(job.dept, job.slot)
+        ghosts.delete(job.id)
       }
-      for (const job of crew.cleared) ghosts.delete(job.id)
-      if (crew.cleared.length) refresh()
+      if (crew.picked.length) refresh()
       moved ||= crew.active
     }
     guard.run('layout', undefined, () => stepLayout(dt))

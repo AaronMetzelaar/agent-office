@@ -55,9 +55,6 @@ function build(scene: THREE.Scene, kit: Kit) {
   const shade = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1b2130, transparent: true, opacity: 0.14, depthWrite: false }))
   shade.position.y = 0.012
   truck.add(shade)
-  const street = new THREE.Mesh(new THREE.PlaneGeometry(40, 1.9).rotateX(-Math.PI / 2), mat(0xd6d8dc, 1))
-  street.position.set(park.x - 8, 0.002, park.z)
-  street.receiveShadow = true
   const denim = mat(0x3d5a9e, 0.8)
   const cap = mat(0xe0463c, 0.55)
   const pants = new THREE.CylinderGeometry(0.3, 0.235, 0.2, 12).translate(0, 0.03, 0)
@@ -84,10 +81,10 @@ function build(scene: THREE.Scene, kit: Kit) {
   })
   const puff = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false })
   const puffs = Array.from({ length: 4 }, () => new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), puff))
-  truck.visible = street.visible = false
+  truck.visible = false
   for (const p of puffs) p.visible = false
-  scene.add(truck, street, ...puffs)
-  return { truck, street, crew, puffs, puff }
+  scene.add(truck, ...puffs)
+  return { truck, crew, puffs, puff }
 }
 
 export function createMovers(scene: THREE.Scene, kit: Kit, route: (from: THREE.Vector3, to: THREE.Vector3) => THREE.Vector3[], deskAt: (job: Job) => THREE.Vector3 | undefined, motion: number) {
@@ -125,7 +122,7 @@ export function createMovers(scene: THREE.Scene, kit: Kit, route: (from: THREE.V
     const trip = trips.trip
     if (!rig) return
     const on = !!trip
-    rig.truck.visible = rig.street.visible = on
+    rig.truck.visible = on
     if (!trip) {
       for (const m of rig.crew) m.b.g.visible = false
       for (const q of rig.puffs) q.visible = false
