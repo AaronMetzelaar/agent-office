@@ -462,7 +462,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     }
     if (bare) s.bare = true
     else if (v === 1 || v === 4) {
-      const m2 = grp(-0.56, 0.12, 0.5, g)
+      const m2 = grp(-0.56, 0.12, -0.5, g)
       mesh(RB(0.5, 0.32, 0.028, 0.01), mat.white, 0, 1.02, 0, m2)
       mesh(BX(0.46, 0.28, 0.004), mat.screenOff, 0, 1.02, -0.016, m2)
       mesh(CY(0.016, 0.02, 0.16, 8), mat.metal, 0, 0.84, 0.03, m2)
@@ -499,7 +499,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     for (const bz of [-0.68, 0.68]) mesh(RB(1.6, 0.05, 0.28, 0.02), mat.wood, 0, 0.44, bz, g)
     for (const sx of [-0.62, 0.62]) {
       mesh(RB(0.06, 0.05, 1.64, 0.01), mat.woodD, sx, 0.36, 0, g)
-      for (const lz of [-0.22, 0.22]) mesh(RB(0.06, 0.74, 0.06, 0.01), mat.woodD, sx, 0.37, lz, g).rotation.x = lz * 1.6
+      for (const lz of [-0.22, 0.22]) mesh(RB(0.06, 0.74, 0.06, 0.01), mat.woodD, sx, 0.37, lz, g).rotation.x = -lz * 1.6
     }
     if (bare) s.bare = true
     else {
@@ -1005,7 +1005,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
   function swing(x: number, z: number) {
     const g = grp(x, z, Math.PI / 2)
-    for (const sx of [-0.7, 0.7]) for (const sz of [-0.35, 0.35]) mesh(CY(0.035, 0.035, 1.9, 7), mat.woodD, sx, 0.9, sz * 0.5, g).rotation.x = sz * 0.5
+    for (const sx of [-0.7, 0.7]) for (const sz of [-0.35, 0.35]) mesh(CY(0.035, 0.035, 1.9, 7), mat.woodD, sx, 0.9, sz * 0.5, g).rotation.x = -sz * 0.5
     mesh(CY(0.04, 0.04, 1.5, 7), mat.woodD, 0, 1.78, 0, g).rotation.z = Math.PI / 2
     for (const sx of [-0.18, 0.18]) mesh(CY(0.008, 0.008, 1.3, 4), mat.rope, sx, 1.13, 0, g)
     mesh(RB(0.46, 0.04, 0.2, 0.01), mat.red, 0, 0.48, 0, g)
