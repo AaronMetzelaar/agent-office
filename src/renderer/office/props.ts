@@ -1794,6 +1794,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       ledMesh.instanceColor!.needsUpdate = true
     },
     drawClock() {
+      if (hands.length < 3) return
       const d = new Date(), s = d.getSeconds() + d.getMilliseconds() / 1000, m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60
       hands[0]!.rotation.z = (-h / 12) * Math.PI * 2
       hands[1]!.rotation.z = (-m / 60) * Math.PI * 2
