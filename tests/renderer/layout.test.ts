@@ -284,7 +284,7 @@ describe('folding sections', () => {
     expect(layoutFloor(hovering.size).zones.mkt.w).toBe(layoutFloor(all.size).zones.mkt.w)
     const released = reseat(hovering, atDesks({ ...everyone, adm: 0, mkt: 1 }), true)
     expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0 }), pending: false })
-    expect(builtDesks(released, 'mkt')).toEqual([0, 3])
+    expect(builtDesks(released, 'mkt')).toEqual([0, 1])
     expect(layoutFloor(released.size).zones.adm.shown).toBe(false)
     const next = reseat(released, [...atDesks({ ...everyone, adm: 0, mkt: 1 }), { id: 'late', dept: 'plat', spot: 'desk', parked: false, recent: true }], true)
     expect(next.size.mkt).toBe(2)

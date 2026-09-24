@@ -48,7 +48,7 @@ describe('the movers', () => {
     const moving = reseat(before, [{ ...chats[0]!, spot: 'gone' }, chats[1]!], true)
     expect(moving).toMatchObject({ repack: false, size: before.size })
     const after = reseat(moving, [chats[1]!], true)
-    expect(builtDesks(after, 'mkt')).toEqual([1, 2])
+    expect(builtDesks(after, 'mkt')).toEqual([0, 1])
   })
 
   it('shares one truck for Dones that arrive together, and queues the rest for the next trip', () => {

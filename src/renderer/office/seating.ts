@@ -17,7 +17,6 @@ export interface Desk {
 export interface Seating {
   desks: ReadonlyMap<string, Desk>
   free: Partial<Record<DeptId, number>>
-  extra: Partial<Record<DeptId, readonly number[]>>
   owed: ReadonlySet<DeptId>
   seats: ReadonlyMap<string, number>
   known: ReadonlySet<string>
@@ -26,11 +25,11 @@ export interface Seating {
   pending: boolean
 }
 
-export const noSeating: Seating = { desks: new Map(), free: {}, extra: {}, owed: new Set(), seats: new Map(), known: new Set(), size: {}, lounge: 0, pending: false }
+export const noSeating: Seating = { desks: new Map(), free: {}, owed: new Set(), seats: new Map(), known: new Set(), size: {}, lounge: 0, pending: false }
 
-export function builtDesks(s: Pick<Seating, 'desks' | 'free' | 'extra'>, dept: DeptId): number[] {
+export function builtDesks(s: Pick<Seating, 'desks' | 'free'>, dept: DeptId): number[] {
   const free = s.free[dept]
-  return [...[...s.desks.values()].filter((d) => d.dept === dept).map((d) => d.slot), ...(free === undefined ? [] : [free]), ...(s.extra[dept] ?? [])].sort((a, b) => a - b)
+  return [...[...s.desks.values()].filter((d) => d.dept === dept).map((d) => d.slot), ...(free === undefined ? [] : [free])].sort((a, b) => a - b)
 }
 
 function holds(prev: Seating, a: Sitter): boolean {
@@ -75,19 +74,17 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
       removed: [...prev.desks].filter(([id, d]) => d.dept === dept && !staying.has(id)).map(([, d]) => d.slot),
     }
   })
-  const event = can && (grew || plans.some((p) => p.added.length || p.removed.length || prev.owed.has(p.dept) || prev.extra[p.dept]?.length))
+  const event = can && (grew || plans.some((p) => p.added.length || p.removed.length || prev.owed.has(p.dept)))
 
   const desks = new Map<string, Desk>()
   const free: Seating['free'] = {}
-  const extra: Seating['extra'] = {}
   const owed = new Set<DeptId>()
   const size: Demand = {}
   let pending = false
   for (const { dept, holders, kept, need, added, removed } of plans) {
     const before = builtDesks(prev, dept)
     const holey = (prev.size[dept] ?? 0) > before.length
-    const dropping = removed.length > 0 || !!prev.extra[dept]?.length
-    const compact = can && (added.length > 0 || prev.owed.has(dept) || (need && !before.length) || (event && holey && !dropping))
+    const compact = can && (added.length > 0 || removed.length > 0 || prev.owed.has(dept) || (need && !before.length) || (event && holey))
     if (compact) {
       const present = holders.filter((a) => a.spot === 'desk' && kept(a) !== undefined)
       const used = new Set(present.map((a) => kept(a)!))
@@ -99,9 +96,8 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
       }
       if (need) free[dept] = lowestFree(used)
     } else {
-      let spare = can ? [] : [...(prev.extra[dept] ?? []), ...removed]
       let open = need || !can ? prev.free[dept] : undefined
-      const used = new Set([...spare, ...(open === undefined ? [] : [open])])
+      const used = new Set(open === undefined ? [] : [open])
       for (const a of holders) {
         const slot = kept(a)
         if (slot === undefined) continue
@@ -110,19 +106,17 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
       }
       for (const a of added) {
         const claim = claims.get(a.id)
-        const slot = claim !== undefined && (claim === open || spare.includes(claim) || !used.has(claim)) ? claim : (open ?? spare[0] ?? lowestFree(used))
+        const slot = claim !== undefined && (claim === open || !used.has(claim)) ? claim : (open ?? lowestFree(used))
         if (slot === open) open = undefined
-        spare = spare.filter((s) => s !== slot)
         used.add(slot)
         desks.set(a.id, { dept, slot })
       }
       if (open !== undefined) free[dept] = open
-      if (spare.length) extra[dept] = spare
-      if (!can && (added.length || prev.owed.has(dept))) owed.add(dept)
+      if (!can && (added.length || removed.length || prev.owed.has(dept))) owed.add(dept)
     }
-    const built = builtDesks({ desks, free, extra }, dept)
-    size[dept] = built.length ? built.at(-1)! + 1 : 0
-    pending ||= owed.has(dept) || !!extra[dept]?.length
+    const built = builtDesks({ desks, free }, dept)
+    size[dept] = Math.max(built.length ? built.at(-1)! + 1 : 0, can ? 0 : (prev.size[dept] ?? 0))
+    pending ||= owed.has(dept)
   }
 
   if (event) {
@@ -131,5 +125,5 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
   }
   const known = new Set(agents.filter((a) => a.spot !== 'gone').map((a) => a.id))
   const resized = deptIds.some((d) => (size[d] ?? 0) !== (prev.size[d] ?? 0))
-  return { desks, free, extra, owed, seats, known, size, lounge, pending, repack: resized || lounge !== prev.lounge }
+  return { desks, free, owed, seats, known, size, lounge, pending, repack: resized || lounge !== prev.lounge }
 }

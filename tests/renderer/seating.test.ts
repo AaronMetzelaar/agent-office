@@ -57,18 +57,16 @@ describe('re-packing the floor', () => {
     expect(step(prev, [...changes.at(-1)!, newcomer]).repack).toBe(true)
   })
 
-  it('keeps the section size while its agents rest, and only a desk add closes the gap a released desk leaves', () => {
+  it('keeps the section size while its agents rest, and closes the gap a released desk leaves at once', () => {
     const first = step(noSeating, team)
     const resting = step(first, set(team, 'a', { state: 'idle' }))
     expect(resting.size.mkt).toBe(4)
     expect([...resting.desks.keys()].sort()).toEqual(['a', 'b', 'c', 'd', 'e'])
     const parked = step(resting, set(set(team, 'a', { state: 'idle', parked: true }), 'c', { state: 'idle' }))
     expect(parked.desks.has('a')).toBe(false)
-    expect(builtDesks(parked, 'mkt')).toEqual([1, 2, 3])
-    expect(parked).toMatchObject({ repack: false, size: expect.objectContaining({ mkt: 4 }) })
-    const later = step(parked, [...set(team, 'a', { state: 'idle', parked: true }), newcomer])
-    expect(later).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 3 }) })
-    expect(later.desks.get('b')).toEqual(parked.desks.get('b'))
+    expect(builtDesks(parked, 'mkt')).toEqual([0, 1, 2])
+    expect(parked).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 3 }) })
+    expect(parked.desks.get('b')).toEqual(resting.desks.get('b'))
   })
 })
 
@@ -85,44 +83,51 @@ describe('reserved desks', () => {
     expect(back.repack).toBe(false)
   })
 
-  it('releases the desk when the chat parks or is archived by any path, and nobody else moves', () => {
+  it('releases the desk when the chat parks or is archived by any path, and the free desk fills the gap', () => {
     const first = step(noSeating, team)
     const parked = step(first, set(team, 'c', { parked: true }))
     expect(parked.desks.has('c')).toBe(false)
     const archived = step(first, without(team, 'c'))
     expect(archived.desks.has('c')).toBe(false)
     for (const next of [parked, archived]) {
-      expect(builtDesks(next, 'mkt')).not.toContain(first.desks.get('c')!.slot)
+      expect(builtDesks(next, 'mkt')).toEqual([0, 1, 2])
       expect(next.desks.get('a')).toEqual(first.desks.get('a'))
       expect(next.desks.get('b')).toEqual(first.desks.get('b'))
-      expect(next.free.mkt).toBe(first.free.mkt)
+      expect(next.free.mkt).toBe(first.desks.get('c')!.slot)
     }
   })
 
-  it('holds a finished chat’s desk while the movers work, then removes that desk itself and leaves the free desk where it is', () => {
+  it('holds a finished chat’s desk while the movers work, then closes the gap once they have carried it out', () => {
     const first = step(noSeating, team)
     const leaving = step(first, set(team, 'b', { gone: true }))
     expect(leaving).toMatchObject({ repack: false, size: first.size })
     expect(leaving.desks.get('b')).toEqual(first.desks.get('b'))
     const cleared = step(leaving, without(team, 'b'))
-    expect(builtDesks(cleared, 'mkt')).toEqual(builtDesks(first, 'mkt').filter((slot) => slot !== first.desks.get('b')!.slot))
-    expect(cleared.free.mkt).toBe(first.free.mkt)
-    const next = step(cleared, [...without(team, 'b'), newcomer])
-    expect(builtDesks(next, 'mkt')).toEqual([0, 1, 2])
-    expect(next.desks.get('a')).toEqual(first.desks.get('a'))
+    expect(cleared).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 3 }) })
+    expect(builtDesks(cleared, 'mkt')).toEqual([0, 1, 2])
+    expect(cleared.desks.get('a')).toEqual(first.desks.get('a'))
   })
 
-  it('never moves a seated agent when desks go, and renumbers only reservations of agents who are away', () => {
+  it('keeps the size while the view is held after the movers finish, then closes the gap when it is released', () => {
+    const first = step(noSeating, team)
+    const leaving = step(first, set(team, 'b', { gone: true }))
+    const held = step(leaving, without(team, 'b'), false)
+    expect(held).toMatchObject({ repack: false, pending: true, size: first.size })
+    expect(builtDesks(held, 'mkt')).not.toContain(first.desks.get('b')!.slot)
+    const released = step(held, without(team, 'b'))
+    expect(released).toMatchObject({ repack: true, pending: false, size: expect.objectContaining({ mkt: 3 }) })
+    expect(builtDesks(released, 'mkt')).toEqual([0, 1, 2])
+  })
+
+  it('never moves a seated agent when desks go, and renumbers reservations of agents who are away to close gaps', () => {
     const five: Chat[] = ['p', 'q', 'r', 's', 't'].map((id) => ({ id, dept: 'mob', state: 'working' }))
     const first = step(noSeating, five)
     const slots = Object.fromEntries([...first.desks].map(([id, d]) => [id, d.slot]))
     const rest = set(set(five, 't', { state: 'idle' }), 'q', { state: 'idle' })
     const removed = step(step(first, rest), without(rest, 'p', 'r'))
-    for (const id of ['q', 's', 't']) expect(removed.desks.get(id)!.slot).toBe(slots[id])
-    const compacted = step(removed, [...without(rest, 'p', 'r'), newcomer])
-    expect(compacted.size.mob).toBe(4)
-    expect(compacted.desks.get('s')!.slot).toBe(slots.s)
-    expect(new Set([...compacted.desks.values()].filter((d) => d.dept === 'mob').map((d) => d.slot)).size).toBe(3)
+    expect(removed.desks.get('s')!.slot).toBe(slots.s)
+    expect(removed.size.mob).toBe(4)
+    expect(builtDesks(removed, 'mob')).toEqual([0, 1, 2, 3])
   })
 
   it('on relaunch reserves desks for idle chats active in the last day, and seats older ones in the Lounge with no desk', () => {
