@@ -49,6 +49,18 @@ async function togglePhonePush() {
   if (settings.value) settings.value = await window.office.setSetting('phonePush', !settings.value.phonePush)
 }
 
+async function toggleQuietHours() {
+  if (settings.value) settings.value = await window.office.setSetting('quietHoursEnabled', !settings.value.quietHoursEnabled)
+}
+
+async function setQuietStart(event: Event) {
+  settings.value = await window.office.setSetting('quietHoursStart', (event.target as HTMLInputElement).value)
+}
+
+async function setQuietEnd(event: Event) {
+  settings.value = await window.office.setSetting('quietHoursEnd', (event.target as HTMLInputElement).value)
+}
+
 async function toggleOutsideChats() {
   const result = settings.value?.outsideChats ? await window.office.uninstallHook() : await window.office.installHook()
   if ('error' in result) alert(result.error)
@@ -138,6 +150,22 @@ onUnmounted(() => {
             >
               Phone push<span class="state">{{ settings?.phonePush ? 'On' : 'Off' }}</span>
             </button>
+            <button
+              role="menuitemcheckbox"
+              :aria-checked="!!settings?.quietHoursEnabled"
+              title="Hold normal and low priority phone pushes and send one summary when quiet hours end"
+              @click="toggleQuietHours"
+            >
+              Quiet hours<span class="state">{{ settings?.quietHoursEnabled ? 'On' : 'Off' }}</span>
+            </button>
+            <label v-if="settings?.quietHoursEnabled" class="pick">
+              From
+              <input type="time" :value="settings?.quietHoursStart" @change="setQuietStart" />
+            </label>
+            <label v-if="settings?.quietHoursEnabled" class="pick">
+              To
+              <input type="time" :value="settings?.quietHoursEnd" @change="setQuietEnd" />
+            </label>
             <button
               role="menuitemcheckbox"
               :aria-checked="!!settings?.outsideChats"

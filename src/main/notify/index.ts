@@ -142,7 +142,7 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
     const dept = department(chat)
     const openChat = () => open({ to: 'chat', chatId: chat.id })
     show(`done:${chat.id}`, { title: `${chat.title} is done`, subtitle: dept, body: 'Ready to review', groupId: chat.id, replyPlaceholder: `Reply to ${chat.title}` }, [['Open', openChat]], openChat, (text) => sendMessage(chat.id, text))
-    void push({ kind: 'done', title: clip(`${chat.title} is done`, 60), message: `${dept} · ready to review` })
+    void push({ kind: 'done', title: clip(`${chat.title} is done`, 60), message: `${dept} · ready to review`, agent: chat.title })
   }
 
   function halted(chat: Readonly<ChatView>) {

@@ -16,7 +16,7 @@ import { loginShellPath } from '../login-path'
 import { createWaitMetrics } from '../metrics/wait'
 import { createNotifier } from '../notify'
 import { pinnedFolders } from '../folders'
-import { configDir, createPhonePush } from '../notify/ntfy'
+import { configDir, createPhonePush, defaultQuietEnd, defaultQuietStart } from '../notify/ntfy'
 import { claudeDir, createOutside, wireOutside } from '../outside'
 import { desktopDir } from '../outside/desktop-meta'
 import { createBroker, windowResolver } from '../permissions/registry'
@@ -82,7 +82,18 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     const saved = db.setting('editor')
     return isEditor(saved) ? saved : 'code'
   }
-  const settings = () => ({ phonePush: phone.enabled(), phonePushAvailable: phone.available, alertsHintSeen: db.setting('alertsHintSeen') === true, editor: editor(), outsideChats: outside.installed(), paused: store.paused(), limits: limitsOf(db.setting('limits')) })
+  const settings = () => ({
+    phonePush: phone.enabled(),
+    phonePushAvailable: phone.available,
+    alertsHintSeen: db.setting('alertsHintSeen') === true,
+    editor: editor(),
+    outsideChats: outside.installed(),
+    quietHoursEnabled: db.setting('quietHoursEnabled') === true,
+    quietHoursStart: (db.setting('quietHoursStart') as string) || defaultQuietStart,
+    quietHoursEnd: (db.setting('quietHoursEnd') as string) || defaultQuietEnd,
+    paused: store.paused(),
+    limits: limitsOf(db.setting('limits')),
+  })
   hub.handle('getSettings', settings)
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
@@ -97,10 +108,12 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   hub.handle('setLimits', store.setLimits)
   hub.handle('setSetting', (name: SettingName, value: boolean | string | object) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
+    if ((name === 'quietHoursStart' || name === 'quietHoursEnd') && typeof value === 'string') db.saveSetting(name, value)
     if (name === 'limits') db.saveSetting(name, limitsOf(value))
     if (typeof value !== 'boolean') return settings()
     if (name === 'phonePush') phone.set(value)
     if (name === 'alertsHintSeen') db.saveSetting(name, value)
+    if (name === 'quietHoursEnabled') db.saveSetting(name, value)
     return settings()
   })
 

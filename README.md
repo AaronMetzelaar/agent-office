@@ -150,6 +150,10 @@ Needs-you and stuck messages go out at high priority, finished chats at default.
 
 Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{r, d, e, s}` to the reply topic: the request id, the decision, an expiry 30 minutes out, and an HMAC-SHA256 over `r.d.e`. The office listens to the reply topic over ntfy's JSON stream, starting from the time it launched, and reconnects with backoff. It checks the signature with `timingSafeEqual` and the expiry, then answers through `resolveRequest` as the phone. It logs and ignores anything unsigned, expired, replayed or already answered. Dangerous requests only get Deny on the phone, and the message says to allow them from your Mac. No port opens on the Mac.
 
+**Batching.** Needs-you and stuck pushes always go out on their own, at once, so their Allow/Deny buttons stay tied to one decision — two of them never merge into one push. Done, review and housekeeping pushes instead land in a short trailing window: the first one waits up to a minute for others to join, and a later one keeps that window open, up to a two-minute cap from the first. When the window closes, everything queued goes out as one summary push ("3 updates" with "2 done: A, B · 1 housekeeping: …"), still redacted the same way.
+
+**Quiet hours.** Settings → Quiet hours takes a start and end time (off by default). While they're on, done, review and housekeeping pushes are held instead of batched normally, and go out as one summary the moment quiet hours end. Needs-you and stuck pushes ignore quiet hours entirely. Held pushes are never dropped, just delayed to the end of the window — the simpler option, and correct since nothing is lost.
+
 ## Test flags
 
 - `AGENT_OFFICE_FAKE_VALIDATOR=1` swaps in a fake validator that accepts tokens containing `fake-ok`. Packaged builds ignore it.

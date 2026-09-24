@@ -4,7 +4,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createNotifier } from '../../src/main/notify'
-import { createNtfy, createPhonePush, decisionBody, decisionTtlMs, publishBody, type Push } from '../../src/main/notify/ntfy'
+import {
+  batchMaxDelayMs,
+  batchWindowMs,
+  createBatcher,
+  createNtfy,
+  createPhonePush,
+  decisionBody,
+  decisionTtlMs,
+  publishBody,
+  type Push,
+  type QuietHours,
+} from '../../src/main/notify/ntfy'
 import { openOffice } from '../fakes/office'
 
 vi.mock('electron', () => import('../fakes/electron'))
@@ -206,17 +217,86 @@ describe('phone push setup', () => {
     const phone = createPhonePush({ dir, vault, settings, resolve: office.broker.resolveRequest, fetch, log: (m) => logs.push(m) })
     expect(phone.enabled()).toBe(true)
     expect(vault.setNtfyKey).toHaveBeenCalledWith(key.toString('hex'))
-    expect(await phone.post({ kind: 'done', title: 't', message: 'm' })).toBe(200)
-    expect(posts).toMatchObject([{ topic: 'topic', priority: 3 }])
+    expect(await phone.post({ kind: 'needs', title: 't', message: 'm' })).toBe(200)
+    expect(posts).toMatchObject([{ topic: 'topic', priority: 4 }])
     await vi.waitFor(() => expect(urls.some((url) => url.includes('/reply/json'))).toBe(true))
 
     phone.set(false)
-    expect(await phone.post({ kind: 'done', title: 't', message: 'm' })).toBeUndefined()
+    expect(await phone.post({ kind: 'needs', title: 't', message: 'm' })).toBeUndefined()
     expect(posts).toHaveLength(1)
 
     writeFileSync(join(dir, 'ntfy-hmac-key'), 'ff'.repeat(32))
     const again = createPhonePush({ dir, vault, settings, resolve: office.broker.resolveRequest, fetch })
     expect(vault.setNtfyKey).toHaveBeenCalledTimes(1)
     expect(again.enabled()).toBe(false)
+  })
+})
+
+describe('batcher', () => {
+  const off: QuietHours = { enabled: false, start: '00:00', end: '00:00' }
+  const doneOf = (agent: string): Push => ({ kind: 'done', title: `${agent} is done`, message: 'm', agent })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('merges a burst landing within the window into one summary', async () => {
+    vi.useFakeTimers()
+    const post = vi.fn(async (_push: Push) => 200)
+    const batcher = createBatcher({ post, quietHours: () => off })
+    batcher.push(doneOf('A'))
+    await vi.advanceTimersByTimeAsync(20_000)
+    batcher.push(doneOf('B'))
+    await vi.advanceTimersByTimeAsync(20_000)
+    batcher.push({ kind: 'review', title: 'C needs review', message: 'm', agent: 'C' })
+    expect(post).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(batchWindowMs)
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = post.mock.calls[0]![0] as Push
+    expect(sent.title).toBe('3 updates')
+    expect(sent.message).toBe('2 done: A, B · 1 review: C')
+  })
+
+  it('sends needs-you and stuck at once, never merged, even during quiet hours', async () => {
+    vi.useFakeTimers()
+    const posts: Push[] = []
+    const post = vi.fn(async (push: Push) => (posts.push(push), 200))
+    const alwaysQuiet: QuietHours = { enabled: true, start: '00:00', end: '23:59' }
+    const batcher = createBatcher({ post, quietHours: () => alwaysQuiet })
+    void batcher.push({ kind: 'needs', title: 'req1', message: 'm', request: { id: 'r1', dangerous: false } })
+    void batcher.push({ kind: 'stuck', title: 'req2', message: 'm' })
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(posts.map((push) => push.title)).toEqual(['req1', 'req2'])
+  })
+
+  it('holds normal pushes during quiet hours and flushes one summary when they end', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 1, 23, 0, 0))
+    const post = vi.fn(async (_push: Push) => 200)
+    const quiet: QuietHours = { enabled: true, start: '22:00', end: '07:00' }
+    const batcher = createBatcher({ post, quietHours: () => quiet })
+    batcher.push(doneOf('A'))
+    await vi.advanceTimersByTimeAsync(60 * 60_000)
+    batcher.push(doneOf('B'))
+    expect(post).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(7 * 60 * 60_000)
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = post.mock.calls[0]![0] as Push
+    expect(sent.message).toContain('A')
+    expect(sent.message).toContain('B')
+  })
+
+  it('caps a continuous burst at the max delay instead of extending forever', async () => {
+    vi.useFakeTimers()
+    const post = vi.fn(async (_push: Push) => 200)
+    const batcher = createBatcher({ post, quietHours: () => off })
+    batcher.push(doneOf('agent-0'))
+    for (let i = 1; i <= 5; i++) {
+      await vi.advanceTimersByTimeAsync(20_000)
+      batcher.push(doneOf(`agent-${i}`))
+    }
+    expect(post).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(batchMaxDelayMs - 5 * 20_000)
+    expect(post).toHaveBeenCalledTimes(1)
+    const sent = post.mock.calls[0]![0] as Push
+    expect(sent.title).toBe('6 updates')
   })
 })

@@ -60,11 +60,14 @@ export interface Settings {
   alertsHintSeen: boolean
   editor: Editor
   outsideChats: boolean
+  quietHoursEnabled: boolean
+  quietHoursStart: string
+  quietHoursEnd: string
   paused: boolean
   limits: Limits
 }
 
-export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'limits'
+export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'quietHoursEnabled' | 'quietHoursStart' | 'quietHoursEnd' | 'limits'
 
 export interface HostStatus {
   connected: boolean

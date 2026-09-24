@@ -16,6 +16,93 @@ export interface Push {
   title: string
   message: string
   request?: { id: string; dangerous: boolean }
+  agent?: string
+}
+
+export interface QuietHours {
+  enabled: boolean
+  start: string
+  end: string
+}
+
+export const defaultQuietStart = '22:00'
+export const defaultQuietEnd = '07:00'
+export const batchWindowMs = 60_000
+export const batchMaxDelayMs = 2 * 60_000
+const immediateKinds = new Set<PushKind>(['needs', 'stuck'])
+
+function minutesOf(value: string): number {
+  const [hours, mins] = value.split(':').map(Number)
+  return (hours || 0) * 60 + (mins || 0)
+}
+
+export function isQuietNow(quiet: QuietHours | undefined, now: number): boolean {
+  if (!quiet?.enabled) return false
+  const start = minutesOf(quiet.start)
+  const end = minutesOf(quiet.end)
+  if (start === end) return false
+  const mins = new Date(now).getHours() * 60 + new Date(now).getMinutes()
+  return start < end ? mins >= start && mins < end : mins >= start || mins < end
+}
+
+export function msUntilQuietEnd(quiet: QuietHours, now: number): number {
+  const end = minutesOf(quiet.end)
+  const at = new Date(now)
+  at.setHours(Math.floor(end / 60), end % 60, 0, 0)
+  if (at.getTime() <= now) at.setDate(at.getDate() + 1)
+  return at.getTime() - now
+}
+
+function summarize(items: Push[]): Push {
+  if (items.length === 1) return items[0]!
+  const byKind = new Map<PushKind, Push[]>()
+  for (const item of items) byKind.set(item.kind, [...(byKind.get(item.kind) ?? []), item])
+  const parts = [...byKind.entries()].map(([kind, group]) => `${group.length} ${kind}: ${group.map((item) => item.agent ?? item.title).join(', ')}`)
+  const worst = items.reduce((top, item) => (priorities[item.kind] > priorities[top.kind] ? item : top), items[0]!)
+  return { kind: worst.kind, title: `${items.length} updates`, message: parts.join(' · ') }
+}
+
+export interface BatcherOptions {
+  post(push: Push): Promise<number | undefined>
+  quietHours(): QuietHours
+  now?: () => number
+  windowMs?: number
+  maxDelayMs?: number
+}
+
+export function createBatcher({ post, quietHours, now = Date.now, windowMs = batchWindowMs, maxDelayMs = batchMaxDelayMs }: BatcherOptions) {
+  let queue: Push[] = []
+  let batchStart: number | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  function schedule(delayMs: number) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(flush, Math.max(0, delayMs))
+  }
+
+  function flush() {
+    timer = undefined
+    batchStart = undefined
+    const items = queue
+    queue = []
+    if (items.length) void post(summarize(items))
+  }
+
+  return {
+    push(item: Push): Promise<number | undefined> {
+      if (immediateKinds.has(item.kind)) return post(item)
+      queue.push(item)
+      const at = now()
+      batchStart ??= at
+      const quiet = quietHours()
+      schedule(isQuietNow(quiet, at) ? msUntilQuietEnd(quiet, at) : Math.min(windowMs, maxDelayMs - (at - batchStart)))
+      return Promise.resolve(undefined)
+    },
+    stop() {
+      if (timer) clearTimeout(timer)
+      flush()
+    },
+  }
 }
 
 export interface NtfyOptions {
@@ -191,6 +278,13 @@ export function createPhonePush({ dir, vault, settings, log = (message) => conso
   }
   apply()
 
+  const quietHours = (): QuietHours => ({
+    enabled: settings.setting('quietHoursEnabled') === true,
+    start: (settings.setting('quietHoursStart') as string) || defaultQuietStart,
+    end: (settings.setting('quietHoursEnd') as string) || defaultQuietEnd,
+  })
+  const batcher = ntfy ? createBatcher({ post: ntfy.post, quietHours }) : undefined
+
   return {
     available: !!ntfy,
     enabled,
@@ -198,7 +292,7 @@ export function createPhonePush({ dir, vault, settings, log = (message) => conso
       settings.saveSetting('phonePush', on)
       apply()
     },
-    post: (push: Push) => (enabled() ? ntfy!.post(push) : Promise.resolve(undefined)),
-    stop: () => unsubscribe?.(),
+    post: (push: Push) => (enabled() ? batcher!.push(push) : Promise.resolve(undefined)),
+    stop: () => (unsubscribe?.(), batcher?.stop()),
   }
 }
