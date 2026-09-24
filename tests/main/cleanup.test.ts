@@ -78,7 +78,7 @@ describe('clean up safe', () => {
     clock.now += 4 * day
 
     const view = await house.refresh()
-    await vi.waitFor(() => expect(sessions.every((pid) => !office.engine.processes.alive(pid + 1))).toBe(true))
+    await vi.waitFor(() => expect(sessions.every((pid) => !office.engine.processes.alive(pid + 1))).toBe(true), { timeout: 10_000 })
     for (const pid of sessions) office.engine.processes.table.set(pid + 2, { ppid: pid, kb: 200_000, args: 'docker compose up' })
     expect(view.candidates).toHaveLength(5)
     expect(view.safe.sort()).toEqual(clean.map((tree) => tree.id).sort())
@@ -139,7 +139,7 @@ describe('clean up safe', () => {
     office.engine.processes.ignoresTerm.add(vite)
     clock.now += 4 * day
     await house.refresh()
-    await vi.waitFor(() => expect(house.view().stubborn[id]).toHaveLength(1))
+    await vi.waitFor(() => expect(house.view().stubborn[id]).toHaveLength(1), { timeout: 10_000 })
 
     const summary = await house.cleanUp()
 

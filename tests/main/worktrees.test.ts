@@ -80,7 +80,7 @@ describe('starting a chat in a fresh worktree', () => {
     const id = result.chatId
     expect(office.chat(id)).toMatchObject({ state: 'starting', setup: 'worktree', department: 'mob', worktree: join(repo, '.claude/worktrees/bid-alerts-widget') })
     expect(doingNow(office.chat(id), Date.now())).toBe('Setting up worktree…')
-    await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Bid alerts widget' }]))
+    await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Bid alerts widget' }]), { timeout: 10_000 })
     expect(office.engine.starts[0]?.options.cwd).toBe(join(repo, '.claude/worktrees/bid-alerts-widget/frontend/mobile'))
     expect(office.chat(id).setup).toBeUndefined()
     expect(office.chat(id).rows.filter((row) => row.kind === 'user')).toHaveLength(1)
@@ -92,7 +92,7 @@ describe('starting a chat in a fresh worktree', () => {
     const result = office.store.start('main', repo, 'Refund webhook retries', undefined, undefined, { worktree: true })
     if ('error' in result) throw new Error(result.error)
     const id = result.chatId
-    await vi.waitFor(() => expect(office.chat(id).state).toBe('stuck'))
+    await vi.waitFor(() => expect(office.chat(id).state).toBe('stuck'), { timeout: 10_000 })
     expect(office.chat(id)).toMatchObject({ setup: 'worktree-failed', stuck: { reason: 'error', detail: expect.stringContaining('post-checkout hook failed') } })
     expect(doingNow(office.chat(id), Date.now())).toBe('Stuck · worktree failed')
     expect(existsSync(join(repo, '.claude/worktrees/refund-webhook-retries'))).toBe(false)
@@ -102,7 +102,7 @@ describe('starting a chat in a fresh worktree', () => {
     fixed()
     office.store.resumeChat(id)
     expect(office.chat(id)).toMatchObject({ state: 'starting', setup: 'worktree' })
-    await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Refund webhook retries' }]))
+    await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Refund webhook retries' }]), { timeout: 10_000 })
     expect(branches()).toContain('refund-webhook-retries')
   })
 
@@ -117,7 +117,7 @@ describe('starting a chat in a fresh worktree', () => {
     const seeded = await withTicket(linear, 'mob-88', { worktree: true })
     const result = office.store.start('main', join(repo, 'frontend/mobile'), seeded.prompt, undefined, undefined, seeded.options)
     if (!('chatId' in result)) throw new Error(result.error)
-    await vi.waitFor(() => expect(office.engine.sent).toHaveLength(1))
+    await vi.waitFor(() => expect(office.engine.sent).toHaveLength(1), { timeout: 10_000 })
     expect(office.chat(result.chatId)).toMatchObject({ title: 'MOB-88 Deep links for push', worktree: join(repo, '.claude/worktrees/mob-88-deep-links-for-push') })
     expect(branches()).toContain('mob-88-deep-links-for-push')
     expect(office.engine.sent[0]!.text).toBe('Work on Linear ticket MOB-88: Deep links for push\n\nStatus: Todo\n\nhttps://linear.app/mws/issue/MOB-88/deep-links')

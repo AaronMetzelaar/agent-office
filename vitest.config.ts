@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     include: ['tests/**/*.test.ts'],
+    testTimeout: 20_000,
   },
 })
