@@ -58,6 +58,18 @@ async function decide(request: PendingRequestView, decision: Decision) {
   else if (request.tool === 'AskUserQuestion') emit('select', undefined)
 }
 
+async function openInTerminal() {
+  if (!props.chat) return
+  const result = await window.office.openInTerminal(props.chat.id)
+  if (result?.error) say(result.error)
+}
+
+async function openInDesktop() {
+  if (!props.chat) return
+  const result = await window.office.openInDesktop(props.chat.id)
+  if (result?.error) say(result.error)
+}
+
 async function move() {
   if (!props.chat) return
   moving.value = true
@@ -133,6 +145,8 @@ onUnmounted(() => {
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <div class="hact">
+        <button v-if="chat?.sessionId" type="button" class="btn sm" title="Resumes this session in a terminal, on its own account. The office chat is untouched." @click="openInTerminal">Open in terminal</button>
+        <button v-if="chat?.visitor === 'desktop'" type="button" class="btn sm" title="Focuses the right Claude desktop window. It can't jump to this exact chat yet." @click="openInDesktop">Open in Claude desktop</button>
         <template v-if="chat && chat.finished === undefined">
           <button v-if="canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
           <button type="button" class="btn sm" title="Finish: clear the desk and move the chat to Finished" @click="emit('finish', [chat.id])">Done</button>

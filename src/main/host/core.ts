@@ -9,6 +9,7 @@ import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
 import { createPlacement, loadRules } from '../departments/classifier'
 import { createJev } from '../departments/jev'
+import { wireHandoff } from '../handoff'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
 import { loginShellPath } from '../login-path'
@@ -88,6 +89,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
   const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
+  wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
   hub.handle('setPaused', (on) => {
     store.setPaused(on)
     return settings()

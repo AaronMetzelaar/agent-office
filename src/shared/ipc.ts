@@ -133,6 +133,8 @@ export interface Commands {
   uninstallHook(): Settings | { error: string }
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
   archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
+  openInTerminal(chatId: string): Promise<{ error?: string } | undefined>
+  openInDesktop(chatId: string): Promise<{ error?: string } | undefined>
   getHostStatus(): HostStatus
   getAppUpdate(): AppUpdate
   installAppUpdate(): void
