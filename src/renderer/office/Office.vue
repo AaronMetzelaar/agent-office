@@ -47,6 +47,7 @@ const shownAgent = computed(() => ui.selected ?? loose.value)
 const openChat = computed(() => (tick.value, shownAgent.value ? projection.chats.get(shownAgent.value.id) : undefined))
 const finished = computed(() => finishedOf(chatList.value, props.accounts))
 const removable = (chatId: string) => !!house.value?.removable.includes(chatId)
+const leaving = new Set<string>()
 let pendingSelect: string | undefined
 let pendingView: View = 'fly'
 const tallyLabels: [StateKey, string][] = [
@@ -66,7 +67,8 @@ const matches = computed(() => {
 function push() {
   const w = world.value
   if (!w) return
-  const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours)
+  for (const id of leaving) if (projection.chats.get(id)?.finished !== undefined) leaving.delete(id)
+  const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours).filter((a) => !leaving.has(a.id))
   for (const a of agents) colours.set(a.id, a.colour)
   inbox.value = buildInbox(projection.chats, agents, projection.logins, w.sentAway())
   w.sync(agents, projection.logins)
@@ -119,15 +121,22 @@ async function finish(chatIds: string[], withTrees = false) {
   const { finishChat, finishChats } = props.source
   if (!chatIds.length || !finishChat || !finishChats) return
   world.value?.finishing(chatIds, true)
+  for (const id of chatIds) leaving.add(id)
+  push()
+  const restore = (ids: string[]) => {
+    world.value?.finishing(ids, false)
+    for (const id of ids) leaving.delete(id)
+    push()
+  }
   if (chatIds.length === 1) {
     const result: Finished | undefined = await finishChat(chatIds[0]!, withTrees).catch((error: unknown) => ({ error: String(error) }))
-    if (!result || (result.error && !result.kept)) world.value?.finishing(chatIds, false)
+    if (!result || (result.error && !result.kept)) restore(chatIds)
     if (result?.error) say(result.error)
     return
   }
   const result = await finishChats(chatIds, withTrees).catch(() => undefined)
   const done = new Set(result?.finished ?? [])
-  world.value?.finishing(chatIds.filter((id) => !done.has(id)), false)
+  restore(chatIds.filter((id) => !done.has(id)))
   if (result?.skipped.length) say(`Kept ${plural(result.skipped.length, 'chat')}: ${result.skipped.map((skip) => skip.reason).join('; ')}`)
 }
 

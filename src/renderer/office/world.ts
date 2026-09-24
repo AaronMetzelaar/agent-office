@@ -425,9 +425,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       ghosts.set(id, desk)
       movers.add({ id, ...desk })
     }
-    if (focus.selected !== id) return
-    if (l.bye) rig.follow = undefined
-    select(undefined, l.bye ? 'keep' : 'overview')
+    if (focus.selected === id) select(undefined, 'overview')
   }
 
   function dispose(l: Live) {
