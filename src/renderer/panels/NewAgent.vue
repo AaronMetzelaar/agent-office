@@ -55,7 +55,7 @@ const place = computed(() => (props.desk ? `${kindOf(props.desk.dept) === 'gym' 
 
 const percent = (value?: number) => (value === undefined ? '–' : `${Math.round(value)}%`)
 const usage = (candidate: AccountView) => (candidate.health.status === 'needs-login' ? 'needs login' : `5h ${percent(candidate.health.headroom?.fiveHour?.utilization)} · week ${percent(candidate.health.headroom?.sevenDay?.utilization)}`)
-const home = (path: string) => path.replace(/^\/Users\/[^/]+/, '~')
+const folderName = (path: string) => path.split('/').filter(Boolean).pop() ?? path
 const loadCommands = async () => (form.folder ? window.office.getCommands({ cwd: form.folder }) : undefined)
 
 function useSuggested() {
@@ -147,7 +147,7 @@ onMounted(async () => {
       <span class="pick">
         <select v-model="form.folder" aria-label="Folder">
           <option v-if="!folders.length" value="" disabled>Choose a folder</option>
-          <option v-for="folder in folders" :key="folder" :value="folder">{{ home(folder) }}</option>
+          <option v-for="folder in folders" :key="folder" :value="folder" :title="folder">{{ folderName(folder) }}</option>
         </select>
         <button type="button" class="btn" @click="choose">Choose…</button>
       </span>
