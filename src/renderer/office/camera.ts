@@ -113,7 +113,7 @@ export function createRig(camera: PerspectiveCamera, controls: OrbitControls, re
       controls.update()
     },
     zoomDistance(region: Region, h: number) {
-      return Math.min(Math.max(4.4 / ((2 * Math.tan((camera.fov * Math.PI) / 360) * (region.y1 - region.y0)) / h), 7), rig.overview.distance * 0.6)
+      return Math.min(Math.max(5.9 / ((2 * Math.tan((camera.fov * Math.PI) / 360) * (region.y1 - region.y0)) / h), 9), rig.overview.distance * 0.6)
     },
     zoomed: () => camera.position.distanceTo(controls.target) < rig.overview.distance * 0.62,
     step(dt: number) {
