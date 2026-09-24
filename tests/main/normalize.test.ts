@@ -29,8 +29,9 @@ describe('normalize', () => {
   it('starts a subagent from an Agent call and attaches its work by parent_tool_use_id', () => {
     expect(normalize(sdk.toolUse([{ id: 'agent-1', name: 'Agent', input: { description: 'Explore bids', run_in_background: true } }]))).toEqual([
       { type: 'tool-use', id: 'agent-1', name: 'Agent', input: { description: 'Explore bids', run_in_background: true } },
-      { type: 'subagent-start', id: 'agent-1', description: 'Explore bids', background: true },
+      { type: 'subagent-start', id: 'agent-1', description: 'Explore bids' },
     ])
+    expect(normalize(sdk.taskStarted('agent-1'))).toEqual([{ type: 'subagent-background', id: 'agent-1' }])
     expect(normalize(sdk.toolUse([{ id: 't9', name: 'Read', input: {} }], 'agent-1'))).toEqual([{ type: 'tool-use', id: 't9', name: 'Read', input: {}, parentToolUseId: 'agent-1' }])
     expect(normalize(sdk.taskNotification('agent-1'))).toEqual([{ type: 'subagent-stop', id: 'agent-1' }])
   })

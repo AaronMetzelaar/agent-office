@@ -97,7 +97,8 @@ describe('chat store', () => {
     const { engine, chat } = office
     const id = working()
     engine.emit(id, sdk.toolUse([{ id: 'a1', name: 'Agent', input: { description: 'Explore bids' } }]))
-    engine.emit(id, sdk.toolUse([{ id: 'a2', name: 'Agent', input: { description: 'Explore auth', run_in_background: true } }]))
+    engine.emit(id, sdk.toolUse([{ id: 'a2', name: 'Agent', input: { description: 'Explore auth' } }]))
+    engine.emit(id, sdk.taskStarted('a2'))
     engine.emit(id, sdk.toolUse([{ id: 'a1-read', name: 'Read', input: { file_path: '/repo/bid.ts' } }], 'a1'))
     expect(chat(id).subagents).toEqual([
       { id: 'a1', description: 'Explore bids', activity: 'Reading bid.ts' },
@@ -116,8 +117,10 @@ describe('chat store', () => {
   it('stays Working while background subagents run past the main turn, and shows what each is doing', () => {
     const { engine, chat } = office
     const id = working()
-    engine.emit(id, sdk.toolUse([{ id: 'b1', name: 'Agent', input: { description: 'Scan bids', run_in_background: true } }]))
-    engine.emit(id, sdk.toolUse([{ id: 'b2', name: 'Agent', input: { description: 'Scan auth', run_in_background: true } }]))
+    engine.emit(id, sdk.toolUse([{ id: 'b1', name: 'Agent', input: { description: 'Scan bids' } }]))
+    engine.emit(id, sdk.taskStarted('b1'))
+    engine.emit(id, sdk.toolUse([{ id: 'b2', name: 'Agent', input: { description: 'Scan auth' } }]))
+    engine.emit(id, sdk.taskStarted('b2'))
     engine.emit(id, sdk.toolResult('b1', 'Async agent launched'))
     engine.emit(id, sdk.toolResult('b2', 'Async agent launched'))
     engine.emit(id, sdk.result())

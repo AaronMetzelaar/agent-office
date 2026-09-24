@@ -9,7 +9,8 @@ export type ChatEvent =
   | { type: 'tool-use'; id: string; name: string; input: unknown; parentToolUseId?: string }
   | { type: 'tool-result'; toolUseId: string; text: string; isError: boolean }
   | { type: 'user-text'; id: string; text: string }
-  | { type: 'subagent-start'; id: string; description: string; background: boolean }
+  | { type: 'subagent-start'; id: string; description: string }
+  | { type: 'subagent-background'; id: string }
   | { type: 'subagent-progress'; id: string; activity: string }
   | { type: 'subagent-stop'; id: string }
   | { type: 'turn-result'; usage: Usage; isError: boolean; errorText?: string }
@@ -25,7 +26,6 @@ const quietSystem = new Set([
   'hook_started',
   'hook_progress',
   'hook_response',
-  'task_started',
   'task_updated',
   'thinking_tokens',
   'session_state_changed',
@@ -75,8 +75,8 @@ function assistantEvents(uuid: string, content: unknown, parent: string | null):
     if (block.type !== 'tool_use' || !block.id || !block.name) return []
     const toolUse: ChatEvent = { type: 'tool-use', id: block.id, name: block.name, input: block.input, parentToolUseId }
     if (!subagentTools.has(block.name)) return [toolUse]
-    const input = (block.input ?? {}) as { description?: unknown; run_in_background?: unknown }
-    return [toolUse, { type: 'subagent-start', id: block.id, description: String(input.description ?? 'Subagent'), background: input.run_in_background === true }]
+    const input = (block.input ?? {}) as { description?: unknown }
+    return [toolUse, { type: 'subagent-start', id: block.id, description: String(input.description ?? 'Subagent') }]
   })
 }
 
@@ -116,6 +116,7 @@ export function normalize(message: SDKMessage): ChatEvent[] {
     case 'system':
       if (message.subtype === 'init') return [{ type: 'session', sessionId: message.session_id, model: message.model }, ...(message.permissionMode ? [{ type: 'mode' as const, mode: message.permissionMode }] : [])]
       if (message.subtype === 'status') return message.permissionMode ? [{ type: 'mode', mode: message.permissionMode }] : []
+      if (message.subtype === 'task_started') return message.tool_use_id && message.is_backgrounded ? [{ type: 'subagent-background', id: message.tool_use_id }] : []
       if (message.subtype === 'task_progress') {
         return message.tool_use_id && message.summary ? [{ type: 'subagent-progress', id: message.tool_use_id, activity: message.summary }] : []
       }

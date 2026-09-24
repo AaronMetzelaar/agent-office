@@ -219,8 +219,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       case 'tool-result':
         if (!chat.background.has(event.toolUseId)) dropSubagent(chat, event.toolUseId)
         break
+      case 'subagent-background':
+        if (view.subagents.some((agent) => agent.id === event.id)) chat.background.add(event.id)
+        break
       case 'subagent-start':
-        if (event.background) chat.background.add(event.id)
         set(chat, { subagents: [...view.subagents, { id: event.id, description: event.description }] })
         break
       case 'subagent-progress':
