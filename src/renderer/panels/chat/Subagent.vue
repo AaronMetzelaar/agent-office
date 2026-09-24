@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { AgentItem } from './groups'
 import { resultSummary, toolTarget } from './rows'
-import ToolGroup from './ToolGroup.vue'
+import SubagentSteps from './SubagentSteps.vue'
 
-defineProps<{ item: AgentItem; state: 'running' | 'done' | 'failed'; activity?: string }>()
+defineProps<{ item: AgentItem; state: 'running' | 'done' | 'failed' }>()
 
 const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
 </script>
@@ -15,17 +15,10 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
       <b>{{ toolTarget(item.row) || 'Subagent' }}</b>
       <span class="st">{{ labels[state] }}</span>
     </div>
-    <p v-if="state === 'running' && activity" class="now">{{ activity }}</p>
     <p v-if="item.summary" class="sm">{{ item.summary }}</p>
-    <details v-if="item.items.length" :open="state === 'running'">
+    <details v-if="item.items.length">
       <summary>Activity</summary>
-      <div class="steps">
-        <template v-for="child in item.items" :key="child.kind === 'group' ? `g:${child.id}` : child.row.id">
-          <ToolGroup v-if="child.kind === 'group'" :rows="child.rows" :summary="child.summary" />
-          <p v-else-if="child.kind === 'row' && child.row.kind === 'text'" class="step">{{ child.row.text.slice(0, 240) }}</p>
-          <p v-else-if="child.kind === 'agent'" class="step">{{ child.row.name }} · {{ toolTarget(child.row) }}</p>
-        </template>
-      </div>
+      <SubagentSteps :items="item.items" />
     </details>
     <p v-if="item.row.result" class="rs">{{ resultSummary(item.row) }}</p>
   </section>
@@ -88,13 +81,6 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
   color: var(--faint);
 }
 
-.sub .now {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--ink2);
-  overflow-wrap: anywhere;
-}
-
 .sub .sm,
 .sub > .rs {
   margin: 0;
@@ -112,19 +98,5 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
 
 .sub > details > summary:hover {
   color: var(--muted);
-}
-
-.sub .steps {
-  display: grid;
-  gap: 6px;
-  margin: 6px 0 2px;
-}
-
-.sub .step {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--ink2);
-  overflow-wrap: anywhere;
 }
 </style>

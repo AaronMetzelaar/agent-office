@@ -13,6 +13,7 @@ import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
 import ShipIt from './chat/ShipIt.vue'
 import Simulator from './chat/Simulator.vue'
+import SubagentStrip from './chat/SubagentStrip.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
@@ -143,6 +144,7 @@ onUnmounted(() => {
       <button v-for="effort in efforts" :key="effort" type="button" role="radio" :aria-checked="chat.effort === effort" @click="setEffort(effort)">{{ effortLabels[effort] }}</button>
     </div>
     <p :class="['doing', agent.state]">{{ agent.caption }}</p>
+    <SubagentStrip v-if="chat" :chat="chat" />
     <template v-if="tab === 'chat'">
       <Transcript v-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
     </template>
