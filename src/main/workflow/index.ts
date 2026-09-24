@@ -5,7 +5,6 @@ import type { TicketLookup } from '../../shared/workflow'
 import type { Hub } from '../ipc'
 import { repoRoot } from '../permissions/repo-root'
 import { gitStatus, toplevel, type Run } from '../review/git'
-import type { Engine } from '../sessions/manager'
 import type { ChatStore } from '../store/chats'
 import { chatTicketId, ticketId, withTicket, type Linear } from './linear'
 import { loadShipIt } from './next-step'
@@ -13,14 +12,14 @@ import { createReviewQueue, reviewStart } from './review-requests'
 
 export interface WorkflowDeps {
   store: Pick<ChatStore, 'view' | 'views' | 'start'>
-  engine: Pick<Engine, 'commands'>
+  commandNames(chatId: string): string[]
   accounts: () => AccountView[]
   linear: Linear
   gh: Run
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(hub: Hub, { store, engine, accounts, linear, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
@@ -33,7 +32,7 @@ export function wireWorkflow(hub: Hub, { store, engine, accounts, linear, gh, co
     return store.start(accountId, cwd, seeded.prompt, model, effort, seeded.options)
   })
 
-  hub.handle('getShipIt', (chatId) => loadShipIt(cwdOf(chatId), engine.commands(chatId) ?? [], linear, gh))
+  hub.handle('getShipIt', (chatId) => loadShipIt(cwdOf(chatId), commandNames(String(chatId)), linear, gh))
 
   hub.handle('lookupTicket', async (text): Promise<TicketLookup> => {
     const id = typeof text === 'string' ? ticketId(text) : undefined

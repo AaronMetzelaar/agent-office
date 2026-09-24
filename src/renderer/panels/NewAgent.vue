@@ -6,6 +6,7 @@ import type { AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
 import { leadingTicket, type Ticket } from '../../shared/workflow'
 import { dept as deptDefs, kindOf } from '../office/layout'
+import SlashInput from './chat/SlashInput.vue'
 
 const props = defineProps<{ accounts: AccountView[]; desk?: { dept: DeptId; slot: number } }>()
 const emit = defineEmits<{ close: []; started: [chatId: string, dept: DeptId] }>()
@@ -22,7 +23,7 @@ function recallWorktree(): boolean {
 
 const rules = ref<readonly DeptRule[]>(defaultRules)
 const folders = ref<string[]>([])
-const promptEl = ref<HTMLTextAreaElement>()
+const promptEl = ref<InstanceType<typeof SlashInput>>()
 const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
 const error = ref('')
 const busy = ref(false)
@@ -55,6 +56,7 @@ const place = computed(() => (props.desk ? `${kindOf(props.desk.dept) === 'gym' 
 const percent = (value?: number) => (value === undefined ? '–' : `${Math.round(value)}%`)
 const usage = (candidate: AccountView) => (candidate.health.status === 'needs-login' ? 'needs login' : `5h ${percent(candidate.health.headroom?.fiveHour?.utilization)} · week ${percent(candidate.health.headroom?.sevenDay?.utilization)}`)
 const home = (path: string) => path.replace(/^\/Users\/[^/]+/, '~')
+const loadCommands = async () => (form.folder ? window.office.getCommands({ cwd: form.folder }) : undefined)
 
 function useSuggested() {
   if (!hint.value) return
@@ -137,7 +139,7 @@ onMounted(async () => {
     </div>
     <label class="field">
       Prompt
-      <textarea ref="promptEl" v-model="form.prompt" rows="5" placeholder="What should this agent do? A Linear ticket id or link is enough." aria-label="Prompt" />
+      <SlashInput ref="promptEl" v-model="form.prompt" :load="loadCommands" below rows="5" placeholder="What should this agent do? A Linear ticket id or link is enough. / for commands." aria-label="Prompt" />
     </label>
     <p v-if="ticketLine" class="note" role="status">{{ ticketLine }}</p>
     <label class="field">

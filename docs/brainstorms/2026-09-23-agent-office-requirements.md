@@ -135,7 +135,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 *Input*
 - R14. Rich input:
   - Attach images and files.
-  - Run slash commands and skills.
+  - Run slash commands and skills. Typing `/` at the start of a message, or after a space, lists the chat's commands and skills with their descriptions and argument hints. The list filters as you type and works from the keyboard. "Browse all" opens the full list. The New agent prompt gets the same picker. Before a session is running, the office shows the repository's list from its last session, or else a quick scan of skill folders, and says which one it is.
   - Plan mode, where you approve or reject the plan before any edits.
 
 *History and inbox*

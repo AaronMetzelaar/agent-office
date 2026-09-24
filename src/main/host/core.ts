@@ -5,6 +5,7 @@ import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validateWithSdk } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
+import { wireCommands } from '../commands'
 import { createPlacement, loadRules } from '../departments/classifier'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
@@ -76,7 +77,8 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   hub.handle('getSettings', settings)
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
-  const reviews = wireWorkflow(hub, { store, engine, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)

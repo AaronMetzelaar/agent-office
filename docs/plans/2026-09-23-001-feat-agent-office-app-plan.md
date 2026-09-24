@@ -853,6 +853,13 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - Attachments: images and files by paste, drop or pick, sent as content blocks. Size and type limits enforced before sending.
 - Typing "/" opens a palette from the session's `supportedCommands()` (built-ins, custom commands, skills), refreshed when commands change mid-session.
+- **Slash picker (built 2026-09-24):**
+  - `SlashInput.vue` wraps the composer's and the New agent form's textarea. A `/` at the start of the message or after whitespace opens `CommandPicker.vue`: name, argument hint and description, fuzzy filtered as you type. Up and down move, Enter or Tab insert `/name `, and Esc closes without leaving the chat or the form. Groups: Recently used (last 8 picks, kept in `localStorage`), Skills, Custom commands, Plugin skills, Built-in commands. While typing, the group holding the best match comes first. The picker shows at most 60 rows; "Browse all" and the composer's "/ Commands" button open `CommandBrowser.vue` with every entry.
+  - The picker asks the host each time it opens (`getCommands`, `src/main/commands`). Order: the chat's live list (labelled nothing), then the last list any session in the same repository root reported (saved in `office.db` table `commands` on every `supportedCommands()` and `commands_changed`, labelled "from last session"), then a local scan (labelled "may be incomplete"). The scan reads `<cwd>/.claude` and `<repo root>/.claude` skills and commands, `~/.claude/skills` and `~/.claude/commands` (subfolders become `folder:name`), and the skills and commands of plugins listed in `installed_plugins.json` and enabled in `settings.json`, as `plugin:name`.
+  - The SDK marks only built-ins (`builtin`). Live entries are sorted into skill, custom command and plugin skill by matching names against the scan, then by a `:` in the name.
+  - Ship-it actions use the same list, so after a relaunch an idle chat shows its MWS actions again.
+  - No session is started to list commands. The SDK needs a spawned `claude` process for `supportedCommands()`, even though that costs no model turn; the scan and the saved list cover the gap instead.
+  - Visitors have no composer, so they get no picker.
 - Plan mode can be chosen at start or switched mid-chat, and approval uses Unit 8's plan card.
 
 **Test scenarios:**
@@ -1015,7 +1022,7 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Tune the classifier thresholds (60% over two evaluations) against real transcripts. After a week of real use.
 - [ ] Mac notifications need the self-signed "Agent Office Local" certificate, which Aaron creates (steps in the README). Then build signed and verify the actions on screen.
 - [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
-- [ ] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
+- [x] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
 - [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
 - [ ] Desks are merged per desk, not per section, so they can come and go. With resting agents in the Lounge there are far fewer desks (Aaron's floor: 687 → 500 draw calls), but merge a section's desks if the 15-agent frame budget gets tight. Unit 14.
 - [ ] Floors with two section rows pack at about 1.5× the natural area of their sections (Aaron's single-row floor is 1.21×). Every row needs an aisle, and rows narrower than the office band stretch their sections rather than leave gaps. Walkways stay within about a fifth of the floor. Revisit with a skyline packer if busy days look too roomy. Unit 14.

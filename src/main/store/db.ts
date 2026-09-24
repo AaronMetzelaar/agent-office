@@ -1,3 +1,4 @@
+import type { SlashCommand } from '@anthropic-ai/claude-agent-sdk'
 import Database from 'better-sqlite3'
 import { safeStorage } from 'electron'
 import type { ChatMode, ChatState, Effort, Stuck, Usage } from '../../shared/chat'
@@ -57,6 +58,7 @@ create table if not exists chats (
 create table if not exists drafts (chat_id text primary key, body blob not null, updated_at integer not null);
 create table if not exists account_health (account_id text primary key, health text not null);
 create table if not exists settings (key text primary key, value text not null);
+create table if not exists commands (repo text primary key, list text not null, updated_at integer not null);
 `
 
 const addedColumns: [string, string][] = [
@@ -135,6 +137,8 @@ export function openDb(file: string) {
   const listHealth = db.prepare('select account_id, health from account_health')
   const readSetting = db.prepare('select value from settings where key = ?')
   const saveSetting = db.prepare('insert or replace into settings (key, value) values (?, ?)')
+  const saveCommands = db.prepare('insert or replace into commands (repo, list, updated_at) values (?, ?, ?)')
+  const readCommands = db.prepare('select list from commands where repo = ?')
 
   return {
     sql: db,
@@ -158,6 +162,11 @@ export function openDb(file: string) {
       return row ? JSON.parse(row.value) : undefined
     },
     saveSetting: (key: string, value: unknown) => void saveSetting.run(key, JSON.stringify(value)),
+    saveCommands: (repo: string, list: SlashCommand[]) => void saveCommands.run(repo, JSON.stringify(list), Date.now()),
+    commands(repo: string): SlashCommand[] | undefined {
+      const row = readCommands.get(repo) as { list: string } | undefined
+      return row ? (JSON.parse(row.list) as SlashCommand[]) : undefined
+    },
     close: () => db.close(),
   }
 }

@@ -85,7 +85,7 @@ describe('ship-it for a chat', () => {
     const chatId = office.start('Bid flow approach')
     office.finish(chatId)
 
-    const ship = await loadShipIt(dir, office.engine.commands(chatId) ?? [], noLinear, gh)
+    const ship = await loadShipIt(dir, office.engine.commands(chatId)?.map((command) => command.name) ?? [], noLinear, gh)
     expect(ship.steps.map((step) => step.label)).toEqual(['Answer comments'])
     expect(ship.ticket).toEqual({ id: 'AUC-1302' })
     expect(calls.map((args) => args.slice(0, 2).join(' '))).toEqual(['pr view', 'api graphql'])

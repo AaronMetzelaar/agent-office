@@ -69,6 +69,7 @@ export function createFakeEngine({ auto = false } = {}) {
   let nextPid = 70_000
   let supported = ['compact', 'review', 'mws-test-cases', 'mws-verify', 'mws-review', 'mws-pr', 'pr-comment-rundown', 'gh-fix-ci', 'pr-review-rundown']
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
+  const listed = () => supported.map((name) => ({ name, description: '', argumentHint: '' }))
 
   function ask(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
     const session = live.get(chatId)
@@ -84,6 +85,7 @@ export function createFakeEngine({ auto = false } = {}) {
     if (!session) throw new Error(`no fake session for ${chatId}`)
     session.initialized = true
     emit(chatId, sdk.init(session.sessionId))
+    events.emit('commands', chatId, listed())
   }
 
   async function play(chatId: string, text: string) {
@@ -158,7 +160,7 @@ export function createFakeEngine({ auto = false } = {}) {
     },
     running: (chatId) => live.has(chatId),
     pid: (chatId) => live.get(chatId)?.pid,
-    commands: (chatId) => (starts.some((start) => start.chatId === chatId) ? supported : undefined),
+    commands: (chatId) => (starts.some((start) => start.chatId === chatId) ? listed() : undefined),
   } satisfies Engine
 
   const processes = {

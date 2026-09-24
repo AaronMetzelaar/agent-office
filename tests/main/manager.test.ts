@@ -143,9 +143,9 @@ describe('session manager', () => {
 
     engine.start('c1', { accountId: 'main', cwd: tmpdir() })
     await vi.waitFor(() => expect(seen).toHaveLength(2))
-    expect(engine.commands('c1')).toEqual(['compact', 'mws-pr', 'mws-verify'])
+    expect(engine.commands('c1')?.map((command) => command.name)).toEqual(['compact', 'mws-pr', 'mws-verify'])
 
     engine.stop('c1')
-    expect(engine.commands('c1')).toEqual(['compact', 'mws-pr', 'mws-verify'])
+    expect(engine.commands('c1')?.map((command) => command.name)).toEqual(['compact', 'mws-pr', 'mws-verify'])
   })
 })

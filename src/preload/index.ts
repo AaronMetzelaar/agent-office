@@ -53,6 +53,7 @@ const office: OfficeApi = {
   finishChat: (chatId, removeWorktree) => ipcRenderer.invoke('finishChat', chatId, removeWorktree),
   finishChats: (chatIds, removeWorktrees) => ipcRenderer.invoke('finishChats', chatIds, removeWorktrees),
   getShipIt: (chatId) => ipcRenderer.invoke('getShipIt', chatId),
+  getCommands: (target) => ipcRenderer.invoke('getCommands', target),
   lookupTicket: (text) => ipcRenderer.invoke('lookupTicket', text),
   moveTicket: (chatId) => ipcRenderer.invoke('moveTicket', chatId),
   getReviewRequests: () => ipcRenderer.invoke('getReviewRequests'),

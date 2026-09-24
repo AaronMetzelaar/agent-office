@@ -1,3 +1,4 @@
+import type { CommandList, CommandTarget } from './commands'
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
@@ -100,6 +101,7 @@ export interface Commands {
   finishChat(chatId: string, removeWorktree?: boolean): Promise<Finished | undefined>
   finishChats(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>
   getShipIt(chatId: string): Promise<ShipIt>
+  getCommands(target: CommandTarget): CommandList
   lookupTicket(text: string): Promise<TicketLookup>
   moveTicket(chatId: string): Promise<{ status?: string; error?: string }>
   getReviewRequests(): ReviewQueue

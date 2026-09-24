@@ -16,7 +16,7 @@ export interface StartOptions {
   forkSession?: boolean
 }
 
-export type EngineEvents = { message: [chatId: string, message: SDKMessage]; end: [chatId: string, error?: string] }
+export type EngineEvents = { message: [chatId: string, message: SDKMessage]; end: [chatId: string, error?: string]; commands: [chatId: string, commands: SlashCommand[]] }
 
 export interface Engine {
   events: EventEmitter<EngineEvents>
@@ -30,7 +30,7 @@ export interface Engine {
   setPermissions(chatId: string, permissions: SessionPermissions): Promise<void>
   running(chatId: string): boolean
   pid(chatId: string): number | undefined
-  commands(chatId: string): string[] | undefined
+  commands(chatId: string): SlashCommand[] | undefined
 }
 
 export type ChatCanUseTool = (chatId: string, ...args: Parameters<CanUseTool>) => ReturnType<CanUseTool>
@@ -80,8 +80,11 @@ function inputQueue() {
 export function createSessionManager(tokenFor: (accountId: string) => string | undefined, canUseTool: ChatCanUseTool): Engine {
   const events = new EventEmitter<EngineEvents>()
   const sessions = new Map<string, Session>()
-  const commands = new Map<string, string[]>()
-  const learn = (chatId: string, list: SlashCommand[]) => commands.set(chatId, list.map((command) => command.name))
+  const commands = new Map<string, SlashCommand[]>()
+  const learn = (chatId: string, list: SlashCommand[]) => {
+    commands.set(chatId, list)
+    events.emit('commands', chatId, list)
+  }
 
   const live = (chatId: string) => {
     const session = sessions.get(chatId)
