@@ -13,6 +13,7 @@ export type ChatEvent =
   | { type: 'subagent-background'; id: string }
   | { type: 'subagent-progress'; id: string; activity: string }
   | { type: 'subagent-stop'; id: string }
+  | { type: 'background-tasks'; count: number }
   | { type: 'turn-result'; usage: Usage; isError: boolean; errorText?: string }
   | { type: 'headroom'; info: SDKRateLimitInfo }
   | { type: 'retry-at'; at: number }
@@ -29,7 +30,6 @@ const quietSystem = new Set([
   'task_updated',
   'thinking_tokens',
   'session_state_changed',
-  'background_tasks_changed',
   'commands_changed',
   'files_persisted',
   'control_request_progress',
@@ -121,6 +121,7 @@ export function normalize(message: SDKMessage): ChatEvent[] {
         return message.tool_use_id && message.summary ? [{ type: 'subagent-progress', id: message.tool_use_id, activity: message.summary }] : []
       }
       if (message.subtype === 'task_notification') return message.tool_use_id ? [{ type: 'subagent-stop', id: message.tool_use_id }] : []
+      if (message.subtype === 'background_tasks_changed') return [{ type: 'background-tasks', count: message.tasks.filter((task) => !task.ambient).length }]
       if (message.subtype === 'api_retry') return message.error === 'rate_limit' ? [{ type: 'retry-at', at: Date.now() + message.retry_delay_ms }] : []
       return quietSystem.has(message.subtype) ? [] : [{ type: 'other', label: `system:${message.subtype}` }]
     default:

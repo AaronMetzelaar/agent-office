@@ -155,6 +155,19 @@ describe('chat store', () => {
     expect(chat(id)).toMatchObject({ state: 'done', subagents: [] })
   })
 
+  it('stays Working while a background shell task runs past the main turn', () => {
+    const { engine, chat } = office
+    const id = working()
+    engine.emit(id, sdk.backgroundTasks({}, { ambient: true }))
+    engine.emit(id, sdk.result())
+    expect(chat(id)).toMatchObject({ state: 'working', unread: false })
+    expect(caption(id)).toBe('Waiting on background tasks')
+
+    engine.emit(id, sdk.backgroundTasks({ ambient: true }))
+    engine.emit(id, sdk.result())
+    expect(chat(id).state).toBe('done')
+  })
+
   it('wakes a Done agent back to Working when it resumes on its own', () => {
     const { engine, chat } = office
     const id = working()

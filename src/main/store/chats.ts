@@ -24,6 +24,7 @@ export interface AccountHooks {
 interface Chat {
   view: ChatView
   background: Set<string>
+  backgroundTasks: number
   interrupting: boolean
   retryAt?: number
   lastError?: string
@@ -121,7 +122,7 @@ export async function olderRowsOf(sessionId: string, loaded: readonly ChatRow[],
 function fromRecord(record: ChatRecord): Chat {
   const { doneAt, readAt, ...fields } = record
   const view: ChatView = { ...fields, stateSince: record.lastActivityAt, activity: '', pending: [], pendingRequests: [], subagents: [], partial: '', rows: [] }
-  return { view, background: new Set(), interrupting: false, doneAt, readAt }
+  return { view, background: new Set(), backgroundTasks: 0, interrupting: false, doneAt, readAt }
 }
 
 function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
@@ -234,6 +235,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         chat.background.delete(event.id)
         dropSubagent(chat, event.id)
         break
+      case 'background-tasks':
+        chat.backgroundTasks = event.count
+        break
       case 'turn-result': {
         const interrupted = chat.interrupting
         const lastError = chat.lastError
@@ -241,7 +245,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         chat.lastError = undefined
         set(chat, { usage: event.usage })
         if (event.isError && !interrupted) fail(chat, [lastError, event.errorText].filter(Boolean).join(': '), 'error')
-        else if (!interrupted && chat.background.size && midTurn.has(view.state)) set(chat, { activity: 'Thinking', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
+        else if (!interrupted && (chat.background.size || chat.backgroundTasks) && midTurn.has(view.state)) set(chat, { activity: 'Waiting on background tasks', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
         else if (midTurn.has(view.state)) {
           chat.background.clear()
           chat.doneAt = Date.now()
@@ -268,6 +272,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   )
   engine.events.on('end', (chatId, error) =>
     guard(chatId, (chat) => {
+      chat.backgroundTasks = 0
       if (midTurn.has(chat.view.state)) fail(chat, error ?? 'The Claude process exited mid-turn', 'crashed')
     }),
   )
@@ -359,7 +364,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       rows: [],
       ...init,
     }
-    const chat: Chat = { view, background: new Set(), interrupting: false }
+    const chat: Chat = { view, background: new Set(), backgroundTasks: 0, interrupting: false }
     chats.set(view.id, chat)
     save(chat)
     const { rows, ...fields } = view
