@@ -127,7 +127,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R18. Chats started outside the office (the desktop app, `claude` in a terminal) appear read-only with live status. A "Move into the office" action resumes that chat inside the office so you can chat and approve there.
   - Archive hides a visitor in the office only, after a confirmation: "Hidden from the office. It stays in the desktop app until you archive it there." The office never writes the desktop app's files. The archive is kept in office.db, and the chat comes back if its transcript is written again or a hook reports real activity (a prompt, a tool call, a permission request, a Stop).
   - A visitor in a git worktree can have the worktree removed under R23's rules. It's also refused while the visitor is Working or Needs you, or had activity in the last 10 minutes. After removal the chat is archived.
-  - A quiet visitor stays in the office, parked, while its worktree exists, so it can reach R23's cleanup age. Other visitors still leave after a day without activity.
+  - A quiet visitor is kept while its worktree exists, so it can reach R23's cleanup age, but only in Housekeeping's "Visitors in worktrees" section. It isn't on the floor or in the lounge, and it returns there only when it's active again. Other visitors still leave after a day without activity.
 
 **Housekeeping**
 - R21. Parking: a chat with no message for 1 day leaves its desk for a Parked area near the entrance, dimmed and without a tag at the overview. It returns when a message arrives. Parking also stops the chat's long-running child processes (dev servers, test watchers, docker compose) to free RAM; they restart on demand. Thresholds are editable.

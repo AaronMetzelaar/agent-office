@@ -56,7 +56,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     return accounts().find((account) => isResearch(account) === research)?.id ?? unknownAccount
   }
   const inResearch = (accountId: string) => isResearch({ label: accounts().find((account) => account.id === accountId)?.label ?? '' })
-  const parkedAt = (id: string, lastActivityAt: number) => moved.has(id) || now() - lastActivityAt > activeWindowMs
+  const retainedAt = (id: string, lastActivityAt: number) => !moved.has(id) && now() - lastActivityAt > activeWindowMs
   const saveArchived = () => settings.saveSetting(archivedKey, [...archived].slice(-maxMoved))
   const unarchive = (id: string) => archived.delete(id) && saveArchived()
   const hidden = (seed: VisitorSeed) => {
@@ -100,8 +100,8 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       createdAt: seed.createdAt,
       lastActivityAt: seed.lastActivityAt,
       rows: [],
-      ...(moved.has(seed.sessionId) ? { moved: true } : {}),
-      ...(parkedAt(seed.sessionId, seed.lastActivityAt) ? { parked: true } : {}),
+      ...(moved.has(seed.sessionId) ? { moved: true, parked: true } : {}),
+      ...(retainedAt(seed.sessionId, seed.lastActivityAt) ? { retained: true } : {}),
     }
     const entry: Entry = { view, tally: newTally(), titled: seed.titled }
     for (const events of seed.evidence) view.department = placed(entry, events) ?? view.department
@@ -184,8 +184,8 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         const accountId = accountFor(seed.instance)
         if (accountId !== entry.view.accountId) fields.accountId = accountId
         if (seed.lastActivityAt > entry.view.lastActivityAt) fields.lastActivityAt = seed.lastActivityAt
-        const parked = parkedAt(entry.view.id, fields.lastActivityAt ?? entry.view.lastActivityAt)
-        if (parked !== !!entry.view.parked) fields.parked = parked
+        const retained = retainedAt(entry.view.id, fields.lastActivityAt ?? entry.view.lastActivityAt)
+        if (retained !== !!entry.view.retained) fields.retained = retained
         const hookGoneQuiet = entry.view.state === 'working' && now() - (entry.hookAt ?? 0) > hookQuietMs
         if ((entry.hookAt === undefined || hookGoneQuiet) && seed.state !== entry.view.state) Object.assign(fields, { state: seed.state, stateSince: now(), unread: seed.state === 'done' })
         if (Object.keys(fields).length) set(entry, fields)
@@ -209,7 +209,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       }
       entry.hookAt = now()
       apply(entry, event)
-      if (entry.view.parked && !moved.has(id)) set(entry, { parked: false })
+      if (entry.view.retained) set(entry, { retained: false })
       if (open !== id || !refreshOn.has(event.hook_event_name)) return
       clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => void refresh(id), refreshMs)
@@ -244,7 +244,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       moved.add(chatId)
       settings.saveSetting(movedKey, [...moved].slice(-maxMoved))
       const entry = visitors.get(chatId)
-      if (entry) set(entry, { moved: true, parked: true })
+      if (entry) set(entry, { moved: true, parked: true, retained: false })
     },
   }
 }

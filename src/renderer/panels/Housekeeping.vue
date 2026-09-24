@@ -37,15 +37,15 @@ const rows = computed<Row[]>(() => {
     .map((chat) => ({ chat, agent: agents.get(chat.id), memory: memory.get(chat.id), tree: view?.worktrees.find((tree) => inside(chat.cwd, tree.path)), stubborn: view?.stubborn[chat.id] ?? [] }))
 })
 const candidateIds = computed(() => new Set(props.view?.candidates))
-const candidates = computed(() => rows.value.filter((row) => candidateIds.value.has(row.chat.id)).sort(byMemory))
+const visiting = computed(() => rows.value.filter((row) => row.chat.visitor && !row.chat.moved && (row.tree || row.chat.retained)))
+const candidates = computed(() => rows.value.filter((row) => candidateIds.value.has(row.chat.id) && !visiting.value.includes(row)).sort(byMemory))
 const parked = computed(() => rows.value.filter((row) => row.chat.parked && !candidateIds.value.has(row.chat.id)).sort(byMemory))
-const visiting = computed(() => rows.value.filter((row) => row.chat.visitor && row.tree && !row.chat.parked && !candidateIds.value.has(row.chat.id)))
-const atDesks = computed(() => rows.value.filter((row) => !row.chat.parked && !candidateIds.value.has(row.chat.id) && row.memory).sort(byMemory))
+const atDesks = computed(() => rows.value.filter((row) => !row.chat.parked && !row.chat.retained && !candidateIds.value.has(row.chat.id) && row.memory).sort(byMemory))
 const safe = computed(() => rows.value.filter((row) => props.view?.safe.includes(row.chat.id)))
 const sections = computed(() => [
   { key: 'clean', title: `Cleanup candidates · ${candidates.value.length}`, hint: `quiet ${cleanupChoices.find(([ms]) => ms === props.view?.thresholds.cleanupAfterMs)?.[1] ?? ''}+ · by RAM`, empty: 'Nothing has been quiet that long.', rows: candidates.value },
   { key: 'park', title: `Parked · ${parked.value.length}`, hint: '', empty: '', rows: parked.value },
-  { key: 'visit', title: `Visitors in worktrees · ${visiting.value.length}`, hint: 'desktop and terminal chats', empty: '', rows: visiting.value },
+  { key: 'visit', title: `Visitors in worktrees · ${visiting.value.length}`, hint: 'desktop and terminal chats · not on the floor while quiet', empty: '', rows: visiting.value },
 ])
 const otherTrees = computed(() => props.view?.worktrees.filter((tree) => !tree.chatIds.length) ?? [])
 const diskTotal = computed(() => props.view?.worktrees.reduce((sum, tree) => sum + (tree.bytes ?? 0), 0) ?? 0)

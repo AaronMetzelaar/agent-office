@@ -13,6 +13,7 @@ import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
 import { createDiscovery } from '../../src/main/outside/transcripts'
 import { createVisitors } from '../../src/main/outside/visitors'
 import { openDb } from '../../src/main/store/db'
+import { toAgents } from '../../src/renderer/state/projection'
 import { handlers } from '../fakes/electron'
 import { openHousekeeping, openOffice } from '../fakes/office'
 import { line, writeDesktopChat, writeTranscript } from '../fakes/outside'
@@ -135,19 +136,27 @@ describe('archiving a visitor', () => {
 })
 
 describe('visitors in worktrees', () => {
-  it('keeps a quiet visitor while its worktree exists, parked, and drops quiet ones elsewhere', () => {
+  it('keeps a quiet visitor for Housekeeping while its worktree exists, off the office floor, and drops quiet ones elsewhere', () => {
     const tree = worktree('quiet')
     const elsewhere = join(dir, 'app')
     mkdirSync(elsewhere)
     const kept = visitor(tree, 4 * day)
     const dropped = visitor(elsewhere, 4 * day)
     const recent = visitor(tree, hour)
+    const revived = visitor(tree, 4 * day)
 
     const { visitors, sync } = openVisitors()
 
-    expect(visitors.view(kept)).toMatchObject({ parked: true, state: 'idle' })
+    expect(visitors.view(kept)).toMatchObject({ retained: true, state: 'idle' })
+    expect(visitors.view(kept)?.parked).toBeUndefined()
     expect(visitors.has(dropped)).toBe(false)
-    expect(visitors.view(recent)?.parked).toBeUndefined()
+    expect(visitors.view(recent)?.retained).toBeUndefined()
+    const onFloor = () => toAgents(visitors.snapshot(), [], Date.now(), new Map()).map((agent) => agent.id).sort()
+    expect(onFloor()).toEqual([recent])
+
+    visitors.hook({ session_id: revived, hook_event_name: 'UserPromptSubmit', prompt: 'Back at it' })
+    expect(visitors.view(revived)?.retained).toBe(false)
+    expect(onFloor()).toEqual([recent, revived].sort())
     git(repo, 'worktree', 'remove', tree)
     sync()
     expect(visitors.has(kept)).toBe(false)
