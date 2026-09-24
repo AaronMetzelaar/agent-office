@@ -1,5 +1,5 @@
-import { closeSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join } from 'node:path'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { ChatState, Visitor } from '../../shared/chat'
 import { normalize, type ChatEvent } from '../sessions/normalize'
@@ -16,6 +16,7 @@ export interface VisitorSeed {
   state: ChatState
   createdAt: number
   lastActivityAt: number
+  writtenAt: number
   archived: boolean
   evidence: ChatEvent[][]
 }
@@ -128,6 +129,20 @@ export function inferState(tail: Pick<Tail, 'ending'>, mtimeMs: number, now: num
   return now - mtimeMs < workingWindowMs ? 'working' : 'idle'
 }
 
+export function inLinkedWorktree(cwd: string): boolean {
+  if (!isAbsolute(cwd)) return false
+  try {
+    for (let dir = cwd; ; dir = dirname(dir)) {
+      const dotGit = join(dir, '.git')
+      const stat = statSync(dotGit, { throwIfNoEntry: false })
+      if (stat) return stat.isFile() && /[\\/]worktrees[\\/]/.test(readFileSync(dotGit, 'utf8'))
+      if (dirname(dir) === dir) return false
+    }
+  } catch {
+    return false
+  }
+}
+
 const folders = (dir: string) => {
   try {
     return readdirSync(dir)
@@ -144,6 +159,7 @@ function fileOf(sessionId: string, path: string): File | undefined {
 export function createDiscovery({ projectsDir, desktop }: { projectsDir: string; desktop: (since?: number, wanted?: ReadonlySet<string>) => ReadonlyMap<string, DesktopChat> }) {
   const heads = new Map<string, Head>()
   const tails = new Map<string, Tail & { mtimeMs: number; size: number }>()
+  const folderCwds = new Map<string, string>()
 
   const transcripts = (): File[] =>
     folders(projectsDir).flatMap((folder) =>
@@ -173,20 +189,34 @@ export function createDiscovery({ projectsDir, desktop }: { projectsDir: string;
       state: inferState(tail, file.mtimeMs, now, meta?.lastFocusedAt),
       createdAt: meta?.createdAt ?? head.createdAt ?? file.mtimeMs,
       lastActivityAt: Math.max(file.mtimeMs, meta?.lastActivityAt ?? 0),
+      writtenAt: file.mtimeMs,
       archived: meta?.archived ?? false,
       evidence: tail.evidence,
     }
+  }
+
+  function inWorktree(file: File, seen: Map<string, boolean>): boolean {
+    const folder = dirname(file.path)
+    let linked = seen.get(folder)
+    if (linked === undefined) {
+      if (!folderCwds.has(folder)) folderCwds.set(folder, readHead(file.path).cwd ?? '')
+      seen.set(folder, (linked = inLinkedWorktree(folderCwds.get(folder) ?? '')))
+    }
+    return linked
   }
 
   return {
     scan(now: number, skip: ReadonlySet<string>): VisitorSeed[] {
       const since = now - activeWindowMs
       const files = transcripts()
-      const metas = desktop(since, new Set(files.flatMap((file) => (file.mtimeMs >= since ? [file.sessionId] : []))))
+      const seen = new Map<string, boolean>()
+      const kept = new Set(files.flatMap((file) => (file.mtimeMs >= since || inWorktree(file, seen) ? [file.sessionId] : [])))
+      const metas = desktop(since, kept)
       const prior = new Set([...metas.values()].flatMap((meta) => meta.priorSessionIds))
       return files.flatMap((file) => {
         const meta = metas.get(file.sessionId)
-        if (skip.has(file.sessionId) || prior.has(file.sessionId) || now - Math.max(file.mtimeMs, meta?.lastActivityAt ?? 0) > activeWindowMs) return []
+        const quiet = now - Math.max(file.mtimeMs, meta?.lastActivityAt ?? 0) > activeWindowMs
+        if (skip.has(file.sessionId) || prior.has(file.sessionId) || (quiet && !kept.has(file.sessionId))) return []
         return seed(file, meta, now) ?? []
       })
     },

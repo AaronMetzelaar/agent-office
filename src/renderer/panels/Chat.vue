@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
 import { defaultModel, effortLabels, efforts, modelLabels, type ChatView, type Effort } from '../../shared/chat'
+import { runsIn } from '../../shared/housekeeping'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
 import type { AgentEntry } from '../office/world'
 import type { WaitingItem } from '../state/inbox'
@@ -31,7 +32,6 @@ const models = computed(() => {
   const current = props.chat?.model
   return current && !(current in modelLabels) ? [current, ...Object.keys(modelLabels)] : Object.keys(modelLabels)
 })
-const visitorFrom = computed(() => (props.chat?.visitor === 'terminal' ? 'a terminal' : 'the desktop app'))
 
 function say(message: string) {
   flash.value = message
@@ -55,6 +55,13 @@ async function move() {
   const result = await window.office.moveIntoOffice(props.chat.id).finally(() => (moving.value = false))
   if (result && 'error' in result) say(result.error)
   else if (result) emit('select', result.chatId)
+}
+
+async function archive() {
+  if (!props.chat) return
+  const result = await window.office.archiveVisitor(props.chat.id)
+  if (result?.error) say(result.error)
+  else if (result) emit('select', undefined)
 }
 
 async function resume() {
@@ -114,7 +121,8 @@ onUnmounted(() => {
       <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
     </div>
     <div v-if="chat?.visitor" class="visit" role="status">
-      <p>{{ chat.moved ? 'Moved into the office. This original stays read-only.' : `Read-only. It runs in ${visitorFrom}.` }}</p>
+      <p>{{ chat.moved ? 'Moved into the office. This original stays read-only.' : `Read-only. It runs in ${runsIn(chat)}.` }}</p>
+      <button type="button" class="btn sm" @click="archive">Archive</button>
       <button v-if="!chat.moved" type="button" class="btn primary sm" :disabled="moving" @click="move">Move into the office</button>
     </div>
     <ShipIt v-else-if="chat" :chat="chat" />
@@ -281,6 +289,7 @@ onUnmounted(() => {
 }
 
 .chatp .visit p {
+  flex: 1;
   margin: 0;
   font-size: 12.5px;
   color: var(--muted);

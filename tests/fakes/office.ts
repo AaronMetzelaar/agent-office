@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { vi } from 'vitest'
-import { createHousekeeping, realSystem, type System } from '../../src/main/housekeeping'
+import { createHousekeeping, realSystem, type System, type VisitorList } from '../../src/main/housekeeping'
 import { createWaitMetrics } from '../../src/main/metrics/wait'
 import { createBroker } from '../../src/main/permissions/registry'
 import { createRules } from '../../src/main/permissions/rules'
@@ -39,10 +39,10 @@ export const ghMissing = async (): Promise<string> => {
   throw Object.assign(new Error('spawn gh ENOENT'), { code: 'ENOENT' })
 }
 
-export function openHousekeeping(office: ReturnType<typeof openOffice>, overrides: Partial<System> = {}) {
+export function openHousekeeping(office: ReturnType<typeof openOffice>, overrides: Partial<System> = {}, visitors?: VisitorList) {
   const clock = { now: Date.now() }
   const notices: number[] = []
   const system: System = { ...realSystem(), ...office.engine.processes, gh: ghMissing, graceMs: 50, totalMemory: 64 * 2 ** 30, now: () => clock.now, ...overrides }
-  const house = createHousekeeping(office.store, office.engine, office.db, system, (count) => notices.push(count))
+  const house = createHousekeeping(office.store, office.engine, office.db, system, (count) => notices.push(count), visitors)
   return { house, clock, notices }
 }

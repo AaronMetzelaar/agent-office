@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ago, type ChatView } from '../../shared/chat'
-import { cleanupChoices, gb, parkChoices, size, stopText, summaryText, type AgentMemory, type HousekeepingView, type Proc, type WorktreeView } from '../../shared/housekeeping'
+import { cleanupChoices, gb, parkChoices, plural, runsIn, size, stopText, summaryText, visitorHold, type AgentMemory, type HousekeepingView, type Proc, type WorktreeView } from '../../shared/housekeeping'
 import type { AgentEntry } from '../office/world'
 
 const props = defineProps<{ view?: HousekeepingView; chats: ChatView[]; agents: AgentEntry[] }>()
@@ -39,18 +39,22 @@ const rows = computed<Row[]>(() => {
 const candidateIds = computed(() => new Set(props.view?.candidates))
 const candidates = computed(() => rows.value.filter((row) => candidateIds.value.has(row.chat.id)).sort(byMemory))
 const parked = computed(() => rows.value.filter((row) => row.chat.parked && !candidateIds.value.has(row.chat.id)).sort(byMemory))
+const visiting = computed(() => rows.value.filter((row) => row.chat.visitor && row.tree && !row.chat.parked && !candidateIds.value.has(row.chat.id)))
 const atDesks = computed(() => rows.value.filter((row) => !row.chat.parked && !candidateIds.value.has(row.chat.id) && row.memory).sort(byMemory))
 const safe = computed(() => rows.value.filter((row) => props.view?.safe.includes(row.chat.id)))
 const sections = computed(() => [
   { key: 'clean', title: `Cleanup candidates · ${candidates.value.length}`, hint: `quiet ${cleanupChoices.find(([ms]) => ms === props.view?.thresholds.cleanupAfterMs)?.[1] ?? ''}+ · by RAM`, empty: 'Nothing has been quiet that long.', rows: candidates.value },
   { key: 'park', title: `Parked · ${parked.value.length}`, hint: '', empty: '', rows: parked.value },
+  { key: 'visit', title: `Visitors in worktrees · ${visiting.value.length}`, hint: 'desktop and terminal chats', empty: '', rows: visiting.value },
 ])
 const otherTrees = computed(() => props.view?.worktrees.filter((tree) => !tree.chatIds.length) ?? [])
 const diskTotal = computed(() => props.view?.worktrees.reduce((sum, tree) => sum + (tree.bytes ?? 0), 0) ?? 0)
 const outsideTotal = computed(() => props.view?.outside.reduce((sum, use) => sum + use.bytes, 0) ?? 0)
+const officeSafe = computed(() => safe.value.filter((row) => !row.chat.visitor))
 const preview = computed(() => ({
-  bytes: total(safe.value),
-  processes: safe.value.reduce((sum, row) => sum + (row.memory?.processes.length ?? 0), 0),
+  bytes: total(officeSafe.value),
+  processes: officeSafe.value.reduce((sum, row) => sum + (row.memory?.processes.length ?? 0), 0),
+  visitors: safe.value.length - officeSafe.value.length,
   trees: safe.value.filter((row) => row.tree).length,
   disk: safe.value.reduce((sum, row) => sum + (row.tree?.bytes ?? 0), 0),
 }))
@@ -87,6 +91,16 @@ const cleanUp = (chatIds?: string[]) =>
     const skipped = chatIds && summary.skipped[0] ? ` · ${summary.skipped[0].reason}` : ''
     return summaryText(summary) + skipped
   })
+const archiveVisitor = (row: Row) =>
+  act(async () => {
+    const result = await window.office.archiveVisitor(row.chat.id)
+    return result ? (result.error ?? `Archived ${row.chat.title} in the office`) : ''
+  })
+const removeVisitorTree = (row: Row) =>
+  act(async () => {
+    const result = await window.office.removeVisitorWorktree(row.chat.id)
+    return result.error ?? `Removed ${folderName(row.tree?.path ?? '')}${result.bytes ? ` · ${size(result.bytes)}` : ''} · chat archived`
+  })
 const removeTree = (tree: WorktreeView) =>
   act(async () => {
     const result = await window.office.removeWorktree(tree.path)
@@ -101,7 +115,9 @@ async function setThreshold(key: 'parkAfterMs' | 'cleanupAfterMs', event: Event)
   await window.office.setThresholds(next)
 }
 
-const processLine = (row: Row) => row.memory?.processes.map((proc) => `${proc.command} · ${size(proc.bytes)}`).join('  ·  ') || 'no processes running'
+const processLine = (row: Row) => row.memory?.processes.map((proc) => `${proc.command} · ${size(proc.bytes)}`).join('  ·  ') || (row.chat.visitor ? `runs in ${runsIn(row.chat)}` : 'no processes running')
+const ram = (row: Row) => (row.memory || !row.chat.visitor ? size(bytesOf(row)) : `RAM: in ${row.chat.visitor === 'terminal' ? 'terminal' : 'desktop app'}`)
+const hold = (row: Row) => (row.chat.visitor ? visitorHold(row.chat, now.value) : undefined)
 const quiet = (row: Row) => ago(now.value - row.chat.lastActivityAt)
 
 onMounted(() => void window.office.getHousekeeping(true))
@@ -160,6 +176,7 @@ onUnmounted(() => {
           <li>Stop <b>{{ preview.processes }} processes</b>, freeing <b>{{ gb(preview.bytes) }}</b> of RAM</li>
           <li>Remove <b>{{ preview.trees }} worktree{{ preview.trees === 1 ? '' : 's' }}</b> ({{ gb(preview.disk) }} on disk)</li>
           <li>Archive: {{ safe.map((row) => row.chat.title).join(', ') }}</li>
+          <li v-if="preview.visitors">Hide <b>{{ plural(preview.visitors, 'visitor') }}</b> from the office. The desktop app and terminal keep them.</li>
         </ul>
         <p>Only chats with a clean worktree or a merged PR. Nothing uncommitted or unpushed is touched, and nothing is force-removed.</p>
         <div class="btns">
@@ -180,7 +197,7 @@ onUnmounted(() => {
         <div class="hr1">
           <span class="dd" :style="{ background: row.agent?.colour ?? '#9ca3af' }" />
           <b>{{ row.chat.title }}</b>
-          <em>{{ size(bytesOf(row)) }}</em>
+          <em>{{ ram(row) }}</em>
         </div>
         <div class="hr2">
           <span>{{ row.agent?.dept ?? folderName(row.chat.cwd) }}</span><span>·</span><span>{{ quiet(row) }} ago</span><span>·</span>
@@ -188,9 +205,14 @@ onUnmounted(() => {
           <span v-if="row.tree" :class="['gc', { safe: row.tree.git?.safe, block: row.tree.git?.blocked }]">{{ row.tree.git?.label ?? 'checking…' }}</span>
         </div>
         <div class="hr3" :title="row.chat.cwd">{{ processLine(row) }}</div>
-        <p v-if="row.tree?.git?.blocked" class="hwhy">Can’t remove the worktree: {{ row.tree.git.blocked }}. Open the chat to commit or push first.</p>
+        <p v-if="row.tree?.git?.blocked" class="hwhy">Can’t remove the worktree: {{ row.tree.git.blocked }}. {{ row.chat.visitor ? `Commit or push in ${runsIn(row.chat)} first.` : 'Open the chat to commit or push first.' }}</p>
+        <p v-else-if="row.tree && hold(row)" class="hwhy">Can’t remove the worktree: {{ hold(row) }}.</p>
         <p v-for="proc in row.stubborn" :key="proc.pid" class="hwhy">{{ proc.command }} (pid {{ proc.pid }}) kept running after a stop request. Quit it yourself if you don’t need it.</p>
-        <div class="hr4">
+        <div v-if="row.chat.visitor" class="hr4">
+          <button type="button" class="btn sm" :disabled="busy" @click="archiveVisitor(row)">Archive chat</button>
+          <button v-if="row.tree" type="button" class="btn sm" :disabled="!row.tree.git?.safe || !!hold(row) || busy" @click="removeVisitorTree(row)">Remove worktree</button>
+        </div>
+        <div v-else class="hr4">
           <button type="button" class="btn sm" :disabled="!row.memory || busy" @click="stop(row)">Stop processes</button>
           <button type="button" class="btn sm" :disabled="busy" @click="archive(row)">Archive chat</button>
           <button v-if="row.tree?.git?.blocked" type="button" class="btn sm primary" @click="emit('select', row.chat.id)">Open chat</button>
@@ -202,7 +224,7 @@ onUnmounted(() => {
     <template v-if="atDesks.length">
       <h3 class="sec">At desks · {{ atDesks.length }}</h3>
       <button v-for="row in atDesks" :key="row.chat.id" type="button" class="hrow" @click="emit('select', row.chat.id)">
-        <span class="hr1"><span class="dd" :style="{ background: row.agent?.colour ?? '#9ca3af' }" /><b>{{ row.chat.title }}</b><em>{{ size(bytesOf(row)) }}</em></span>
+        <span class="hr1"><span class="dd" :style="{ background: row.agent?.colour ?? '#9ca3af' }" /><b>{{ row.chat.title }}</b><em>{{ ram(row) }}</em></span>
         <span class="hr3">{{ processLine(row) }}</span>
       </button>
     </template>

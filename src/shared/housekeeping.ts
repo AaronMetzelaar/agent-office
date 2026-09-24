@@ -1,3 +1,5 @@
+import type { ChatFields } from './chat'
+
 export interface Thresholds {
   parkAfterMs: number
   cleanupAfterMs: number
@@ -77,6 +79,7 @@ export interface StopReport {
 
 export interface CleanupSummary {
   chats: number
+  visitors: number
   freedBytes: number
   diskBytes: number
   removed: number
@@ -85,6 +88,7 @@ export interface CleanupSummary {
 }
 
 export const hotShare = 0.4
+export const recentMs = 10 * 60_000
 
 const mb = 2 ** 20
 export const gb = (bytes: number) => `${(bytes / 2 ** 30).toFixed(1)} GB`
@@ -94,7 +98,16 @@ export const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n 
 export function summaryText(summary: CleanupSummary): string {
   const disk = summary.diskBytes ? ` (${size(summary.diskBytes)} on disk)` : ''
   const stuck = summary.stubborn.length ? ` · ${plural(summary.stubborn.length, 'process', 'processes')} didn’t stop` : ''
-  return `Freed ${gb(summary.freedBytes)} · removed ${plural(summary.removed, 'worktree')}${disk}${stuck}`
+  const visitors = summary.visitors ? ` · ${summary.visitors === 1 ? '1 was a visitor' : `${summary.visitors} were visitors`}` : ''
+  return `Freed ${gb(summary.freedBytes)} · removed ${plural(summary.removed, 'worktree')}${disk}${visitors}${stuck}`
+}
+
+export const runsIn = (chat: Pick<ChatFields, 'visitor'>) => (chat.visitor === 'terminal' ? 'a terminal' : 'the desktop app')
+
+export function visitorHold(chat: Pick<ChatFields, 'visitor' | 'state' | 'lastActivityAt'>, now: number): string | undefined {
+  if (chat.state === 'working') return `the chat is working in ${runsIn(chat)}`
+  if (chat.state === 'needs-you') return `the chat is waiting for you in ${runsIn(chat)}`
+  return now - chat.lastActivityAt < recentMs ? 'the chat had activity in the last 10 minutes' : undefined
 }
 
 export function stopText(report: StopReport): string {

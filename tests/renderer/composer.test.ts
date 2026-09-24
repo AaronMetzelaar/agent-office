@@ -78,6 +78,7 @@ describe('drafts', () => {
     expect(await drafts.load(id)).toBe('Ship it')
     expect(office.engine.sent.map((sent) => sent.text)).not.toContain('Ship it')
     expect(office.chat(id).rows.some((row) => row.kind === 'user' && row.text === 'Ship it')).toBe(false)
+    await drafts.flush()
   })
 })
 
@@ -103,6 +104,7 @@ describe('replying while a request waits', () => {
     expect(await drafts.load(id)).toBe('Actually, only the unit')
     expect(await submit(apiFor(office), id, 'Actually, only the unit', chat.pendingRequests[0])).toEqual({ sent: true })
     expect(office.engine.sent.at(-1)).toEqual({ chatId: id, text: 'Actually, only the unit' })
+    await drafts.flush()
   })
 
   it('a request answered in this panel shows no “answered elsewhere” card', () => {
