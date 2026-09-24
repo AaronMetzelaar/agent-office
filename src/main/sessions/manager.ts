@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk'
 import type { Effort } from '../../shared/chat'
 
+export const outsideAsar = (path: string) => path.replace(/\bapp\.asar(?=[/\\])/, 'app.asar.unpacked')
+
 export type SessionPermissions = { allow: string[]; ask: string[] }
 
 export interface StartOptions {
@@ -149,7 +151,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
             agentProgressSummaries: true,
             canUseTool: (...args) => canUseTool(chatId, ...args),
             spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
-              const child = spawn(command, args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
+              const child = spawn(outsideAsar(command), args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
               child.stderr.resume()
               spawned.pid = child.pid
               return child

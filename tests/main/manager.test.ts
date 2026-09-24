@@ -1,7 +1,7 @@
 import { tmpdir } from 'node:os'
 import type { Options, SDKUserMessage, SpawnedProcess } from '@anthropic-ai/claude-agent-sdk'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createSessionManager } from '../../src/main/sessions/manager'
+import { createSessionManager, outsideAsar } from '../../src/main/sessions/manager'
 
 const sdk = vi.hoisted(() => ({
   options: undefined as Options | undefined,
@@ -157,5 +157,14 @@ describe('session manager', () => {
     sdk.messages = [{ type: 'result', subtype: 'error_during_execution', is_error: true }]
     expect(await engine.topic('main', 'Show the topic')).toBeUndefined()
     expect(await engine.topic('nobody', 'Show the topic')).toBeUndefined()
+  })
+})
+
+describe('outsideAsar', () => {
+  it('points a binary inside the packaged archive at its unpacked copy', () => {
+    const packed = '/Applications/Agent Office.app/Contents/Resources/app.asar/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude'
+    expect(outsideAsar(packed)).toBe('/Applications/Agent Office.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude')
+    expect(outsideAsar('/Users/a/agent-office/node_modules/.bin/claude')).toBe('/Users/a/agent-office/node_modules/.bin/claude')
+    expect(outsideAsar(outsideAsar(packed))).toBe(outsideAsar(packed))
   })
 })
