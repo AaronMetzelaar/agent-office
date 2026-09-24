@@ -155,6 +155,10 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 - `tests/e2e/real-floor.spec.ts` launches the office once per floor in `tests/fixtures/floors.ts`: an anonymised capture of a real floor (`real-floor.json`), then 1, 3 and 25 agents, then sections at every size tier. It seeds office chats into `office.db` and visitors through the outside-chat store. It fails on any `[renderer]` line, console error or page error. It also fails when a section with a desk agent has no sign, when the sign counts don't add up to the chats that belong on the floor, or when the canvas is a flat colour. `AGENT_OFFICE_CAPTURE_FLOOR=1 pnpm test tests/main/capture-real-floor.test.ts` refreshes `real-floor.json` from your own chats. It runs the app's discovery code on a copy of `office.db`, then keeps states, departments, accounts, visitor flags, worktrees and ages. Titles, paths and ids become placeholders of the same length, and the department part of each path stays. It's skipped otherwise.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
+## Post-merge check
+
+`pnpm hooks` (also run by `postinstall`) points `core.hooksPath` at `.githooks`, so every merge into `main` builds a throwaway worktree in the background and runs `tests/e2e/real-floor.spec.ts` against it, logging to `~/Library/Logs/agent-office/post-merge-e2e.log` and raising a macOS notification, plus an ntfy push if `~/.config/agent-office/ntfy-topic` exists, on failure.
+
 ## Packaging and signing
 
 `electron-builder.yml` uses the app id `com.aaronmetzelaar.agentoffice`. Build with `pnpm build && pnpm exec electron-builder --mac --dir`. Without a signing identity the app comes out ad-hoc signed, runs fine, and gets no notifications.
