@@ -258,7 +258,10 @@ function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     if (palette.open) palette.open = false
     else if (mode.value !== 'inbox') mode.value = 'inbox'
-    else if (!typing) world.value?.escape()
+    else {
+      if (typing) (event.target as HTMLElement).blur()
+      world.value?.escape()
+    }
     return
   }
   if (typing || palette.open || mode.value !== 'inbox' || event.metaKey || event.ctrlKey || event.altKey) return
