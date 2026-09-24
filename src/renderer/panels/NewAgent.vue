@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { defaultEffort, defaultModel, effortLabels, efforts, modelLabels } from '../../shared/chat'
 import { accountHint, defaultAccount, defaultRules, deptIds, deptNames, homeDept, isResearch, ruleFor, showsAccountBadge, type DeptId, type DeptRule } from '../../shared/departments'
-import type { AccountView } from '../../shared/ipc'
+import { usageLine, type AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
 import { leadingTicket, type Ticket } from '../../shared/workflow'
 import { dept as deptDefs, kindOf } from '../office/layout'
@@ -53,8 +53,6 @@ const ticketLine = computed(() => {
 })
 const place = computed(() => (props.desk ? `${kindOf(props.desk.dept) === 'gym' ? 'treadmill' : 'desk'} ${props.desk.slot + 1}` : 'first free desk'))
 
-const percent = (value?: number) => (value === undefined ? '–' : `${Math.round(value)}%`)
-const usage = (candidate: AccountView) => (candidate.health.status === 'needs-login' ? 'needs login' : `5h ${percent(candidate.health.headroom?.fiveHour?.utilization)} · week ${percent(candidate.health.headroom?.sevenDay?.utilization)}`)
 const folderName = (path: string) => path.split('/').filter(Boolean).pop() ?? path
 const loadCommands = async () => (form.folder ? window.office.getCommands({ cwd: form.folder }) : undefined)
 
@@ -166,7 +164,7 @@ onMounted(async () => {
       <label class="field">
         Account
         <select v-model="accountId" aria-label="Account">
-          <option v-for="candidate in accounts" :key="candidate.id" :value="candidate.id" :disabled="candidate.health.status === 'needs-login'">{{ candidate.label }} · {{ usage(candidate) }}</option>
+          <option v-for="candidate in accounts" :key="candidate.id" :value="candidate.id" :disabled="candidate.health.status === 'needs-login'">{{ candidate.label }} · {{ usageLine(candidate) }}</option>
         </select>
       </label>
     </div>

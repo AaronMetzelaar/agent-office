@@ -3,7 +3,7 @@ import { app } from 'electron'
 import { departmentOf, deptNames, isResearch } from '../../shared/office'
 import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
-import { createAccounts, fakeValidator, validateWithSdk } from '../accounts/health'
+import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
 import { createPlacement, loadRules } from '../departments/classifier'
@@ -43,7 +43,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const vault = openVault(dataDir)
   const db = openDb(join(dataDir, 'office.db'))
   const useFakeValidator = !app.isPackaged && process.env.AGENT_OFFICE_FAKE_VALIDATOR === '1'
-  const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validateWithSdk, db)
+  const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validate, db)
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
   const deptRules = loadRules(configDir())
@@ -112,6 +112,9 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     if (patch.fields && ('state' in patch.fields || 'pendingRequests' in patch.fields || 'archived' in patch.fields)) strip()
   })
   const stripTimer = setInterval(strip, 60_000)
+  const usageTimer = setInterval(() => {
+    for (const account of accounts.list()) if (account.health.status !== 'needs-login') void accounts.revalidate(account.id)
+  }, 10 * 60_000)
   ui.onChange(({ visible, focused }) => {
     sync.setVisible(visible)
     if (focused) reviews.focus()
@@ -135,6 +138,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
       if (stopped) return
       stopped = true
       clearInterval(stripTimer)
+      clearInterval(usageTimer)
       house.stop()
       phone.stop()
       void outside.stop()

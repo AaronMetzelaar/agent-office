@@ -4,7 +4,7 @@ import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import type { DeptId } from '../../shared/departments'
 import { gb, plural, type Finished, type HousekeepingView } from '../../shared/housekeeping'
-import type { AccountView, Navigate } from '../../shared/ipc'
+import { usageLine, type AccountView, type Navigate } from '../../shared/ipc'
 import type { ReviewQueue } from '../../shared/workflow'
 import Chat from '../panels/Chat.vue'
 import Housekeeping from '../panels/Housekeeping.vue'
@@ -327,6 +327,11 @@ onUnmounted(() => {
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
     <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
+    <button type="button" class="limits" aria-label="Account usage" @click="emit('accounts')">
+      <span v-for="account in accounts" :key="account.id" :class="{ hot: account.health.status === 'needs-login' || Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0) >= 80 }">
+        <b>{{ account.label }}</b> {{ usageLine(account) }}
+      </span>
+    </button>
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">
@@ -911,6 +916,29 @@ kbd {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.limits {
+  all: unset;
+  flex: none;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.limits b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.limits .hot {
+  color: var(--needs-ink);
 }
 
 .av {

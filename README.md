@@ -66,7 +66,7 @@ Set `AGENT_OFFICE_USER_DATA` to use a different folder, and with it a separate h
 
 ## Accounts
 
-On first run the office stays hidden until one account validates. Run `claude setup-token` once per account (tokens last one year), paste the token and give it a label. Validation is a one-turn Haiku query with no tools and no settings, and it reads the 5-hour and weekly usage. Settings → Accounts adds the second account, shows usage, and takes a new token for an account that needs login: adding a token under an existing label replaces that account's token.
+On first run the office stays hidden until one account validates. Run `claude setup-token` once per account (tokens last one year), paste the token and give it a label. Validation sends a Haiku request with `max_tokens: 0` straight to the API and reads the 5-hour and weekly usage from its rate limit headers, which costs about 8 input tokens. If that request fails for any reason other than a 401, it falls back to a one-turn Agent SDK query with no tools and no settings. The host re-checks every account every 10 minutes, and the bottom of the inbox shows each account's 5-hour and weekly usage. Settings → Accounts adds the second account, shows usage, and takes a new token for an account that needs login: adding a token under an existing label replaces that account's token.
 
 Account health (status and usage) is saved in `office.db`, so it survives a restart. A rate limit during validation counts as a valid token that is out of headroom, not a failed login. Each running chat's rate limit events keep the usage figures current. Removing an account stops its chats and marks them Stuck (needs login).
 
