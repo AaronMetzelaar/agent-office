@@ -335,7 +335,7 @@ onUnmounted(() => {
   z-index: 6;
   left: 16px;
   bottom: 16px;
-  max-width: min(520px, calc(100vw - 32px - 430px));
+  max-width: min(520px, calc(100vw - 32px - 560px));
   margin: 0;
   padding: 8px 12px;
   border-radius: 10px;
@@ -391,7 +391,7 @@ onUnmounted(() => {
   gap: 8px;
   align-items: stretch;
   flex-wrap: wrap;
-  max-width: calc(100vw - 32px - 430px);
+  max-width: calc(100vw - 32px - 560px);
 }
 
 .brand {
@@ -891,7 +891,7 @@ kbd {
   top: 12px;
   right: 12px;
   bottom: 12px;
-  width: clamp(360px, 28vw, 430px);
+  width: clamp(420px, 34vw, 560px);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
