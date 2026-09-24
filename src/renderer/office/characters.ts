@@ -30,11 +30,11 @@ interface Joints {
 
 const pose: Record<PoseName, Joints> = {
   stand: { legs: 0, a0: 0.05, a1: 0.05, z0: -0.22, z1: 0.22, head: 0, lean: 0, eye: 1, tilt: 0 },
-  sleep: { legs: -1.5, a0: -0.25, a1: -0.25, z0: -0.06, z1: 0.06, head: 0.46, lean: 0.2, eye: 0.05, tilt: 0.24 },
+  sleep: { legs: -1.45, a0: -0.3, a1: -0.3, z0: -0.08, z1: 0.08, head: -0.2, lean: -0.18, eye: 0.05, tilt: 0.26 },
   type: { legs: -1.5, a0: -1.25, a1: -1.25, z0: 0.3, z1: -0.3, head: 0.08, lean: 0.07, eye: 1, tilt: 0 },
   lean: { legs: -1.3, a0: -3.3, a1: -3.3, z0: -0.6, z1: 0.6, head: -0.22, lean: -0.24, eye: 0.62, tilt: 0 },
-  slump: { legs: -1.4, a0: -0.45, a1: -0.45, z0: -0.05, z1: 0.05, head: 0.2, lean: 0.14, eye: 0.42, tilt: 0 },
   sit: { legs: -1.45, a0: -0.55, a1: -0.55, z0: 0.12, z1: -0.12, head: 0.12, lean: 0.08, eye: 0.85, tilt: 0 },
+  lounge: { legs: -1.4, a0: -0.35, a1: -0.35, z0: -0.32, z1: 0.32, head: -0.16, lean: -0.16, eye: 0.7, tilt: 0.06 },
   wave: { legs: 0, a0: 0.05, a1: -0.25, z0: -0.28, z1: 2.55, head: -0.14, lean: -0.05, eye: 1.12, tilt: 0 },
   relax: { legs: 0, a0: 0.05, a1: -2.6, z0: -0.28, z1: 0.55, head: -0.2, lean: -0.06, eye: 0.7, tilt: 0 },
   run: { legs: 0, a0: -0.7, a1: -0.7, z0: -0.12, z1: 0.12, head: -0.04, lean: 0.14, eye: 1, tilt: 0 },
@@ -342,11 +342,11 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0)
   b.hips.rotation.set(a.lean, name === 'lean' ? Math.sin(t * 0.8 + c.ph) * 0.06 * am : 0, roll)
   b.hips.position.y = 0.17 + (name === 'wave' ? Math.abs(Math.sin(t * 4.5)) * 0.06 * am : 0)
-  const br = name === 'sleep' ? Math.sin(t * 1.3 + c.ph) * 0.035 * am : Math.sin(t * 2.1 + c.ph) * (name === 'slump' ? 0.03 : 0.018) * am
+  const br = name === 'sleep' ? Math.sin(t * 1.3 + c.ph) * 0.035 * am : Math.sin(t * 2.1 + c.ph) * (name === 'lounge' ? 0.026 : 0.018) * am
   b.body.scale.set(1 - br * 0.5, 1 + br, 1 - br * 0.5)
   const look = f.looking && !walking && name !== 'sleep' ? clamp(wrap(f.faceCamera(w.pos) - w.face), -0.55, 0.55) * 0.75 : 0
   spring(a, 'turn', look, sdt, 6)
-  b.hp.rotation.set(a.head + (name === 'slump' ? Math.sin(t * 0.8 + c.ph) * 0.05 * am : 0) + (name === 'type' ? Math.sin(t * 1.7 + c.ph) * 0.03 * am : 0), a.turn, a.tilt)
+  b.hp.rotation.set(a.head + (name === 'lounge' ? Math.sin(t * 0.5 + c.ph) * 0.04 * am : 0) + (name === 'type' ? Math.sin(t * 1.7 + c.ph) * 0.03 * am : 0), a.turn, a.tilt)
   if (t >= c.nextBlink) {
     c.blinkAt = t
     c.nextBlink = t + (Math.random() < 0.15 ? 0.3 : 2 + Math.random() * 4)

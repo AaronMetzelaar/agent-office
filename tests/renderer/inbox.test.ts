@@ -142,4 +142,26 @@ describe('inbox', () => {
     expect(board[1]!.rows[0]!.caption).toBe('Editing DotField.tsx')
     expect(parked).toBe(1)
   })
+
+  it('lists standby chats in a Standby group, newest first, with their department and when they finished', () => {
+    const now = Date.now()
+    const hour = 3_600_000
+    const chats = new Map([
+      ['working', view('working')],
+      ['unread', view('unread', { state: 'done', unread: true })],
+      ['read', view('read', { state: 'idle', lastActivityAt: now - 2 * hour })],
+      ['gym-read', view('gym-read', { state: 'idle', accountId: 'research', lastActivityAt: now - hour })],
+      ['old', view('old', { state: 'done', unread: true, parked: true, lastActivityAt: now - 30 * hour })],
+      ['waiting', view('waiting', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })],
+    ])
+    const agents = toAgents(chats.values(), accounts, now, new Map())
+    const { board, standby } = buildInbox(chats, agents, [])
+    expect(board.flatMap((group) => group.rows.map((row) => row.id))).toEqual(['working', 'unread'])
+    expect(standby).toMatchObject([
+      { id: 'gym-read', dept: 'Research gym', at: now - hour, dozing: false },
+      { id: 'read', dept: 'Marketplace', at: now - 2 * hour, dozing: false },
+      { id: 'old', dept: 'Marketplace', dozing: true },
+    ])
+    expect(agents.find((agent) => agent.id === 'read')?.caption).toBe('Standby · done 2h ago')
+  })
 })

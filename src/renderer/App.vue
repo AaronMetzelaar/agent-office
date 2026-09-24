@@ -42,9 +42,10 @@ async function setEditor(event: Event) {
 }
 
 onMounted(async () => {
-  if (import.meta.env.RENDERER_VITE_OFFICE_DEMO === '1') {
+  const demoMode = import.meta.env.RENDERER_VITE_OFFICE_DEMO
+  if (demoMode === '1' || demoMode === 'fixture') {
     const demo = await import('./state/demo')
-    const fake = demo.createDemoSource()
+    const fake = demo.createDemoSource(demoMode === 'fixture')
     unsubscribe = fake.stop
     source.value = fake
     accounts.value = demo.demoAccounts

@@ -4,6 +4,7 @@ import type { PendingRequestView } from '../../shared/permissions'
 import { buildQueue, type QueueItem } from '../../shared/queue'
 import { countsFor, stateKey, type StateKey } from '../office/labels'
 import { dept, depts } from '../office/layout'
+import { spotFor } from '../office/standby'
 import type { Agent } from './projection'
 
 export interface WaitingItem {
@@ -40,13 +41,24 @@ export interface BoardGroup {
   rows: BoardRow[]
 }
 
+export interface StandbyRow {
+  id: string
+  title: string
+  colour: string
+  dept: string
+  accent: string
+  at: number
+  dozing: boolean
+}
+
 export interface Inbox {
   waiting: WaitingItem[]
   board: BoardGroup[]
+  standby: StandbyRow[]
   parked: number
 }
 
-export const emptyInbox: Inbox = { waiting: [], board: [], parked: 0 }
+export const emptyInbox: Inbox = { waiting: [], board: [], standby: [], parked: 0 }
 
 export function lastReply(chat: Pick<ChatView, 'rows' | 'partial'> | undefined): string | undefined {
   if (!chat) return undefined
@@ -75,18 +87,23 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
       ...(chat?.visitor ? { visitor: true } : {}),
     }
   })
-  const seated = agents.filter((agent) => !agent.parked)
+  const lounged = new Set(agents.filter((agent) => spotFor(agent, undefined, false) === 'lounge').map((agent) => agent.id))
+  const atWork = agents.filter((agent) => !lounged.has(agent.id))
   const board = depts
     .map((d): BoardGroup => ({
       id: d.id,
       name: d.name,
       accent: hexOf(d.accent),
-      counts: countsFor(seated.filter((agent) => agent.dept === d.id)),
-      rows: seated
+      counts: countsFor(atWork.filter((agent) => agent.dept === d.id)),
+      rows: atWork
         .filter((agent) => agent.dept === d.id && !queued.has(agent.id))
         .sort((a, b) => a.createdAt - b.createdAt)
         .map((agent) => ({ id: agent.id, title: agent.title, colour: hexOf(agent.colour), state: stateKey(agent.state), caption: agent.caption, since: agent.since })),
     }))
     .filter((group) => group.rows.length > 0)
-  return { waiting, board, parked: agents.length - seated.length }
+  const standby = agents
+    .filter((agent) => lounged.has(agent.id))
+    .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+    .map((agent) => ({ id: agent.id, title: agent.title, colour: hexOf(agent.colour), dept: dept[agent.dept].name, accent: hexOf(dept[agent.dept].accent), at: agent.lastActivityAt, dozing: agent.parked }))
+  return { waiting, board, standby, parked: agents.filter((agent) => agent.parked).length }
 }

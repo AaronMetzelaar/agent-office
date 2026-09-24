@@ -12,7 +12,7 @@ const where: Record<string, string> = {
   rev: `${home}/monorepo`,
 }
 
-type Sample = [dept: string, title: string, state: ChatState, minutes: number, activity: string, extra?: { project?: string; subs?: string[]; ask?: [string, string, boolean] }]
+type Sample = [dept: string, title: string, state: ChatState, minutes: number, activity: string, extra?: { project?: string; subs?: string[]; ask?: [string, string, boolean]; office?: boolean }]
 
 const samples: Sample[] = [
   ['mkt', 'Bid flow approach', 'working', 4, 'Editing BidFlow.vue', { subs: ['Explore · find bid dialog callers', 'Review · test coverage gaps'] }],
@@ -46,6 +46,30 @@ const samples: Sample[] = [
   ['rev', 'Review #412 Round bids to the euro', 'working', 5, 'Running gh pr diff 412'],
 ]
 
+export const floorFixture: Sample[] = [
+  ['mkt', 'Checkout VAT rounding', 'stuck', 30, '', { office: true }],
+  ['mkt', 'Auction countdown flicker', 'idle', 200, ''],
+  ['mkt', 'Bid history pagination', 'idle', 320, ''],
+  ['mkt', 'Shirt size guide copy', 'idle', 610, ''],
+  ['plat', 'Worker template cleanup', 'working', 3, 'Editing index.ts'],
+  ['plat', 'Crowdin translations', 'idle', 52, ''],
+  ['plat', 'Refund webhook retries', 'idle', 140, ''],
+  ['plat', 'Seller payout table', 'idle', 260, ''],
+  ['plat', 'Sentry sourcemaps', 'idle', 380, ''],
+  ['plat', 'Hotfix login redirect', 'idle', 700, ''],
+  ['side', 'Portfolio hero', 'working', 2, 'Editing DotField.tsx', { project: 'portfolio', office: true }],
+  ['side', 'Cookbook pages', 'done', 12, '', { project: 'cookbook' }],
+  ['side', 'Office floor plan', 'idle', 90, '', { project: 'agent-office' }],
+  ['gym', 'Enigma RSA sweep', 'working', 6, 'Running python sieve.py', { project: 'enigma-rsa' }],
+  ['gym', 'Enigma sieve bench', 'done', 25, '', { project: 'enigma-rsa', office: true }],
+  ['gym', 'Matter pairing', 'idle', 180, '', { project: 'smart-home' }],
+  ['gym', 'Polynomial selection notes', 'idle', 240, '', { project: 'enigma-rsa' }],
+  ['gym', 'Validator limits', 'idle', 300, '', { project: 'enigma-rsa' }],
+  ['gym', 'Thread bridge firmware', 'idle', 420, '', { project: 'smart-home' }],
+  ['gym', 'Paper summary', 'idle', 520, '', { project: 'reading' }],
+  ['gym', 'Sieve parameter sweep', 'idle', 660, '', { project: 'enigma-rsa' }],
+]
+
 const asks: [string, string][] = [
   ['Bash', 'git push origin HEAD'],
   ['Bash', 'git branch -D old-dialog-flow'],
@@ -69,7 +93,7 @@ const request = (id: string, tool: string, summary: string, createdAt: number, d
   alwaysAllow: tool !== 'WebFetch' && !dangerous,
 })
 
-function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, index: number, now: number): ChatView {
+function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, index: number, now: number, visitors = false): ChatView {
   const at = now - minutes * 60_000
   const id = `demo-${index}`
   const ask = extra.ask
@@ -78,6 +102,7 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     accountId: dept === 'gym' ? 'demo-research' : 'demo-main',
     cwd: where[dept] ?? `${home}/${extra.project}`,
     ...(dept === 'rev' ? { department: 'rev', review: true } : {}),
+    ...(visitors && !extra.office ? { visitor: 'desktop' as const } : {}),
     title,
     archived: false,
     state,
@@ -98,11 +123,11 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
   }
 }
 
-export function createDemoSource(): ChatSource & { stop(): void } {
+export function createDemoSource(fixture = false): ChatSource & { stop(): void } {
   let seed = 20260923
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
   const now = Date.now()
-  const chats = new Map(samples.map((sample, index) => [`demo-${index}`, chatFrom(sample, index, now)]))
+  const chats = new Map((fixture ? floorFixture : samples).map((sample, index) => [`demo-${index}`, chatFrom(sample, index, now, fixture)]))
   const listeners = new Set<(batch: ChatPatchBatch) => void>()
   let seq = 0
   const timers: ReturnType<typeof setTimeout>[] = []
@@ -129,8 +154,8 @@ export function createDemoSource(): ChatSource & { stop(): void } {
     push([{ id, fields: { ...base, ...fields } as Partial<ChatFields> }])
   }
 
-  const later = (ms: number, run: () => void) => timers.push(setTimeout(run, ms))
-  const every = (ms: number, run: () => void) => timers.push(setInterval(run, ms))
+  const later = (ms: number, run: () => void) => fixture || timers.push(setTimeout(run, ms))
+  const every = (ms: number, run: () => void) => fixture || timers.push(setInterval(run, ms))
 
   later(5000, () => {
     if (chats.get('demo-9')?.state === 'working') move('demo-9', 'needs-you')

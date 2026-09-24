@@ -94,6 +94,7 @@ export interface Agent {
   subagents: string[]
   since: number
   quietMs: number
+  lastActivityAt: number
   createdAt: number
   colour: number
   badge?: string
@@ -109,7 +110,7 @@ export function projectOf(cwd: string): string {
 export function captionOf(chat: ChatView, parked: boolean, now: number): string {
   if (chat.moved) return 'Moved into the office'
   if (chat.state === 'needs-you') return `Waiting for you · ${chat.pendingRequests[0]?.tool ?? chat.pending[0]?.toolName ?? 'a decision'}`
-  if (parked) return `Parked · ${ago(now - chat.lastActivityAt)}`
+  if (parked || chat.state === 'idle') return `${parked ? 'Dozing' : 'Standby'} · done ${ago(now - chat.lastActivityAt)} ago`
   return doingNow(chat, now)
 }
 
@@ -177,6 +178,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       subagents: chat.subagents.map((agent) => agent.description),
       since: chat.state === 'needs-you' ? (chat.oldestPendingAt ?? first?.createdAt ?? chat.stateSince) : chat.stateSince,
       quietMs,
+      lastActivityAt: chat.lastActivityAt,
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
       ...(chat.visitor ? { badge: 'Visitor' } : showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),

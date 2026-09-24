@@ -183,6 +183,40 @@ describe('backfill', () => {
     expect(patches.at(-1)).toEqual({ id, fields: { archived: true } })
   })
 
+  it('keeps a chat read in the office read across rescans and restarts, until a new turn finishes', () => {
+    const cwd = repo('app')
+    const id = randomUUID()
+    const now = Date.now()
+    writeTranscript(claudeDir, id, [line.user('Go'), line.text('All done.')], { cwd, at: now - hour })
+    writeDesktopChat(desktopDir, 'Claude', { cliSessionId: id, title: 'Chat', cwd, lastActivityAt: now - hour, lastFocusedAt: now - 2 * hour })
+    const settings = new Map<string, unknown>()
+    const make = () =>
+      createVisitors({
+        patch: () => {},
+        accounts: () => accounts,
+        rules: defaultRules,
+        officeSessions: () => new Set(),
+        describe: () => undefined,
+        settings: { setting: (key) => settings.get(key), saveSetting: (key, value) => void settings.set(key, value) },
+      })
+    const scan = () => createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read }).scan(Date.now(), new Set())
+    const first = make()
+    first.sync(scan())
+    expect(first.view(id)).toMatchObject({ state: 'done', unread: true })
+    first.markRead(id)
+    first.sync(scan())
+    expect(first.view(id)).toMatchObject({ state: 'idle', unread: false })
+
+    const second = make()
+    second.sync(scan())
+    expect(second.view(id)).toMatchObject({ state: 'idle', unread: false })
+
+    writeTranscript(claudeDir, id, [line.user('Go'), line.text('All done.'), line.user('More'), line.text('Done again.')], { cwd, at: Date.now() + 60_000 })
+    const third = make()
+    third.sync(scan())
+    expect(third.view(id)).toMatchObject({ state: 'done', unread: true })
+  })
+
   it('remembers a moved chat across restarts and shows it as Moved', () => {
     const cwd = repo('app')
     const id = randomUUID()

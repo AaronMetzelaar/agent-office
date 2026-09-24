@@ -7,7 +7,7 @@ export const stateKey = (state: ChatState): StateKey => (state === 'needs-you' ?
 
 export const ringColours: Record<StateKey, number> = { working: 0x1b34ff, needs: 0xf59e0b, done: 0x15a34a, idle: 0x9ca3af, stuck: 0xdc2626 }
 export const parkedRing = 0xb9bfc9
-export const ringColourOf = (a: { state: ChatState; parked: boolean }) => (a.parked ? parkedRing : ringColours[stateKey(a.state)])
+export const ringColourOf = (a: { state: ChatState; parked: boolean }) => (a.parked && a.state !== 'done' ? parkedRing : ringColours[stateKey(a.state)])
 
 export const countOrder: [StateKey, string][] = [
   ['needs', 'needs you'],
@@ -22,7 +22,7 @@ export function countsFor(agents: readonly { state: ChatState }[]): { key: State
 }
 
 export interface Focus {
-  hoverDept?: DeptId | 'park'
+  hoverDept?: DeptId | 'lounge'
   filter?: StateKey
   selected?: string
   hovered?: string
@@ -33,11 +33,12 @@ export interface Labelled {
   dept: DeptId
   state: ChatState
   parked: boolean
+  lounge: boolean
   queued: boolean
 }
 
 export const loud = (a: Labelled) => a.queued || a.state === 'needs-you' || a.state === 'stuck'
-const inGroup = (a: Labelled, group: DeptId | 'park') => (group === 'park' ? a.parked : a.dept === group && !a.parked)
+const inGroup = (a: Labelled, group: DeptId | 'lounge') => (group === 'lounge' ? a.lounge : a.dept === group && !a.lounge)
 
 export function isDim(a: Labelled, f: Focus): boolean {
   return (!!f.hoverDept && !inGroup(a, f.hoverDept)) || (!!f.filter && stateKey(a.state) !== f.filter)
@@ -45,7 +46,7 @@ export function isDim(a: Labelled, f: Focus): boolean {
 
 export function chipMode(a: Labelled, f: Focus, zoomed: boolean): 0 | 1 | 2 {
   if (a.id === f.selected || a.id === f.hovered) return 2
-  if (a.parked) return f.hoverDept === 'park' || (!!f.filter && stateKey(a.state) === f.filter) ? 1 : 0
+  if (a.lounge) return f.hoverDept === 'lounge' || (!!f.filter && stateKey(a.state) === f.filter) ? 1 : 0
   if (f.filter) return stateKey(a.state) === f.filter ? 1 : 0
   return loud(a) || zoomed || f.hoverDept === a.dept ? 1 : 0
 }

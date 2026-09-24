@@ -29,6 +29,7 @@ export type Visitors = ReturnType<typeof createVisitors>
 
 export const unknownAccount = 'unknown'
 const movedKey = 'movedSessions'
+const readKey = 'readSessions'
 const maxMoved = 500
 const permissionPrompts = new Set(['permission_prompt', 'elicitation_dialog'])
 const midTurn = new Set<ChatState>(['working', 'needs-you'])
@@ -42,6 +43,10 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
   const visitors = new Map<string, Entry>()
   const saved = settings.setting(movedKey)
   const moved = new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [])
+  const savedRead = settings.setting(readKey)
+  const read = new Map(savedRead && typeof savedRead === 'object' ? Object.entries(savedRead).filter((entry): entry is [string, number] => typeof entry[1] === 'number') : [])
+  const unreadDone = (seed: VisitorSeed) => seed.state === 'done' && (read.get(seed.sessionId) ?? -1) < (seed.endedAt ?? seed.lastActivityAt)
+  const stateOf = (seed: VisitorSeed): ChatState => (seed.state === 'done' && !unreadDone(seed) ? 'idle' : seed.state)
   let open: string | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -76,9 +81,9 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       department: homeDept(seed.cwd, inResearch(accountId), rules),
       visitor: seed.source,
       archived: false,
-      state: seed.state,
+      state: stateOf(seed),
       stateSince: seed.lastActivityAt,
-      unread: seed.state === 'done',
+      unread: unreadDone(seed),
       activity: '',
       pending: [],
       pendingRequests: [],
@@ -172,7 +177,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         if (accountId !== entry.view.accountId) fields.accountId = accountId
         if (seed.lastActivityAt > entry.view.lastActivityAt) fields.lastActivityAt = seed.lastActivityAt
         const hookGoneQuiet = entry.view.state === 'working' && now() - (entry.hookAt ?? 0) > hookQuietMs
-        if ((entry.hookAt === undefined || hookGoneQuiet) && seed.state !== entry.view.state) Object.assign(fields, { state: seed.state, stateSince: now(), unread: seed.state === 'done' })
+        if ((entry.hookAt === undefined || hookGoneQuiet) && stateOf(seed) !== entry.view.state) Object.assign(fields, { state: stateOf(seed), stateSince: now(), unread: unreadDone(seed) })
         if (Object.keys(fields).length) set(entry, fields)
       }
       const cutoff = now() - activeWindowMs
@@ -207,7 +212,10 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
 
     markRead(chatId: string): void {
       const entry = visitors.get(chatId)
-      if (entry?.view.state === 'done') set(entry, { state: 'idle', stateSince: now(), unread: false })
+      if (entry?.view.state !== 'done') return
+      read.set(chatId, now())
+      settings.saveSetting(readKey, Object.fromEntries([...read].slice(-maxMoved)))
+      set(entry, { state: 'idle', stateSince: now(), unread: false })
     },
 
     markMoved(chatId: string): void {

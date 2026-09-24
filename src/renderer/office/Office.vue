@@ -13,14 +13,14 @@ import NewAgent from '../panels/NewAgent.vue'
 import { buildInbox, emptyInbox } from '../state/inbox'
 import { keyAction } from '../state/keys'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
-import { createCamera } from './camera'
+import { createCamera, type View } from './camera'
 import type { StateKey } from './labels'
 import { createWorld, type World, type WorldUi } from './world'
 
 const props = defineProps<{ accounts: AccountView[]; source: ChatSource }>()
 const emit = defineEmits<{ accounts: [] }>()
 
-const probeEnabled = import.meta.env.DEV || import.meta.env.RENDERER_VITE_OFFICE_DEMO === '1'
+const probeEnabled = import.meta.env.DEV || !!import.meta.env.RENDERER_VITE_OFFICE_DEMO
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 const labelsEl = ref<HTMLElement>()
 const barEl = ref<HTMLElement>()
@@ -41,7 +41,7 @@ const worktreeCount = computed(() => house.value?.worktrees.length ?? 0)
 const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
 const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
 let pendingSelect: string | undefined
-let pendingFly = true
+let pendingView: View = 'fly'
 const tallyLabels: [StateKey, string][] = [
   ['needs', 'need you'],
   ['stuck', 'stuck'],
@@ -64,14 +64,14 @@ function push() {
   w.sync(agents, projection.logins)
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
-  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingFly)
+  if (pendingSelect && agents.some((a) => a.id === pendingSelect)) select(pendingSelect, pendingView)
 }
 
-function select(chatId: string | undefined, fly = true) {
+function select(chatId: string | undefined, view: View = 'fly') {
   mode.value = 'inbox'
   pendingSelect = chatId && !projection.chats.has(chatId) ? chatId : undefined
-  pendingFly = fly
-  if (!pendingSelect) world.value?.select(chatId, fly && !!chatId)
+  pendingView = view
+  if (!pendingSelect) world.value?.select(chatId, chatId ? view : 'overview')
 }
 
 function openNew(desk?: { dept: DeptId; slot: number }) {
@@ -82,7 +82,7 @@ function openNew(desk?: { dept: DeptId; slot: number }) {
 function started(chatId: string, dept: DeptId) {
   const desk = newDesk.value
   if (desk?.dept === dept) world.value?.claimDesk(chatId, desk.slot)
-  select(chatId, !desk)
+  select(chatId, 'keep')
 }
 
 const usable = computed(() => props.accounts.filter((account) => account.health.status !== 'needs-login'))
@@ -94,7 +94,7 @@ async function continueElsewhere(chatId: string) {
 }
 
 function openHousekeeping() {
-  world.value?.select(undefined, false)
+  world.value?.select(undefined, 'overview')
   mode.value = mode.value === 'house' ? 'inbox' : 'house'
 }
 
@@ -181,7 +181,7 @@ async function openPalette() {
 
 function jump(id: string | undefined) {
   palette.open = false
-  if (id) world.value?.select(id, true)
+  if (id) world.value?.select(id, 'fly')
 }
 
 function onKey(event: KeyboardEvent) {

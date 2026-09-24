@@ -5,14 +5,16 @@ import { CSS2DRenderer, type CSS2DObject } from 'three/addons/renderers/CSS2DRen
 import type { LoginItem } from '../../shared/chat'
 import type { ReviewRequest } from '../../shared/workflow'
 import type { Agent } from '../state/projection'
-import { createRig, VIEW, type Region } from './camera'
+import { createRig, VIEW, type Region, type View } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
+import { createGuard } from './guard'
 import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
-import { assignDesks, benchSeats, dept, depts, door, kindOf, layoutFloor, lounge, minWidth, parkedZone, queueSpots, settle, type Bounds, type Demand, type DeptId, type Floor } from './layout'
+import { assignDesks, assignSeats, dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, settle, ZF, type Bounds, type Box, type Demand, type DeptId, type Floor, type YardSide } from './layout'
 import { createIntray } from './intray'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type Slot } from './props'
+import { demandOf, spotFor, type Spot } from './standby'
 import { buildQueue, queuePositions, type QueueItem } from '../../shared/queue'
 
 export interface QueueEntry {
@@ -47,6 +49,7 @@ interface Live {
   c: Character
   chip: Chip
   slot?: Slot
+  spot?: Spot
   gone: boolean
   wait: number
   queueIndex: number
@@ -56,7 +59,7 @@ interface Live {
 
 type Rect = [ox: number, oz: number, w: number, d: number]
 
-interface DeptAnim {
+interface RoomAnim {
   ox: number
   oz: number
   w: number
@@ -83,11 +86,15 @@ export interface WorldOptions {
 
 const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
 const easeBack = (u: number) => 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2)
+const room = (): RoomAnim => ({ ox: 0, oz: 0, w: 1, d: 1, rows: 1, from: [0, 0, 1, 1], to: [0, 0, 1, 1], sc: 0.001, fs: 0.001, want: false, shown: false })
+const sameBox = (a: Box, b: Box) => a.every((v, k) => v === b[k])
+const reachOf = (side: YardSide, box: Box): [number, number, number, number] => (side === 'left' ? [0.3, 0.3, door[0] + 0.9 - box[2], ZF + 0.9 - box[3]] : [0.3, box[1] - ZF, 0.3, 0.3])
 
 export type World = ReturnType<typeof createWorld>
 
 export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk }: WorldOptions) {
   const motion = reduce ? 0.25 : 1
+  const guard = createGuard()
   scene.background = new THREE.Color(0xedeff2)
   const pmrem = new THREE.PMREMGenerator(renderer)
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
@@ -115,17 +122,19 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const desks = new Map<string, number>()
   const claims = new Map<string, number>()
   const deskChips = new Map<string, CSS2DObject>()
-  const loungeOf = new Map<string, number>()
+  const coolers = new Map<string, number>()
+  let seats = new Map<string, number>()
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
-  const loungeVecs = lounge.map(([x, z]) => new THREE.Vector3(x, 0, z))
+  const seatVecs: THREE.Vector3[] = []
+  const coolerVecs: THREE.Vector3[] = []
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
-  const anims = Object.fromEntries(depts.map((d) => [d.id, { ox: 0, oz: 0, w: 1, d: 1, rows: 1, from: [0, 0, 1, 1], to: [0, 0, 1, 1], sc: 0.001, fs: 0.001, want: false, shown: false }])) as Record<DeptId, DeptAnim>
-  const loungeCentre = [(parkedZone.box[0] + parkedZone.box[2]) / 2, (parkedZone.box[1] + parkedZone.box[3]) / 2] as const
+  const anims = Object.fromEntries(depts.map((d) => [d.id, room()])) as Record<DeptId, RoomAnim>
+  const lounge = room()
   let applied: Demand = {}
+  let appliedStandby = 0
   let floor: Floor = layoutFloor({})
   let layU = 1
   let B: Bounds = { ...floor.bounds }, B0 = B, B1 = B
-  let loungeWant = false, loungeSc = 0
   let pendingLayout = false
   let booted = false
   let queue: QueueItem[] = []
@@ -136,7 +145,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const probe = { awake: false, uncapped: false, frames: 0 }
   const kick = (ms = 350) => (hotUntil = Math.max(hotUntil, performance.now() + ms))
 
-  const signs = new Map<DeptId | 'park', Sign>()
+  const signs = new Map<DeptId | 'lounge', Sign>()
   for (const d of depts) {
     const sign = createSign(d.name, d.path, hexCss(d.accent), { enter: () => setHoverDept(d.id), leave: () => setHoverDept(undefined), click: () => focusDept(d.id) })
     sign.obj.visible = false
@@ -144,36 +153,72 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     signs.set(d.id, sign)
   }
   {
-    const sign = createSign(parkedZone.name, 'no message for 1d+', undefined, { enter: () => setHoverDept('park'), leave: () => setHoverDept(undefined), click: () => focusDept('park') })
-    sign.obj.position.set(parkedZone.sign[0], 0.62, parkedZone.sign[1])
+    const sign = createSign('Lounge', 'standby · idle or read', undefined, { enter: () => setHoverDept('lounge'), leave: () => setHoverDept(undefined), click: () => focusDept('lounge') })
     sign.obj.visible = false
     labelScene.add(sign.obj)
-    signs.set('park', sign)
+    signs.set('lounge', sign)
   }
 
   const scenes = office.depts
   const shown = () => depts.filter((d) => anims[d.id].want)
   const active = () => [...live.values()].filter((l) => !l.gone)
-  const labelled = (l: Live): Labelled => ({ id: l.facts.id, dept: l.facts.dept, state: l.facts.state, parked: l.facts.parked, queued: l.queueIndex >= 0 })
+  const labelled = (l: Live): Labelled => ({ id: l.facts.id, dept: l.facts.dept, state: l.facts.state, parked: l.facts.parked, lounge: l.spot === 'lounge', queued: l.queueIndex >= 0 })
+  const shift = (l: Live, dx: number, dz: number) => l.c.walker.pos.set(l.c.walker.pos.x + dx, 0, l.c.walker.pos.z + dz)
+  const settled = (l: Live) => !l.gone && !l.c.walker.path.length
+
+  function placeCoolers() {
+    const a = anims.gym
+    coolerVecs.forEach((v, k) => {
+      const [x, z] = gymCooler(k, a.w, a.rows)
+      v.set(a.ox + x, 0, a.oz + z)
+    })
+  }
 
   function place(id: DeptId, [ox, oz, w, d]: Rect) {
     const a = anims[id], sc = scenes[id], dx = ox - a.ox, dz = oz - a.oz
-    if (dx || dz) for (const l of live.values()) if (l.slot?.dept === id && !l.gone && !l.c.walker.path.length && [l.slot.seat, l.slot.stand, l.slot.bench, l.slot.relax].includes(l.target.p)) l.c.walker.pos.set(l.c.walker.pos.x + dx, 0, l.c.walker.pos.z + dz)
+    if (dx || dz) for (const l of live.values()) if (settled(l) && ((l.slot?.dept === id && [l.slot.seat, l.slot.stand].includes(l.target.p)) || (id === 'gym' && coolerVecs.includes(l.target.p)))) shift(l, dx, dz)
     Object.assign(a, { ox, oz, w, d })
     sc.g.position.set(ox + w / 2, 0, oz + d / 2)
     sc.gi.position.set(-w / 2, 0, -d / 2)
     sc.resize(w, d)
     if (sc.side) sc.side.position.x = w - minWidth(id, sc.tier)
-    for (const s of sc.slots) placeSlot(s, ox, oz, w, a.rows)
+    for (const s of sc.slots) placeSlot(s, ox, oz)
+    if (id === 'gym') placeCoolers()
     signs.get(id)!.obj.position.set(ox + 0.25, 0.62, oz + d)
   }
 
+  function placeLounge([ox, oz, w, d]: Rect) {
+    const dx = ox - lounge.ox, dz = oz - lounge.oz
+    if (dx || dz) for (const l of live.values()) if (settled(l) && seatVecs.includes(l.target.p)) shift(l, dx, dz)
+    Object.assign(lounge, { ox, oz, w, d })
+    office.lounge.g.position.set(ox + w / 2, 0, oz + d / 2)
+    office.lounge.gi.position.set(-w / 2, 0, -d / 2)
+    office.lounge.resize(w, d)
+    seatVecs.forEach((v, i) => {
+      const [x, z] = loungeSeat(i, lounge.rows)
+      v.set(ox + x, 0, oz + z)
+    })
+    signs.get('lounge')!.obj.position.set(ox + 0.25, 0.62, oz + d)
+  }
+
   function offsetOf(owner: string): readonly [number, number] | undefined {
-    if (owner === 'park') return loungeWant ? [0, 0] : undefined
+    if (owner === 'lounge:corner') return lounge.want ? [lounge.to[0] + lounge.to[2], lounge.to[1]] : undefined
     const [id, part] = owner.split(':') as [DeptId, string | undefined]
     const a = anims[id]
     if (!a?.want) return undefined
     return [a.to[0] + (part === 'side' ? a.to[2] - minWidth(id, scenes[id].tier) : 0), a.to[1]]
+  }
+
+  function rebuildNav() {
+    const b = B1
+    const wall = (x0: number, z0: number, x1: number, z1: number) => nav.block(x0, z0, x1, z1, 0.05, undefined, 'perimeter')
+    nav.unblock('perimeter')
+    wall(b.x0 - 0.2, b.z0 - 0.2, b.x0 - 0.1, b.z1 + 0.15)
+    wall(b.x0 - 0.2, b.z0 - 0.2, b.x1 + 0.2, b.z0 - 0.1)
+    wall(b.x1 + 0.1, b.z0 - 0.2, b.x1 + 0.2, b.z1 + 0.15)
+    wall(b.x0 - 0.2, b.z1 + 0.05, door[0] - 0.7, b.z1 + 0.15)
+    wall(door[0] + 0.7, b.z1 + 0.05, b.x1 + 0.2, b.z1 + 0.15)
+    nav.rebuild(floor.frame, offsetOf)
   }
 
   function applyLayout(next: Floor, snap: boolean) {
@@ -183,10 +228,11 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
         const [x0, z0, x1, z1] = z.box
         a.to = [x0, z0, x1 - x0, z1 - z0]
         a.rows = z.rows
+        if (d.shell === 'yard' && next.yard) sc.reach = reachOf(next.yard, z.box)
         office.setTier(sc, z.tier)
         if (a.sc < 0.01) place(d.id, a.to)
         for (let i = sc.slots.length - 1; i >= z.desks; i--) office.removeSlot(d.id, i)
-        for (let i = sc.slots.length; i < z.desks; i++) placeSlot(office.addSlot(d.id, i, z.slots[i]![0], z.slots[i]![1]), a.ox, a.oz, a.w, a.rows)
+        for (let i = sc.slots.length; i < z.desks; i++) placeSlot(office.addSlot(d.id, i, z.slots[i]![0], z.slots[i]![1]), a.ox, a.oz)
         sc.block(a.to[2], a.to[3])
       } else a.to = [a.ox, a.oz, a.w, a.d]
       a.from = [a.ox, a.oz, a.w, a.d]
@@ -195,6 +241,20 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       a.want = z.shown
       signs.get(d.id)!.obj.visible = z.shown
     }
+    const lz = next.lounge
+    while (seatVecs.length < lz.seats) seatVecs.push(new THREE.Vector3())
+    if (lz.shown) {
+      const [x0, z0, x1, z1] = lz.box
+      lounge.to = [x0, z0, x1 - x0, z1 - z0]
+      if (lounge.rows !== lz.rows) for (const l of live.values()) if (l.spot === 'lounge') l.c.walker.goal = null
+      lounge.rows = lz.rows
+      office.lounge.seats(lz.seats, lz.rows)
+      if (lounge.sc < 0.01) placeLounge(lounge.to)
+    } else lounge.to = [lounge.ox, lounge.oz, lounge.w, lounge.d]
+    lounge.from = [lounge.ox, lounge.oz, lounge.w, lounge.d]
+    lounge.fs = lounge.sc
+    lounge.want = lz.shown
+    signs.get('lounge')!.obj.visible = lz.shown
     floor = next
     B0 = { ...B }
     B1 = next.bounds
@@ -211,97 +271,86 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     layU = Math.min(1, layU + dt / 0.45)
     const e = ease(layU)
     const mix = (from: number, to: number) => from + (to - from) * e
-    for (const d of depts) {
-      const a = anims[d.id], sc = scenes[d.id]
-      place(d.id, a.from.map((from, k) => mix(from, a.to[k]!)) as Rect)
+    const grow = (a: RoomAnim, g: THREE.Group) => {
       const to = a.want ? 1 : 0
       a.sc = a.fs + (to - a.fs) * (to > a.fs ? easeBack(layU) : e)
-      sc.g.scale.setScalar(Math.max(0.001, a.sc))
-      sc.g.visible = a.sc > 0.003
+      g.scale.setScalar(Math.max(0.001, a.sc))
+      g.visible = a.sc > 0.003
     }
+    for (const d of depts) {
+      const a = anims[d.id]
+      place(d.id, a.from.map((from, k) => mix(from, a.to[k]!)) as Rect)
+      grow(a, scenes[d.id].g)
+    }
+    placeLounge(lounge.from.map((from, k) => mix(from, lounge.to[k]!)) as Rect)
+    grow(lounge, office.lounge.g)
     B = { x0: mix(B0.x0, B1.x0), z0: mix(B0.z0, B1.z0), x1: mix(B0.x1, B1.x1), z1: mix(B0.z1, B1.z1) }
-    office.setShell(B)
+    office.setShell(B, { x0: Math.min(B.x0, floor.frame.x0), z0: Math.min(B.z0, floor.frame.z0), x1: Math.max(B.x1, floor.frame.x1), z1: Math.max(B.z1, floor.frame.z1) })
     renderer.shadowMap.needsUpdate = true
     kick(120)
     if (layU >= 1) {
       for (const d of depts) anims[d.id].shown = anims[d.id].want
-      nav.rebuild(B1, offsetOf)
+      lounge.shown = lounge.want
+      rebuildNav()
       for (const l of live.values()) l.c.walker.goal = null
       kick()
     }
   }
 
-  function stepLounge(dt: number) {
-    const to = loungeWant ? 1 : 0
-    if (Math.abs(loungeSc - to) < 0.002) return
-    loungeSc = Math.abs(loungeSc - to) < 0.01 ? to : loungeSc + (to - loungeSc) * Math.min(1, dt * 8)
-    office.lounge.scale.setScalar(Math.max(0.001, loungeSc))
-    office.lounge.position.set(loungeCentre[0] * (1 - loungeSc), 0, loungeCentre[1] * (1 - loungeSc))
-    office.lounge.visible = loungeSc > 0.003
-    renderer.shadowMap.needsUpdate = true
-    kick(120)
-  }
-
   const canFold = () => !focus.hovered && !focus.hoverDept && layU >= 1 && !rig.zoomed()
 
   function relayout() {
-    const agents: Demand = {}
-    for (const l of active()) if (!l.facts.parked) agents[l.facts.dept] = (agents[l.facts.dept] ?? 0) + 1
-    const { desks, pending } = settle(applied, agents, canFold())
-    pendingLayout = pending
-    const next = layoutFloor(desks, floor)
-    const moved = (id: DeptId) => next.zones[id].shown !== floor.zones[id].shown || next.zones[id].desks !== floor.zones[id].desks || next.zones[id].box.some((v, k) => v !== floor.zones[id].box[k])
-    const changed = !booted || depts.some((d) => moved(d.id)) || next.bounds.x1 !== floor.bounds.x1 || next.bounds.z0 !== floor.bounds.z0
-    applied = desks
+    const act = active()
+    for (const l of act) l.spot = spotFor(l.facts, l.spot, focus.selected === l.facts.id)
+    const { seated, present, standby } = demandOf(act.map((l) => ({ dept: l.facts.dept, spot: l.spot! })))
+    const can = canFold()
+    const { desks: want, pending } = settle(applied, seated, can, present)
+    const standing = can ? standby : Math.max(appliedStandby, standby)
+    pendingLayout = pending || standing !== standby
+    const next = layoutFloor(want, standing, floor)
+    const moved = (id: DeptId) => next.zones[id].shown !== floor.zones[id].shown || next.zones[id].desks !== floor.zones[id].desks || !sameBox(next.zones[id].box, floor.zones[id].box)
+    const loungeMoved = next.lounge.shown !== floor.lounge.shown || next.lounge.seats !== floor.lounge.seats || !sameBox(next.lounge.box, floor.lounge.box)
+    const changed = !booted || loungeMoved || depts.some((d) => moved(d.id)) || next.bounds.x1 !== floor.bounds.x1 || next.bounds.z0 !== floor.bounds.z0 || next.yard !== floor.yard
+    applied = want
+    appliedStandby = standing
     if (changed) applyLayout(next, !booted)
-    const parked = active().some((l) => l.facts.parked)
-    if (parked === loungeWant) return
-    loungeWant = parked
-    signs.get('park')!.obj.visible = parked
-    if (layU >= 1) nav.rebuild(B1, offsetOf)
   }
 
   function assign() {
-    const seated = active()
-      .filter((l) => !l.facts.parked)
-      .sort((a, b) => a.facts.createdAt - b.facts.createdAt)
-    const next = assignDesks(new Map([...desks, ...claims]), seated.map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => applied[id] ?? 0)
+    const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
+    const next = assignDesks(new Map([...desks, ...claims]), act.filter((l) => l.spot === 'desk').map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => applied[id] ?? 0)
     desks.clear()
     for (const [id, i] of next) desks.set(id, i)
     for (const id of claims.keys()) if (desks.has(id)) claims.delete(id)
-    const usedLounge = new Set<number>()
+    seats = assignSeats(seats, act.filter((l) => l.spot === 'lounge').map((l) => l.facts.id))
+    coolers.clear()
+    act.filter((l) => l.spot === 'cooler').forEach((l, k) => coolers.set(l.facts.id, k))
+    while (coolerVecs.length < coolers.size) coolerVecs.push(new THREE.Vector3())
+    placeCoolers()
     for (const l of live.values()) {
-      const slot = l.gone || l.facts.parked ? undefined : scenes[l.facts.dept].slots[desks.get(l.facts.id)!]
-      if (l.slot !== slot) {
-        if (l.slot && ![...live.values()].some((o) => o !== l && o.slot === l.slot)) {
-          drawPlate(l.slot, undefined)
-          clearScreen(l.slot)
-        }
-        l.slot = slot
-        l.screenKey = ''
+      const slot = l.gone || l.spot !== 'desk' ? undefined : scenes[l.facts.dept].slots[desks.get(l.facts.id)!]
+      if (l.slot === slot) continue
+      if (l.slot && ![...live.values()].some((o) => o !== l && o.slot === l.slot)) {
+        drawPlate(l.slot, undefined)
+        clearScreen(l.slot)
       }
-      if (l.facts.parked && !l.gone) {
-        const keep = loungeOf.get(l.facts.id)
-        if (keep !== undefined && !usedLounge.has(keep)) usedLounge.add(keep)
-        else loungeOf.delete(l.facts.id)
-      } else loungeOf.delete(l.facts.id)
-    }
-    for (const l of live.values()) {
-      if (!l.facts.parked || l.gone || loungeOf.has(l.facts.id)) continue
-      let i = 0
-      while (usedLounge.has(i)) i++
-      usedLounge.add(i)
-      loungeOf.set(l.facts.id, i)
+      l.slot = slot
+      l.screenKey = ''
     }
   }
 
   function targetOf(l: Live): Target {
     const f = l.facts
     if (l.gone) return { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }
-    const place = placementFor({ state: f.state, kind: kindOf(f.dept), parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length, bench: (l.slot?.i ?? 0) < benchSeats })
-    const lounged = loungeOf.get(f.id) ?? 0
-    const p = place.anchor === 'queue' ? queueVecs[l.queueIndex]! : place.anchor === 'lounge' ? (loungeVecs[lounged] ?? loungeVecs[lounged % loungeVecs.length]!) : place.anchor === 'door' || !l.slot ? doorVec : l.slot[place.anchor]
-    const seated = place.anchor === 'seat'
+    const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length })
+    const p =
+      place.anchor === 'queue' ? queueVecs[l.queueIndex]!
+      : place.anchor === 'lounge' ? (seatVecs[seats.get(f.id) ?? 0] ?? doorVec)
+      : place.anchor === 'cooler' ? (coolerVecs[coolers.get(f.id) ?? 0] ?? doorVec)
+      : !l.slot || place.anchor === 'door' ? doorVec
+      : place.anchor === 'stand' ? l.slot.stand
+      : l.slot.seat
+    const seated = place.anchor === 'seat' && !!l.slot
     return {
       p, face: place.faceCamera ? null : 0, pose: place.pose, y: place.y, home: seated, homeKind: l.slot?.kind ?? 'none', parked: f.parked, needs: f.state === 'needs-you',
       subs: seated && f.state === 'working' ? f.subagents.length : 0, miniCentre: seated ? l.slot!.mini : undefined,
@@ -310,7 +359,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function spawn(a: Agent) {
     const walker = newWalker(doorVec)
-    const chip = createChip({ click: () => select(a.id, true), enter: () => setHovered(a.id), leave: () => focus.hovered === a.id && setHovered(undefined) })
+    const chip = createChip({ click: () => select(a.id, 'fly'), enter: () => setHovered(a.id), leave: () => focus.hovered === a.id && setHovered(undefined) })
     labelScene.add(chip.obj)
     const c = kit.create(a.colour, doorVec, walker, booted, rnd)
     c.chipAt = chip.obj.position.copy(c.chipAt)
@@ -323,7 +372,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function leave(l: Live, i: number) {
     l.gone = true
     l.wait = i * 0.18
-    if (focus.selected === l.facts.id) select(undefined, false)
+    if (focus.selected === l.facts.id) select(undefined, 'overview')
   }
 
   function dispose(l: Live) {
@@ -350,17 +399,21 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function renderSigns() {
     const act = active()
     for (const [id, sign] of signs) {
-      const group = act.filter((l) => (id === 'park' ? l.facts.parked : l.facts.dept === id && !l.facts.parked)).map((l) => l.facts)
-      const counts = id === 'park' ? (group.length ? [{ key: 'idle', label: 'asleep', n: group.length }] : []) : countsFor(group)
-      renderSign(sign, id === 'park' ? parkedZone.name : dept[id].name, counts, id === 'park' ? 'Empty' : 'No agents', focus.hoverDept === id, !!focus.hoverDept && focus.hoverDept !== id)
+      const on = focus.hoverDept === id, dim = !!focus.hoverDept && focus.hoverDept !== id
+      if (id === 'lounge') {
+        const here = act.filter((l) => l.spot === 'lounge')
+        const dozing = here.filter((l) => l.facts.parked).length
+        const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing }, { key: 'idle', label: 'dozing', n: dozing }].filter((c) => c.n > 0)
+        renderSign(sign, 'Lounge', counts, 'Empty', on, dim)
+      } else renderSign(sign, dept[id].name, countsFor(act.filter((l) => l.facts.dept === id && l.spot !== 'lounge').map((l) => l.facts)), 'No agents', on, dim)
       sign.w = sign.el.offsetWidth || sign.w
       sign.h = sign.el.offsetHeight || sign.h
     }
   }
 
   function drawMonitor() {
-    const { c, x, t: tex } = office.myScreen, w = c.width, h = c.height, seated = active().filter((l) => !l.facts.parked)
-    const n = (s: StateKey) => seated.filter((l) => stateKey(l.facts.state) === s).length
+    const { c, x, t: tex } = office.myScreen, w = c.width, h = c.height, act = active()
+    const n = (s: StateKey) => act.filter((l) => l.spot !== 'lounge' && stateKey(l.facts.state) === s).length
     const N = queue.length
     x.fillStyle = '#F7F8FB'
     x.fillRect(0, 0, w, h)
@@ -415,7 +468,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     }
     x.fillStyle = '#6B7280'
     x.font = '24px "JetBrains Mono", monospace'
-    x.fillText(`${n('working')} working · ${n('done')} done · ${n('idle')} idle`, 44, h - 30)
+    x.fillText(`${n('working')} working · ${n('done')} done · ${act.filter((l) => l.spot === 'lounge').length} in the lounge`, 44, h - 30)
     tex.needsUpdate = true
   }
 
@@ -494,7 +547,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     focus.hovered = id
     kick()
   }
-  function setHoverDept(id: DeptId | 'park' | undefined) {
+  function setHoverDept(id: DeptId | 'lounge' | undefined) {
     if (focus.hoverDept === id) return
     focus.hoverDept = id
     applyFocus()
@@ -506,29 +559,27 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   }
 
   const focusPoint = (l: Live) => new THREE.Vector3(l.c.walker.pos.x, 0.7, l.c.walker.pos.z)
-  function select(id: string | undefined, fly: boolean) {
+  function select(id: string | undefined, view: View) {
+    const changed = focus.selected !== id
     focus.selected = id
     const l = id ? live.get(id) : undefined
-    for (const other of live.values()) paint(other)
     ui.selected = l ? entry(l) : undefined
-    if (l && fly) {
-      rig.atOverview = false
-      rig.follow = () => focusPoint(l)
-      rig.flyTo(() => focusPoint(l), rig.zoomDistance(region(), innerHeight), undefined, 0.8)
-    } else if (!l || rig.atOverview) rig.goOverview(false)
+    if (l && view === 'fly') rig.show('fly', () => focusPoint(l), rig.zoomDistance(region(), innerHeight))
+    else if (view !== 'keep' && (!l || rig.atOverview)) rig.show('overview')
+    if (changed && booted) refresh()
+    else for (const other of live.values()) paint(other)
     kick()
   }
-  function focusDept(id: DeptId | 'park') {
-    const box = id === 'park' ? parkedZone.box : floor.zones[id].box
-    const [x0, z0, x1, z1] = box
+  function focusDept(id: DeptId | 'lounge') {
+    const [x0, z0, x1, z1] = id === 'lounge' ? floor.lounge.box : floor.zones[id].box
     const span = Math.max(x1 - x0, (z1 - z0) * 1.3)
     rig.atOverview = false
     rig.follow = undefined
-    rig.flyTo(() => new THREE.Vector3((x0 + x1) / 2, 0.3, (z0 + z1) / 2), Math.min((rig.zoomDistance(region(), innerHeight) * Math.max(1.5, span / 4.4)), rig.overview.distance * 0.58), VIEW, 0.85)
+    rig.flyTo(() => new THREE.Vector3((x0 + x1) / 2, 0.3, (z0 + z1) / 2), Math.min(rig.zoomDistance(region(), innerHeight) * Math.max(1.5, span / 4.4), rig.overview.distance * 0.58), VIEW, 0.85)
   }
 
   function layoutView() {
-    rig.layout(region(), innerWidth, innerHeight, B1)
+    rig.layout(region(), innerWidth, innerHeight, floor.frame)
   }
 
   const ray = new THREE.Raycaster()
@@ -547,7 +598,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const onUp = (e: PointerEvent) => {
     if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5) {
       const id = hit(e)
-      if (id) select(id, true)
+      if (id) select(id, 'fly')
     }
     down = undefined
   }
@@ -559,12 +610,9 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     canvas.style.cursor = id ? 'pointer' : 'grab'
     const p = ray.ray.intersectPlane(floorPlane, floorHit)
     if (!p) return setHoverDept(undefined)
-    const [px0, pz0, px1, pz1] = parkedZone.box
-    const zone = shown().find((d) => {
-      const [x0, z0, x1, z1] = floor.zones[d.id].box
-      return p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1
-    })
-    setHoverDept(zone?.id ?? (p.x >= px0 && p.x <= px1 && p.z >= pz0 && p.z <= pz1 ? 'park' : undefined))
+    const inside = ([x0, z0, x1, z1]: Box) => p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1
+    const zone = shown().find((d) => inside(floor.zones[d.id].box))
+    setHoverDept(zone?.id ?? (lounge.want && inside(floor.lounge.box) ? 'lounge' : undefined))
   }
   const onLeave = () => {
     setHovered(undefined)
@@ -577,16 +625,16 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   const timers = [
     setInterval(() => {
-      if (!document.hidden) office.tickAuction()
+      if (!document.hidden) guard.run('auction screen', undefined, office.tickAuction)
     }, 1000),
-    setInterval(() => office.tickStatus(), 10_000),
+    setInterval(() => guard.run('status screen', undefined, office.tickStatus), 10_000),
   ]
 
   function deskChip(id: DeptId, i: number) {
     const key = `${id}:${i}`
     let chip = deskChips.get(key)
     if (!chip) {
-      chip = createDeskChip(`New agent at ${dept[id].name} ${kindOf(id) === 'gym' ? 'treadmill' : 'desk'} ${i + 1}`, () => onNewDesk?.(id, i))
+      chip = createDeskChip(`New agent at ${dept[id].name} ${kindOf(id) === 'gym' ? 'treadmill' : id === 'side' ? 'table' : 'desk'} ${i + 1}`, () => onNewDesk?.(id, i))
       labelScene.add(chip)
       deskChips.set(key, chip)
     }
@@ -660,43 +708,47 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     if (scrT > 0.4) {
       scrT = 0
       if (zoomed)
-        for (const l of live.values())
-          if (l.slot && !l.gone && l.facts.state === 'working' && l.target.home) {
-            l.slot.scroll++
-            drawScreen(l.slot, { colour: l.facts.colour, title: l.facts.title, state: 'working', caption: l.facts.caption })
-          }
+        guard.run('desk screens', undefined, () => {
+          for (const l of live.values())
+            if (l.slot && !l.gone && l.facts.state === 'working' && l.target.home) {
+              l.slot.scroll++
+              drawScreen(l.slot, { colour: l.facts.colour, title: l.facts.title, state: 'working', caption: l.facts.caption })
+            }
+        })
     }
     ledT += dt
     if (ledT > 0.25) {
       ledT = 0
-      if (anims.plat.shown) office.blinkLeds()
+      if (anims.plat.shown) guard.run('server LEDs', undefined, office.blinkLeds)
     }
     let moved = false
     const faceCamera = (p: THREE.Vector3) => Math.atan2(camera.position.x - p.x, camera.position.z - p.z)
     const route = (a: THREE.Vector3, b: THREE.Vector3) => nav.route(a, b)
     for (const l of [...live.values()]) {
-      if (l.slot?.belt && l.target.home && l.target.pose === 'run' && !l.c.walker.path.length) l.slot.belt.offset.y -= dt * 1.9
-      let target = l.target
-      if (l.gone && l.wait > 0) {
-        l.wait -= dt
-        target = { ...l.target, p: l.c.walker.pos }
-      }
-      const looking = focus.selected === l.facts.id || focus.hovered === l.facts.id
-      moved = animate(l.c, target, kit, l.facts.colour, { dt, t, motion, faceCamera, route, looking, dim: isDim(labelled(l), focus), gone: l.gone }) || moved
+      moved =
+        guard.run(`agent ${l.facts.id}`, false, () => {
+          if (l.slot?.belt && l.target.home && l.target.pose === 'run' && !l.c.walker.path.length) l.slot.belt.offset.y -= dt * 1.9
+          let target = l.target
+          if (l.gone && l.wait > 0) {
+            l.wait -= dt
+            target = { ...l.target, p: l.c.walker.pos }
+          }
+          const looking = focus.selected === l.facts.id || focus.hovered === l.facts.id
+          return animate(l.c, target, kit, l.facts.colour, { dt, t, motion, faceCamera, route, looking, dim: isDim(labelled(l), focus), gone: l.gone })
+        }) || moved
       if (l.c.out >= 1) {
         dispose(l)
         refresh()
       }
     }
-    stepLayout(dt)
-    stepLounge(dt)
+    guard.run('layout', undefined, () => stepLayout(dt))
     if (pendingLayout && now - lastPend > 500) {
       lastPend = now
       refresh()
     }
-    rig.step(dt)
-    const cm = controls.update()
-    office.drawClock()
+    guard.run('camera', undefined, () => rig.step(dt))
+    const cm = guard.run('controls', false, () => controls.update())
+    guard.run('wall clock', undefined, office.drawClock)
     const key = [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(3)).join()
     const camMoved = key !== camKey
     camKey = key
@@ -718,8 +770,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   layoutView()
   rig.goOverview(true)
   office.setShell(B)
-  office.lounge.visible = false
-  office.lounge.scale.setScalar(0.001)
 
   return {
     probe,
@@ -733,10 +783,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     setReviews(requests: readonly ReviewRequest[]) {
       if (intray.update(requests, Date.now())) kick()
     },
-    overview: () => select(undefined, false),
+    overview: () => select(undefined, 'overview'),
     escape() {
       if (focus.filter) return setFilter(undefined)
-      if (focus.selected) return select(undefined, false)
+      if (focus.selected) return select(undefined, 'overview')
       if (!rig.atOverview) rig.goOverview(false)
     },
     relayoutView: () => {
@@ -760,9 +810,11 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       probe.frames++
       if (!labelsDue) return
       lastLabels = performance.now()
-      layoutChips()
-      labels.render(labelScene, camera)
-      for (const l of live.values()) if (l.chip.obj.visible && (loud(labelled(l)) || focus.selected === l.facts.id || focus.hovered === l.facts.id)) l.chip.el.style.zIndex = String(1000 + (Number(l.chip.el.style.zIndex) || 0))
+      guard.run('labels', undefined, () => {
+        layoutChips()
+        labels.render(labelScene, camera)
+        for (const l of live.values()) if (l.chip.obj.visible && (loud(labelled(l)) || focus.selected === l.facts.id || focus.hovered === l.facts.id)) l.chip.el.style.zIndex = String(1000 + (Number(l.chip.el.style.zIndex) || 0))
+      })
     },
     dispose() {
       timers.forEach(clearInterval)

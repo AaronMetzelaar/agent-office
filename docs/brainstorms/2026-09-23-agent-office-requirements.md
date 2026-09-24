@@ -25,30 +25,33 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
     - **Mobile** (`frontend/mobile`)
     - **Backend / infra**: services, API, workers and infra, plus anything else in the monorepo
   - A **Research gym** holding every chat on the research account.
-  - A **Side projects** area for the main account's other folders.
   - A **PR reviews** section for the agents started from the review queue (R28).
+  - **Side projects**, for the main account's other folders, sits outside the building as a playground on a lawn by the entrance.
 
-  A section only appears while it has active agents (parked chats don't count). Empty sections fold away, and the rest close up in a fixed order: Marketplace, Admin, Mobile, Backend / infra, Side projects, PR reviews, Research gym. Marketplace, Admin and Mobile line the back wall; Backend / infra, Side projects, PR reviews and the gym line the front. Starting an agent in a hidden department brings its section back. ⌘N, the job board and the review queue can still target hidden departments.
+  A section only appears while it has active agents: working, needs you, stuck, or done and unread. Resting and parked chats sit in the Lounge (R5) and don't count. Empty sections fold away. Inside the building the rest keep a fixed order: Marketplace, Admin, Mobile, Backend / infra, PR reviews, Research gym. Starting an agent in a hidden department brings its section back. ⌘N, the job board and the review queue can still target hidden departments.
 
   Sections and the building are only as big as they need to be:
-  - A section holds a desk for each active agent plus one free desk, so there's always a desk to start from. The desks form a compact grid that grows in steps (two side by side, then 2×2, 3×2, 3×3, then wider) and shrinks as agents leave. Parked and archived chats don't count. A growing section never moves an existing desk.
+  - A section holds a desk for each active agent plus one free desk, so there's always a desk to start from. The desks form a compact grid that grows in steps (two side by side, then 2×2, 3×2, 3×3, then wider) and shrinks as agents leave. A growing section never moves an existing desk. The gym gets treadmills only for agents that run (working, or queued at the door and coming back); a done gym agent waits by the water cooler instead.
   - Props follow a size tier: a section with one or two agents keeps its signature piece (the Marketplace's auction screen and framed shirts, for example), and bigger tiers add the rest. Props never cover desks or walkways.
-  - The floor, walls and windows fit the sections that are showing, plus the fixed front: his glass office with the door queue, the entrance, and the Parked lounge while anything is parked. The overview camera refits when the building changes.
+  - The visible sections pack into rows in that order, back to front and left to right. The row breaks are chosen to keep the footprint small and the overview close to the 16:10 canvas left of the drawer. A row narrower than the building stretches its sections to close the gap, so no empty floor is bigger than a walkway.
+  - The floor, walls, windows and shadows hug the packed sections plus the fixed parts: his glass office with the door queue, the entrance with its cloakroom, and the Lounge while anyone rests there. The Lounge sits beside his office or at the end of a row, wherever it packs tighter. The overview camera refits when the building changes, and frames the playground too.
   - Resizes and moves animate instead of jumping, and agents walk to their new desks. Re-layout waits while he's hovering or zoomed into a section, and applies when he returns to the overview. The one exception is a newcomer who needs a desk: that desk appears at once, and the next free desk waits.
+
+  The Side projects playground follows the same rules outdoors. Its desks are picnic tables with laptops, one per active agent plus a free one with a "+", each with its project's nameplate. Tier props are trees, bushes, string lights, then a swing, then a slide and a sandbox. It has a sign with live counts and folds away when empty. It goes in front of the entrance or beside the left wall, whichever frames the building and the playground more tightly. The ground out there is lawn, not floor tiles, and the playground doesn't count toward the building's footprint.
 
   Each department is a clearly bounded section:
   - its own subtle floor tint
   - low partitions with an opening onto the main aisle
   - a sign readable from the overview, with its name, folder and live counts (needs-you in amber)
 
-  Inside Side projects and the gym, each desk carries its project's name.
+  On the playground and in the gym, each table or treadmill carries its project's name.
 
   Sections look like the projects they hold. For MWS (mws.com, match-worn football shirts):
   - Marketplace: a shirt showroom with framed shirts, a hanger rail, an auction podium and pitch turf.
   - Admin: a compact back office with filing cabinets and a small ops dashboard.
   - Mobile: a device-testing wall.
   - Backend / infra: server racks and monitoring screens.
-  - Side projects: a corner per project.
+  - Side projects: a playground on a lawn, with picnic tables.
   - PR reviews: a quiet reading room with lamps, armchairs and a review board.
   - The gym keeps its gym look.
   No real club crests or MWS logos.
@@ -60,8 +63,17 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
   | Working | Typing at the desk | Running on a treadmill |
   | Needs you | Gets up, walks to your office door, waits in the queue with a "!" | Same: gym agents queue at your door too |
   | Done, unread | Leans back with a done mark until you read the reply | Stands by the water cooler with a done mark |
-  | Idle | Quiet at the desk, slumped | Sits on the gym bench |
+  | Idle, or done and read | Walks to the Lounge and sits back in an armchair, a mug on the armrest | Same: the Lounge |
+  | Parked (quiet for a day) | Dozes in the Lounge, eyes closed and dimmed | Same |
   | Stuck (crashed, logged out, rate-limited) | Walks to your door and queues with a warning bubble instead of "!" | Same |
+
+  The Lounge is where finished work rests:
+  - A done chat stays at its desk as a result waiting for him. Once he has read it (opened it and then left it by closing it, opening another chat or going back to the overview), its agent walks to the Lounge and its desk frees up, so the section shrinks. An idle chat goes straight there.
+  - An agent never walks away while its chat is open. A message to a resting chat walks it back to a desk in its department, and it goes to Working.
+  - Visitor chats (R18) follow the same rules from their observed state: a visitor that starts working again walks back to a desk.
+  - The Lounge is compact and sized to its occupants, one armchair each, never overlapping. It hides when nobody rests there.
+  - Clicking a resting agent opens its chat. The drawer's board ends with a Standby group, collapsed by default, that lists each resting chat with its department and "done 2h ago". ⌘K finds resting chats too.
+  - The unread flag survives a relaunch, for visitor chats as well.
 
   Two cues make every agent scannable from the overview:
   - A floor status ring in the state colour: amber for needs you, blue for working, green for done, grey for idle, red for stuck. The ring stays visible even when name tags collapse.
@@ -73,7 +85,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 
 - R6. Subagents appear as mini versions of their parent next to it, labelled with their task. They leave when they finish.
 - R7. Your office, glass-walled, sits at the front of the floor, nearest the default camera. Chats that need you (including stuck ones) queue at your door in arrival order. The order is visual only: you can open any waiting agent. When you release one (allow, deny, reply or restart), it walks back to its desk and the rest move up.
-- R8. The overview shows the whole floor. Clicking an agent glides the camera in and opens its chat, and "Overview" returns. ⌘K jumps to any agent by name. Departments add desks as they fill up; there is no fixed seat count.
+- R8. The overview shows the whole floor. Clicking an agent glides the camera in and opens its chat, and "Overview" returns. Starting an agent never moves the camera: the new agent walks in from the entrance to its desk while the view stays put. ⌘K jumps to any agent by name. Departments add desks as they fill up; there is no fixed seat count.
 - R9. An in-world wall screen (the "Project status" board from the reference) and a top-bar tally show the counts per state. The tally serves you inside the app; the menu bar strip (R19) serves you outside it.
 
 **Chat and control (Claude Code parity on day one)**
@@ -127,7 +139,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R18. Chats started outside the office (the desktop app, `claude` in a terminal) appear read-only with live status. A "Move into the office" action resumes that chat inside the office so you can chat and approve there.
 
 **Housekeeping**
-- R21. Parking: a chat with no message for 1 day leaves its desk for a Parked area near the entrance, dimmed and without a tag at the overview. It returns when a message arrives. Parking also stops the chat's long-running child processes (dev servers, test watchers, docker compose) to free RAM; they restart on demand. Thresholds are editable.
+- R21. Parking: a chat with no message for 1 day dozes in the Lounge (R5), dimmed and without a tag at the overview, even if its reply is still unread. It walks back to a desk when a message arrives. Parking also stops the chat's long-running child processes (dev servers, test watchers, docker compose) to free RAM; they restart on demand. Thresholds are editable.
 - R22. Resources: the office shows RAM per agent (its session plus the processes it started, such as dev servers and test runners), the number of worktrees and their disk size, and each worktree's git state. A top-bar indicator turns amber when RAM is high.
 - R23. Cleanup: chats with no message for 3 days are suggested for cleanup. The possible actions are stop processes, archive the chat, and remove the worktree. Removing a worktree is blocked, with the reason shown, when it has uncommitted or unpushed changes. One "Clean up safe" action previews, then handles, all the safe candidates, and reports what was freed.
 

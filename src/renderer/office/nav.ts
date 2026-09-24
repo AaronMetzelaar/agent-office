@@ -2,7 +2,6 @@ import { Vector3 } from 'three'
 import type { Bounds } from './layout'
 
 const cell = 0.2
-const gx = -13.5
 const n8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const
 
 interface Blocker {
@@ -21,6 +20,7 @@ export function createNav() {
   const blockers: Blocker[] = []
   let gw = 1
   let gh = 1
+  let gx = 0
   let gz = 0
   let grid = new Uint8Array(1)
 
@@ -77,9 +77,10 @@ export function createNav() {
       for (let i = blockers.length - 1; i >= 0; i--) if (blockers[i]!.tag === tag) blockers.splice(i, 1)
     },
     rebuild(bounds: Bounds, offset: (owner: string) => readonly [number, number] | undefined) {
+      gx = bounds.x0 - 0.6
       gz = bounds.z0 - 0.5
       gw = Math.ceil((bounds.x1 + 1.5 - gx) / cell)
-      gh = Math.ceil((bounds.z1 + 0.5 - gz) / cell)
+      gh = Math.ceil((bounds.z1 + 0.9 - gz) / cell)
       grid = new Uint8Array(gw * gh)
       for (const b of blockers) {
         const [dx, dz] = b.owner === undefined ? [0, 0] : (offset(b.owner) ?? [])

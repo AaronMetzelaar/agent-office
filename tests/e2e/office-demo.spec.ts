@@ -36,7 +36,7 @@ test.afterAll(async () => {
 
 test('the demo office renders its sections, signs and door queue', async () => {
   await expect(page.locator('canvas')).toBeVisible()
-  for (const name of ['Marketplace', 'Mobile', 'Backend / infra', 'Side projects', 'PR reviews', 'Research gym', 'Parked']) await expect(page.locator('.sign', { hasText: name })).toBeVisible()
+  for (const name of ['Marketplace', 'Mobile', 'Backend / infra', 'Side projects', 'PR reviews', 'Research gym', 'Lounge']) await expect(page.locator('.sign', { hasText: name })).toBeVisible()
   await expect(page.locator('.sign', { hasText: 'Admin' })).toBeHidden()
   await expect(page.getByRole('complementary', { name: 'Inbox' })).toContainText('Dialog flow CI fix')
   await expect(page.locator('.chip.q').first()).toBeVisible()

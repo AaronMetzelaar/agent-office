@@ -3,6 +3,7 @@ import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { Bounds } from './layout'
 
 export const VIEW = new Vector3(0.22, 1.18, 1).normalize()
+export type View = 'fly' | 'overview' | 'keep'
 
 export interface Region {
   x0: number
@@ -94,6 +95,13 @@ export function createRig(camera: PerspectiveCamera, controls: OrbitControls, re
     flyTo(getT: () => Vector3, distance: number, dir?: Vector3, dur = 1) {
       const off = camera.position.clone().sub(controls.target)
       rig.tween = { u: 0, dur: reduce ? 0.01 : dur, t0: controls.target.clone(), d0: off.length(), r0: off.clone().normalize(), getT, d1: distance, r1: (dir ?? off).clone().normalize() }
+    },
+    show(view: View, getT?: () => Vector3, distance?: number) {
+      if (view === 'keep') return
+      if (view === 'overview' || !getT) return rig.goOverview(false)
+      rig.atOverview = false
+      rig.follow = getT
+      rig.flyTo(getT, distance ?? rig.overview.distance * 0.5, undefined, 0.8)
     },
     goOverview(snap: boolean) {
       rig.atOverview = true

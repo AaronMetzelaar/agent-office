@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { anchorsFor, benchSeats, depts, door, gymBench, gymBenchZ, gymRelax, gymRelaxZ, kindOf, lounge as loungeSpots, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
+import { anchorsFor, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
 import type { Nav } from './nav'
 
 type V3 = THREE.Vector3
@@ -22,8 +22,6 @@ export interface Slot {
   g: THREE.Group
   seat: V3
   stand: V3
-  bench: V3
-  relax: V3
   chip: V3
   mini: V3
   screen: CanvasTex
@@ -45,8 +43,17 @@ export interface DeptScene {
   tier: Tier
   back?: THREE.Group
   side?: THREE.Group
+  reach: [left: number, back: number, right: number, front: number]
   resize(w: number, d: number): void
   block(w: number, d: number): void
+}
+
+export interface LoungeScene {
+  g: THREE.Group
+  gi: THREE.Group
+  corner: THREE.Group
+  resize(w: number, d: number): void
+  seats(count: number, rows: number): void
 }
 
 const refW = 27
@@ -124,7 +131,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     black: M(0x25282e, 0.55), chair: M(0x4a5260, 0.85), fabric: M(0x93a0ae, 0.95), fabric2: M(0xa3afbc, 0.95), leafA: M(0x3f9a55, 0.62), leafB: M(0x2e7d45, 0.66),
     leafC: M(0x5db36b, 0.6), snake: M(0x2f6b43, 0.6), snakeL: M(0x7fa85a, 0.6), sage: M(0x8db59a, 0.7), trunk: M(0x7a5a3e, 0.8), soil: M(0x3b2f28, 1), pot: M(0xefece6, 0.7),
     potD: M(0x3a3f47, 0.6), terra: M(0xc9714b, 0.8), screenOff: M(0x1e232c, 0.3), mat1: M(0x2dd4bf, 0.85), mat2: M(0xa78bfa, 0.85), mat3: M(0xfb923c, 0.85),
-    teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1), lounge: M(0xe6dfd3, 1),
+    teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1), fabric3: M(0xc9d3e0, 0.95), cushion: M(0xe7dccb, 0.95),
+    grassD: M(0x5e9a52, 0.85), sand: M(0xe8d5a3, 1), rope: M(0x8a6a4a, 0.9),
   }
   const leaves = [mat.leafA, mat.leafB, mat.leafC]
   const glassM = keep(new THREE.MeshStandardMaterial({ color: 0xdceaff, roughness: 0.1, transparent: true, opacity: 0.2, depthWrite: false }))
@@ -425,10 +433,10 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
   function slotOf(d: DeptDef, i: number, x: number, z: number, g: THREE.Group, kind: SlotKind): Slot {
     const s: Slot = {
-      dept: d.id, i, kind, bx: x, bz: z, g, seat: new V3(), stand: new V3(), bench: new V3(), relax: new V3(), chip: new V3(), mini: new V3(), screen: canvasTex(340, 200),
+      dept: d.id, i, kind, bx: x, bz: z, g, seat: new V3(), stand: new V3(), chip: new V3(), mini: new V3(), screen: canvasTex(340, 200),
       lines: Array.from({ length: 24 }, () => ({ ind: Math.floor(rnd() * 4), len: 40 + rnd() * 170, acc: rnd() < 0.2 })), scroll: 0,
     }
-    placeSlot(s, 0, 0, 0, 1)
+    placeSlot(s, 0, 0)
     return s
   }
   function desk(d: DeptDef, i: number, x: number, z: number): Slot {
@@ -474,9 +482,30 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(RB(0.3, 0.025, 0.045, 0.01), mat.black, Math.sin(a) * 0.13, 0.05, Math.cos(a) * 0.13, ch).rotation.y = a - Math.PI / 2
       mesh(SP(0.022, 8, 6), mat.black, Math.sin(a) * 0.27, 0.022, Math.cos(a) * 0.27, ch)
     }
-    if (d.id === 'side') plate(s, 0.84, 0.21, 0, 0.862, 0.32, -0.5)
     block(x - 0.8, z - 0.38, x + 0.8, z + 0.38)
     blockAt(x, z - 0.7, 0.25, 0.25, 0.2)
+    return s
+  }
+  function picnic(d: DeptDef, i: number, x: number, z: number): Slot {
+    const g = grp(x, z), s = slotOf(d, i, x, z, g, 'desk')
+    mesh(RB(1.6, 0.06, 0.72, 0.02), mat.wood, 0, 0.72, 0, g)
+    for (const bz of [-0.68, 0.68]) mesh(RB(1.6, 0.05, 0.28, 0.02), mat.wood, 0, 0.44, bz, g)
+    for (const sx of [-0.62, 0.62]) {
+      mesh(RB(0.06, 0.05, 1.64, 0.01), mat.woodD, sx, 0.36, 0, g)
+      for (const lz of [-0.22, 0.22]) mesh(RB(0.06, 0.74, 0.06, 0.01), mat.woodD, sx, 0.37, lz, g).rotation.x = lz * 1.6
+    }
+    mesh(RB(0.36, 0.016, 0.25, 0.006), mat.metal, 0, 0.758, -0.14, g)
+    const lid = grp(0, -0.01, 0, g)
+    lid.position.y = 0.76
+    lid.rotation.x = 0.28
+    mesh(RB(0.36, 0.24, 0.012, 0.006), mat.metal, 0, 0.12, 0, lid)
+    const sp = plane(0.32, 0.2, new THREE.MeshBasicMaterial({ map: s.screen.t, toneMapped: false }), 0, 0.12, -0.008, lid)
+    sp.rotation.y = Math.PI
+    mesh(CY(0.035, 0.03, 0.08, 10), mat.white, 0.52, 0.79, -0.12, g)
+    plate(s, 0.84, 0.21, 0, 0.62, 0.375, 0)
+    block(x - 0.8, z - 0.36, x + 0.8, z + 0.36)
+    block(x - 0.8, z + 0.54, x + 0.8, z + 0.82, 0.15)
+    blockAt(x, z - 0.68, 0.3, 0.14, 0.15)
     return s
   }
   function stripeTex() {
@@ -911,143 +940,82 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     }
     blockAt(x, z, 0.26, 0.31)
   }
-  function easel(x: number, z: number, ry: number) {
-    const g = grp(x, z, ry)
-    g.scale.setScalar(1.25)
-    for (const s of [-1, 1]) mesh(BX(0.035, 1.62, 0.035), mat.woodD, s * 0.26, 0.8, 0, g).rotation.z = s * 0.13
-    mesh(BX(0.035, 1.6, 0.035), mat.woodD, 0, 0.78, -0.28, g).rotation.x = -0.34
-    ms(BX(0.72, 0.03, 0.09), mat.woodD, 0, 0.78, 0.03, g)
-    const { x: X, t } = once('easel', () => canvasTex(320, 256))
-    X.fillStyle = '#F7F7F4'
-    X.fillRect(0, 0, 320, 256)
-    for (let i = 0; i < 20; i++)
-      for (let j = 0; j < 16; j++) {
-        const px = 12 + i * 15.5, py = 12 + j * 15.5, d = Math.hypot(px - 200, py - 110), r = Math.max(0.8, 5.6 - d / 32)
-        X.fillStyle = d < 70 ? '#1B34FF' : '#AAB3F5'
-        X.beginPath()
-        X.arc(px, py, r, 0, Math.PI * 2)
-        X.fill()
-      }
-    mesh(RB(0.74, 0.58, 0.025, 0.008), mat.white, 0, 1.12, 0.03, g).rotation.x = -0.1
-    t.needsUpdate = true
-    plane(0.68, 0.53, once('easelM', () => bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 }))), 0, 1.12, 0.046, g).rotation.x = -0.1
-    blockAt(x, z, 0.4, 0.3)
-  }
-  function swatches(x: number, z: number) {
-    const g = grp(x, z, 0.3)
-    mesh(RB(0.52, 0.6, 0.4, 0.02), mat.white, 0, 0.3, 0, g)
-    ;[0x1b34ff, 0xf2994a, 0x111827, 0xe8e4dc, 0x15a34a, 0xf25ca2].forEach((c, i) => {
-      ms(BX(0.05, 0.006, 0.26), M(c, 0.7), -0.02 + i * 0.012, 0.605 + i * 0.004, 0.02, g).rotation.y = -0.6 + i * 0.24
-    })
-    ms(CY(0.04, 0.035, 0.1, 12), mat.terra, 0.16, 0.65, -0.08, g)
-    for (let k = 0; k < 3; k++) ms(CY(0.005, 0.005, 0.16, 5), mat.woodD, 0.16 + (k - 1) * 0.015, 0.74, -0.08, g).rotation.z = (k - 1) * 0.18
-    blockAt(x, z, 0.3, 0.24)
-  }
-  function blueprint(x: number, z: number) {
-    const g = grp(x, z)
-    ms(RB(1.3, 0.04, 0.8, 0.01), mat.wood, 0, 0.88, 0, g)
-    for (const sx of [-0.6, 0.6]) for (const sz of [-0.35, 0.35]) mesh(CY(0.02, 0.02, 0.86, 8), mat.woodD, sx, 0.43, sz, g)
-    const { x: X, t } = once('blueprint', () => canvasTex(512, 300))
-    X.fillStyle = '#2F5FA8'
-    X.fillRect(0, 0, 512, 300)
-    X.strokeStyle = 'rgba(255,255,255,.14)'
-    X.lineWidth = 1
-    for (let i = 0; i < 512; i += 16) {
-      X.beginPath()
-      X.moveTo(i, 0)
-      X.lineTo(i, 300)
-      X.stroke()
-    }
-    for (let j = 0; j < 300; j += 16) {
-      X.beginPath()
-      X.moveTo(0, j)
-      X.lineTo(512, j)
-      X.stroke()
-    }
-    X.strokeStyle = '#fff'
-    X.lineWidth = 3
-    X.strokeRect(40, 40, 432, 220)
-    X.beginPath()
-    X.moveTo(200, 40)
-    X.lineTo(200, 160)
-    X.moveTo(40, 160)
-    X.lineTo(300, 160)
-    X.moveTo(300, 40)
-    X.lineTo(300, 260)
-    X.stroke()
-    X.fillStyle = '#fff'
-    X.font = '500 14px "JetBrains Mono", monospace'
-    X.fillText('agent-office · floor 1', 44, 30)
-    t.needsUpdate = true
-    const sh = plane(1.18, 0.7, once('blueprintM', () => bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }))), 0, 0.903, 0, g)
-    sh.rotation.x = -Math.PI / 2
-    sh.rotation.z = 0.04
-    ms(BX(0.46, 0.015, 0.3), mat.white, 0.18, 0.915, 0.02, g)
-    for (const [a, b, w, d] of [[-0.05, 0.02, 0.01, 0.3], [0.4, 0.02, 0.01, 0.3], [0.18, -0.13, 0.46, 0.01], [0.12, 0.02, 0.01, 0.18]] as const) ms(BX(w, 0.05, d), mat.offw, a, 0.947, b, g)
-    for (const [a, b, c] of [[0.02, 0.08, 0xf0463c], [0.25, -0.05, 0x3b7bff], [0.32, 0.08, 0xffc21a], [0.08, -0.06, 0x2fb344]] as const) ms(SP(0.018, 8, 6), M(c, 0.5), a, 0.94, b, g)
-    ms(BX(0.05, 0.012, 0.03), mat.woodD, 0.22, 0.93, 0.08, g)
-    blockAt(x, z, 0.68, 0.43)
-  }
-  function kitchen(x: number, z: number) {
-    const g = grp(x, z)
-    mesh(RB(1.9, 0.84, 0.56, 0.02), M(0xf1eee9, 0.6), 0, 0.42, 0, g)
-    ms(RB(1.96, 0.05, 0.6, 0.01), mat.wood, 0, 0.865, 0, g)
-    for (const sx of [-0.475, 0, 0.475]) ms(BX(0.006, 0.7, 0.006), M(0xd9d4cc, 0.6), sx, 0.42, 0.283, g)
-    for (const sx of [-0.7, -0.25, 0.25, 0.7]) ms(BX(0.12, 0.02, 0.02), mat.metal, sx, 0.72, 0.29, g)
-    for (const sx of [-0.6, -0.25]) ms(CY(0.1, 0.1, 0.01, 20), mat.dark, sx, 0.895, -0.02, g)
-    ms(CY(0.1, 0.09, 0.15, 22), mat.metal, -0.6, 0.97, -0.02, g)
-    ms(CY(0.105, 0.105, 0.015, 22), mat.metal, -0.6, 1.05, -0.02, g)
-    ms(SP(0.018, 8, 6), mat.dark, -0.6, 1.065, -0.02, g)
-    ms(CY(0.12, 0.1, 0.035, 22), mat.black, -0.25, 0.915, -0.02, g)
-    ms(BX(0.2, 0.015, 0.03), mat.black, -0.02, 0.925, -0.02, g)
-    ms(RB(0.34, 0.02, 0.22, 0.006), mat.wood, 0.3, 0.9, 0.04, g)
-    ms(SP(0.035, 10, 8), mat.red, 0.25, 0.93, 0.04, g)
-    ms(SP(0.04, 10, 8), mat.leafC, 0.36, 0.93, 0.02, g)
-    ms(CY(0.05, 0.045, 0.13, 12), mat.white, 0.62, 0.95, -0.12, g)
-    for (let k = 0; k < 3; k++) ms(CY(0.006, 0.006, 0.2, 5), mat.woodD, 0.62 + (k - 1) * 0.015, 1.06, -0.12, g).rotation.z = (k - 1) * 0.2
-    succ(0.78, 0.89, 0.08, g)
-    blockAt(x, z, 0.98, 0.3)
-  }
-  function safe(x: number, z: number) {
-    const g = grp(x, z, 0.25)
-    mesh(RB(0.62, 0.78, 0.56, 0.03), M(0x3a4150, 0.45, 0.3), 0, 0.39, 0, g)
-    ms(BX(0.52, 0.66, 0.01), M(0x464e5e, 0.4, 0.35), 0, 0.39, 0.283, g)
-    ms(CY(0.075, 0.075, 0.03, 24), mat.metal, -0.05, 0.48, 0.3, g).rotation.x = Math.PI / 2
-    for (let k = 0; k < 3; k++) ms(CY(0.006, 0.006, 0.13, 6), mat.metal, 0.14, 0.34, 0.3, g).rotation.set(Math.PI / 2, 0, (k * Math.PI) / 3)
-    ms(SP(0.018, 8, 6), mat.metal, 0.14, 0.34, 0.305, g)
-    for (const y of [0.18, 0.6]) ms(BX(0.03, 0.08, 0.02), mat.metal, -0.27, y, 0.29, g)
-    blockAt(x, z, 0.36, 0.34)
-  }
-  function smartTable(x: number, z: number) {
-    const g = grp(x, z)
-    ms(CY(0.22, 0.22, 0.03, 24), mat.wood, 0, 0.55, 0, g)
-    mesh(CY(0.02, 0.02, 0.54, 8), mat.metal, 0, 0.27, 0, g)
-    ms(CY(0.14, 0.16, 0.02, 20), mat.metal, 0, 0.01, 0, g)
-    ms(CY(0.065, 0.07, 0.16, 20), M(0x9aa3ae, 0.95), -0.08, 0.645, 0, g)
-    ms(TO(0.052, 0.008), new THREE.MeshBasicMaterial({ color: 0x2dd4bf, toneMapped: false }), -0.08, 0.728, 0, g).rotation.x = Math.PI / 2
-    ms(CY(0.045, 0.055, 0.02, 16), mat.black, 0.1, 0.575, 0.02, g)
-    ms(CY(0.007, 0.007, 0.28, 6), mat.black, 0.1, 0.72, 0.02, g)
-    ms(CY(0.05, 0.09, 0.1, 18), M(0xf3eee4, 0.8), 0.1, 0.87, 0.02, g)
-    ms(SP(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a8, toneMapped: false }), 0.1, 0.83, 0.02, g)
-    blockAt(x, z, 0.24, 0.24)
-  }
-  function loungeArea() {
-    ms(RB(6.5, 0.012, 2.1, 0.006), M(0xe3e5e9, 1), -8.0, 0.006, 9.75)
-    const cm = [M(0xd6dce5, 0.95), M(0xe7dccb, 0.95), M(0xccd6e4, 0.95)]
-    loungeSpots.forEach(([x, z], i) => ms(CY(0.26, 0.28, 0.13, 20), cm[i % 3]!, x, 0.078, z))
-    const lk = M(0xc5ceda, 0.6), n = 12, w = 0.56, x0 = -13.18
-    mesh(BX(n * w, 0.06, 0.4), mat.frame, x0 + (n * w) / 2, 0.03, 8.46)
+  function cloakroom() {
+    const lk = M(0xc5ceda, 0.6), n = CR.lockers, w = CR.pitch, x0 = CR.x0, z = CR.z
+    mesh(BX(n * w, 0.06, 0.4), mat.frame, x0 + (n * w) / 2, 0.03, z)
     for (let k = 0; k < n; k++) {
       const x = x0 + w / 2 + k * w
-      mesh(BX(w - 0.02, 0.96, 0.38), lk, x, 0.54, 8.46)
-      for (let v = 0; v < 3; v++) ms(BX(0.26, 0.012, 0.004), mat.frame, x, 0.92 - v * 0.035, 8.652)
-      ms(BX(0.02, 0.1, 0.02), mat.dark, x + 0.2, 0.56, 8.66)
+      mesh(BX(w - 0.02, 0.96, 0.38), lk, x, 0.54, z)
+      for (let v = 0; v < 3; v++) ms(BX(0.26, 0.012, 0.004), mat.frame, x, 0.92 - v * 0.035, z + 0.192)
+      ms(BX(0.02, 0.1, 0.02), mat.dark, x + 0.2, 0.56, z + 0.2)
     }
-    ms(RB(0.34, 0.2, 0.26, 0.04), mat.kraft, x0 + 0.6, 1.12, 8.46)
-    succ(x0 + 2.2, 1.02, 8.46)
-    ms(RB(0.3, 0.14, 0.24, 0.05), M(0x3b7bff, 0.8), x0 + 4.1, 1.09, 8.46)
-    block(x0, 8.27, x0 + n * w, 8.65, 0.1)
-    block(-10.95, 9.0, -5.0, 10.5, 0.1)
+    ms(RB(0.34, 0.2, 0.26, 0.04), mat.kraft, x0 + 0.6, 1.12, z)
+    succ(x0 + 2.2, 1.02, z)
+    ms(RB(0.3, 0.14, 0.24, 0.05), M(0x3b7bff, 0.8), x0 + 4.1, 1.09, z)
+    block(x0, z - 0.19, x0 + n * w, z + 0.19, 0.1)
+  }
+  function loungeChair(x: number, z: number) {
+    const g = grp(x, z - 0.12)
+    mesh(RB(0.72, 0.18, 0.62, 0.06), mat.fabric3, 0, 0.28, 0, g)
+    mesh(RB(0.72, 0.5, 0.16, 0.07), mat.fabric3, 0, 0.6, -0.24, g)
+    for (const sx of [-0.31, 0.31]) mesh(RB(0.12, 0.3, 0.62, 0.05), mat.fabric3, sx, 0.42, 0, g)
+    mesh(RB(0.48, 0.09, 0.44, 0.04), mat.cushion, 0, 0.41, 0.05, g)
+    ms(CY(0.035, 0.03, 0.08, 10), mat.white, 0.31, 0.61, 0.12, g)
+  }
+  function coffeeCorner() {
+    mesh(RB(0.5, 0.9, 1.1, 0.02), mat.wood, -0.45, 0.45, 1.0)
+    mesh(RB(0.26, 0.34, 0.24, 0.03), mat.dark, -0.45, 1.07, 0.75)
+    ms(RB(0.2, 0.02, 0.12, 0.006), mat.metal, -0.45, 0.91, 0.86)
+    for (const cz of [1.12, 1.26]) ms(CY(0.035, 0.03, 0.08, 10), mat.white, -0.5, 0.94, cz)
+    succ(-0.45, 0.9, 1.45)
+    block(-0.72, 0.43, -0.18, 1.57, 0.12)
+  }
+  function tree(x: number, z: number, s = 1) {
+    const g = grp(x, z, rnd() * 6)
+    g.scale.setScalar(s)
+    mesh(CY(0.07, 0.1, 1.1, 7), mat.trunk, 0, 0.55, 0, g)
+    for (const [dx, y, dz, r] of [[0, 1.45, 0, 0.62], [0.28, 1.2, 0.12, 0.42], [-0.26, 1.25, -0.1, 0.45], [0.05, 1.85, 0.05, 0.4]] as const) mesh(SP(r, 7, 5), r > 0.5 ? mat.grassD : mat.leafA, dx, y, dz, g)
+    blockAt(x, z, 0.2 * s, 0.2 * s)
+  }
+  function bush(x: number, z: number, s = 1) {
+    const g = grp(x, z, rnd() * 6)
+    g.scale.setScalar(s)
+    for (const [dx, dz, r] of [[0, 0, 0.3], [0.26, 0.06, 0.22], [-0.24, -0.04, 0.24]] as const) mesh(SP(r, 7, 5), mat.leafB, dx, r * 0.75, dz, g).scale.y = 0.8
+    blockAt(x, z, 0.42 * s, 0.3 * s)
+  }
+  function stringLights(x0: number, x1: number, z: number) {
+    const bulb = once('bulbWarm', () => new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false }))
+    for (const x of [x0, x1]) mesh(CY(0.03, 0.035, 2.2, 7), mat.woodD, x, 1.1, z)
+    const n = Math.max(4, Math.round((x1 - x0) / 0.45))
+    for (let k = 1; k < n; k++) {
+      const u = k / n
+      ms(SP(0.045, 6, 4), bulb, x0 + (x1 - x0) * u, 2.12 - Math.sin(u * Math.PI) * 0.35, z)
+    }
+    for (const x of [x0, x1]) blockAt(x, z, 0.05, 0.05, 0.12)
+  }
+  function swing(x: number, z: number) {
+    const g = grp(x, z, Math.PI / 2)
+    for (const sx of [-0.7, 0.7]) for (const sz of [-0.35, 0.35]) mesh(CY(0.035, 0.035, 1.9, 7), mat.woodD, sx, 0.9, sz * 0.5, g).rotation.x = sz * 0.5
+    mesh(CY(0.04, 0.04, 1.5, 7), mat.woodD, 0, 1.78, 0, g).rotation.z = Math.PI / 2
+    for (const sx of [-0.18, 0.18]) mesh(CY(0.008, 0.008, 1.3, 4), mat.rope, sx, 1.13, 0, g)
+    mesh(RB(0.46, 0.04, 0.2, 0.01), mat.red, 0, 0.48, 0, g)
+    blockAt(x, z, 0.4, 0.8)
+  }
+  function slide(x: number, z: number) {
+    const g = grp(x, z, -Math.PI / 2)
+    for (const sx of [-0.25, 0.25]) mesh(CY(0.03, 0.03, 1.3, 7), mat.metal, sx, 0.65, -0.55, g)
+    for (let k = 0; k < 4; k++) mesh(CY(0.015, 0.015, 0.5, 5), mat.metal, 0, 0.25 + k * 0.3, -0.55, g).rotation.z = Math.PI / 2
+    mesh(RB(0.56, 0.08, 0.56, 0.02), mat.teal, 0, 1.3, -0.4, g)
+    const chute = mesh(RB(0.5, 0.05, 1.7, 0.02), M(0xffc21a, 0.5), 0, 0.72, 0.42, g)
+    chute.rotation.x = 0.62
+    blockAt(x, z, 1.2, 0.35)
+  }
+  function sandbox(x: number, z: number) {
+    const g = grp(x, z)
+    for (const [dx, dz, w, d] of [[0, -0.6, 1.5, 0.1], [0, 0.6, 1.5, 0.1], [-0.7, 0, 0.1, 1.3], [0.7, 0, 0.1, 1.3]] as const) mesh(RB(w, 0.16, d, 0.02), mat.wood, dx, 0.08, dz, g)
+    ms(BX(1.3, 0.02, 1.1), mat.sand, 0, 0.1, 0, g)
+    mesh(CY(0.07, 0.1, 0.12, 8), M(0x3b7bff, 0.6), 0.3, 0.16, 0.2, g)
+    blockAt(x, z, 0.75, 0.65, 0.15)
   }
   function drawBoard() {
     const { x, t } = once('reviewBoard', () => canvasTex(768, 480))
@@ -1270,19 +1238,17 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       })
     },
     side(t, W, strip) {
-      easel(2, 0.55, -0.15)
-      swatches(3.3, 0.5)
-      if (t < 3) snake(5.2, 0.5, 0.9)
-      else {
-        blueprint(5.2, 0.55)
-        snake(6.3, 0.5, 0.9)
-        kitchen(7.8, 0.4)
-      }
+      tree(0.8, 0.7, 0.95)
+      stringLights(1.7, W - 1.1, 0.35)
+      bush(W - 0.55, 0.9, 0.8)
       if (t > 1)
         strip(() => {
-          printer(W - 1, 3.2, -Math.PI / 2)
-          block(W - 1.25, 2.7, W - 0.75, 3.7)
-          leafy(W - 1, 5.2, 1.05)
+          if (t === 2) swing(W - 0.8, 3.2)
+          else {
+            slide(W - 0.8, 3)
+            sandbox(W - 0.8, 5.6)
+          }
+          tree(W - 0.7, 0.7, 1.1)
         })
     },
     rev(t, W, strip) {
@@ -1305,22 +1271,17 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         })
     },
     gym(t, W, strip) {
-      const bz = gymBenchZ(t), rz = gymRelaxZ(t)
+      const rz = gymRelaxZ(t)
       mirrorStand((W - 0.6) / 2, 0.3, W - 2.6)
-      bench(2, bz)
-      lily(0.5, 0.5, 0.9)
-      if (t > 1) {
-        plyo(1.3, rz)
-        standingBag(2.7, rz)
-        for (const [m, z] of [[mat.mat1, bz - 0.38], [mat.mat2, bz + 0.38]] as const) mesh(RB(1.8, 0.02, 0.7, 0.01, 1), m, 4.6, 0.014, z).castShadow = false
-      }
-      if (t === 3) {
-        safe(4.1, rz)
-        smartTable(W - 2.4, bz)
+      bench(1.9, rz + 0.2)
+      if (t < 3) lily(0.5, 0.5, 0.9)
+      else {
+        plyo(1.2, 0.8)
+        standingBag(W - 2.4, 0.85)
       }
       strip(() => {
-        towels(W - 0.45, bz)
-        cooler(W - 0.45, rz, -Math.PI / 2)
+        towels(W - 0.45, rz - 0.45)
+        cooler(W - 0.45, rz + 0.4, -Math.PI / 2)
         if (t === 1) return
         rack(W - 0.45, 2.5)
         ;[0xe0463c, 0x3b7bff, 0xfacc15, 0x2fb344].forEach((c, k) => kettle(W - 0.45, 3.6 + k * 0.42, c, 0.8 + k * 0.1))
@@ -1330,7 +1291,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
 
   function deskShell(d: DeptScene) {
-    const north = d.def.row === 'n', p = d.shell, id = d.def.id, map = d.tint.map!
+    const p = d.shell, id = d.def.id, map = d.tint.map!
     const tint = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), d.tint)
     tint.rotation.x = -Math.PI / 2
     p.add(tint)
@@ -1339,7 +1300,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     const [front, left, right] = [wallPiece(p), wallPiece(p), wallPiece(p)]
     const trough = planter(p)
     bake(trough, new Set())
-    const sides = (dd: number) => (north ? [0, dd - 1.95] : [1.95, dd]) as [number, number]
+    const sides = (dd: number) => [0, dd - 1.95] as [number, number]
     d.resize = (w, dd) => {
       const i = 0.16, t = 0.06
       tint.scale.set(w, dd, 1)
@@ -1407,28 +1368,70 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     }
   }
 
+  function yardShell(d: DeptScene) {
+    const lawn = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), d.tint)
+    lawn.rotation.x = -Math.PI / 2
+    d.shell.add(lawn)
+    const map = d.tint.map!
+    d.resize = (w, dd) => {
+      const [l, b, r, f] = d.reach
+      lawn.scale.set(w + l + r, dd + b + f, 1)
+      lawn.position.set((w + r - l) / 2, -0.012, (dd + f - b) / 2)
+      map.repeat.set((w + l + r) / 2.1, (dd + b + f) / 2.1)
+    }
+  }
+
   const deptScenes = {} as Record<DeptId, DeptScene>
   for (const def of depts) {
-    const gym = def.row === 'g'
+    const gym = def.shell === 'gym', yard = def.shell === 'yard'
     const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), shell = grp(0, 0, 0, gi)
-    const tintLo = lighten(def.accent, gym ? 0.55 : 0.62), tintHi = lighten(def.accent, gym ? 0.42 : 0.5)
+    const tintLo = yard ? new THREE.Color(0x9ccc84) : lighten(def.accent, gym ? 0.55 : 0.62), tintHi = yard ? new THREE.Color(0xb4dc9c) : lighten(def.accent, gym ? 0.42 : 0.5)
     const tint = new THREE.MeshStandardMaterial({ map: gym ? rubberTex() : carpet.clone(), roughness: gym ? 0.95 : 1 })
     tint.color.copy(tintLo)
-    const d: DeptScene = { def, g, gi, shell, tint, tintLo, tintHi, slots: [], tier: 0, resize: () => {}, block: () => {} }
-    ;(gym ? gymShell : deskShell)(d)
+    const d: DeptScene = { def, g, gi, shell, tint, tintLo, tintHi, slots: [], tier: 0, reach: [0.3, 0.3, 0.3, 0.3], resize: () => {}, block: () => {} }
+    ;(gym ? gymShell : yard ? yardShell : deskShell)(d)
     shell.traverse((o) => (o.receiveShadow = true))
     g.visible = false
     g.scale.setScalar(0.001)
     deptScenes[def.id] = d
   }
-  const loungeG = grp(0, 0, 0, root)
-  cur = loungeG
-  owner = 'park'
-  tag = 'lounge'
-  loungeArea()
-  cur = root
-  owner = tag = undefined
+  cloakroom()
   snake(-13.05, 11.1, 0.85)
+  const lounge: LoungeScene = (() => {
+    const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), corner = grp(0, 0, 0, gi)
+    const rug = ms(BX(1, 0.012, 1), M(0xe3e5e9, 1), 0, 0.006, 0, gi)
+    rug.receiveShadow = true
+    cur = corner
+    owner = 'lounge:corner'
+    tag = 'lounge'
+    coffeeCorner()
+    cur = root
+    owner = tag = undefined
+    bake(corner, new Set())
+    let chairs: THREE.Group | undefined
+    let shape = ''
+    g.visible = false
+    g.scale.setScalar(0.001)
+    return {
+      g, gi, corner,
+      resize(w, dd) {
+        rug.scale.set(Math.max(0.1, w - 0.3), 1, Math.max(0.1, dd - 0.3))
+        rug.position.set(w / 2, 0.006, dd / 2)
+        corner.position.x = w
+      },
+      seats(count, rows) {
+        if (shape === `${count}x${rows}`) return
+        shape = `${count}x${rows}`
+        if (chairs) dispose(chairs)
+        chairs = grp(0, 0, 0, gi)
+        const prev = cur
+        cur = chairs
+        for (let i = 0; i < count; i++) loungeChair(...loungeSeat(i, rows))
+        cur = prev
+        bake(chairs, new Set())
+      },
+    }
+  })()
 
   const myScreen = canvasTex(1024, 600)
   function woodTex() {
@@ -1569,8 +1572,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       b.g.forEach((g) => g.dispose())
     })
   }
-  bake(root, new Set<THREE.Object3D>([...Object.values(deptScenes).map((d) => d.g), ...shellG, ...mullions, loungeG]))
-  bake(loungeG, new Set())
+  bake(root, new Set<THREE.Object3D>([...Object.values(deptScenes).map((d) => d.g), ...shellG, ...mullions, lounge.g]))
 
   function setTier(d: DeptScene, tier: Tier) {
     if (d.tier === tier) return
@@ -1605,7 +1607,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     cur = d.gi
     owner = id
     tag = `desk:${id}:${i}`
-    const s = (kindOf(id) === 'gym' ? treadmill : desk)(d.def, i, x, z)
+    const s = (kindOf(id) === 'gym' ? treadmill : id === 'side' ? picnic : desk)(d.def, i, x, z)
     ;[cur, owner, tag] = prev
     bake(s.g, new Set())
     d.slots[i] = s
@@ -1638,7 +1640,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     lc.updateProjectionMatrix()
   }
 
-  function setShell(bd: Bounds) {
+  function setShell(bd: Bounds, lit: Bounds = bd) {
     const w = bd.x1 - bd.x0, T = bd.z1 - bd.z0, mx = (bd.x0 + bd.x1) / 2, mz = (bd.z0 + bd.z1) / 2
     floor.scale.set(w, T, 1)
     floor.position.set(mx, 0, mz)
@@ -1654,7 +1656,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     mullions.forEach((m, k) => (m.position.z = bd.z0 + (k * T) / 10))
     pool.scale.y = T
     pool.position.z = mz
-    fitShadow(bd)
+    fitShadow(lit)
   }
 
   const hist = Array.from({ length: 30 }, (_, i) => 5 + Math.sin(i * 0.42) * 1.6 + Math.sin(i * 1.3) * 0.8)
@@ -1769,7 +1771,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   return {
     root,
     depts: deptScenes,
-    lounge: loungeG,
+    lounge,
     myScreen,
     setShell,
     setTier,
@@ -1803,23 +1805,12 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
 }
 
-export function placeSlot(s: Slot, ox: number, oz: number, w: number, rows: number) {
+export function placeSlot(s: Slot, ox: number, oz: number) {
   const a = anchorsFor(s.kind, s.bx + ox, s.bz + oz)
   s.seat.set(a.seat[0], 0, a.seat[1])
   s.stand.set(a.stand[0], 0, a.stand[1])
   s.chip.set(a.chip[0], a.chip[1], a.chip[2])
   s.mini.set(s.bx + ox, 0, s.bz + oz - (s.kind === 'gym' ? 0 : 0.3))
-  if (s.kind === 'desk') {
-    s.bench.copy(s.seat)
-    s.relax.copy(s.seat)
-    return
-  }
-  if (s.i < benchSeats) {
-    const b = gymBench(s.i, rows)
-    s.bench.set(b[0] + ox, 0, b[1] + oz)
-  } else s.bench.copy(s.seat)
-  const r = gymRelax(s.i % 6, w, rows)
-  s.relax.set(r[0] + ox, 0, r[1] + oz - 0.3 + (Math.floor(s.i / 6) % 2) * 0.6)
 }
 
 export function drawPlate(s: Slot, occupant: { colour: number; project: string } | undefined) {

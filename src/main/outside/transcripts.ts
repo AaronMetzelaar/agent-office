@@ -16,6 +16,7 @@ export interface VisitorSeed {
   state: ChatState
   createdAt: number
   lastActivityAt: number
+  endedAt?: number
   archived: boolean
   evidence: ChatEvent[][]
 }
@@ -173,6 +174,7 @@ export function createDiscovery({ projectsDir, desktop }: { projectsDir: string;
       state: inferState(tail, file.mtimeMs, now, meta?.lastFocusedAt),
       createdAt: meta?.createdAt ?? head.createdAt ?? file.mtimeMs,
       lastActivityAt: Math.max(file.mtimeMs, meta?.lastActivityAt ?? 0),
+      ...(tail.ending ? { endedAt: tail.ending.at } : {}),
       archived: meta?.archived ?? false,
       evidence: tail.evidence,
     }

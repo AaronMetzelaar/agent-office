@@ -514,6 +514,16 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - Section shells (floor tint, inlay, partitions, planter) are unit meshes scaled per frame, so resizes animate without creating geometry. Desks are merged one by one, so they can come and go with the agents.
   - The building's floor, walls, windows and shadow frustum follow the bounds of the sections showing plus the fixed front band (office, door queue, entrance). The Parked lounge folds away while nothing is parked. The overview camera refits to the new bounds.
   - While he hovers or zooms in, sections never shrink or fold; a newcomer still gets a desk at once, and the next free desk waits for the overview.
+- **Packing, the Lounge and the playground** (revised 2026-09-24, second pass):
+  - `standby.ts` decides where each chat rests: working, needs-you, stuck and done-unread keep a desk; idle, read and parked chats go to the Lounge; a done gym agent waits at the water cooler. While a chat is open its agent keeps whatever spot it had, except that new work always walks it back to a desk. Only desk spots count toward section size.
+  - `layoutFloor` packs the visible inside sections in the fixed order into rows. It tries every set of row breaks, puts the Lounge beside the glass office or at the end of a row, and puts the Side projects playground in front of the entrance or beside the left wall. The cost is the footprint plus how large the combined frame would sit in the 16:10 canvas. Rows narrower than the building stretch their sections. Band slack wider than a walkway is effectively forbidden.
+  - Every row faces front with an aisle in front of it. Room shells are all north-style (side openings at the front). The gym drops its bench row; the bench sits in the relax row as decor.
+  - The fixed front is the glass office, the door queue, the entrance and a cloakroom (the old lockers) behind the queue, so the lobby never reads as empty floor. `fixedParts` in `layout.ts` is the single definition for props and tests.
+  - The Lounge is its own scene: a rug, a coffee corner anchored to its right edge and one armchair per occupant, baked in one group and rebuilt when the count changes. Seats fill column by column from the front, so a growing Lounge never moves a seated agent.
+  - Side projects is a yard shell: a lawn plane that reaches to the door, picnic tables with laptops and nameplates, and tier props (tree, bushes, string lights, swing, slide, sandbox). The nav grid covers the combined frame, and the building's walls are nav blockers with a gap at the door.
+  - Each per-frame piece of the world loop (every agent, layout, camera, controls, clock, LEDs, desk screens, labels) and the two screen timers run inside `guard.ts`, which logs a failure once and turns that piece off. The main process forwards renderer console errors, uncaught exceptions, unhandled rejections, crashes and preload failures to stdout as `[renderer] …`.
+  - Starting an agent opens its chat with the `keep` camera view; only clicks on an agent or a sign move the camera.
+  - Measured on Aaron's floor (21 chats, 18 visitors): the building went from 31.8 × 26.4 = 840 to 24.0 × 10.9 = 262 (1.21× the natural area of its sections and fixed parts), and draw calls from 687 to 500.
 - **Clear sections** (origin R3):
   - each department gets a subtle floor tint from its accent, with a crisp edge inlay
   - low partitions or planters, with an opening onto the main aisle
@@ -658,6 +668,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - A rate-limited chat offers "Continue on the other account": the office forks it under the other account's token and parks the original.
 - Placement follows the classifier in Key Technical Decisions. A starting chat sits at the desk it was started from until the classifier has evidence. Moves are deferred while queued or open.
 
+- Starting an agent never moves the camera (revised 2026-09-24). The agent walks in from the entrance to its desk.
+
 **Test scenarios:**
 - Happy path: file events mostly under `frontend/marketplace/**` place a monorepo chat in Marketplace.
 - Edge case: one stray read in `frontend/mobile/**` doesn't move it. A sustained shift (at least 60% on two evaluations) does.
@@ -715,7 +727,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 
 **Approach:**
 - **Stale:** the last-message time comes from the store for office chats and from transcript mtime for outside chats.
-  - 1 day without a message: the chat is Parked, and its agent walks to the Parked area.
+  - 1 day without a message: the chat is Parked, and its agent dozes in the Lounge (2026-09-24; it was a separate Parked area).
   - 3 days: it's suggested for cleanup.
   - Thresholds live in settings.
 - **Resources:** sampled every ~10s.
@@ -879,6 +891,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - ignores office-hosted session ids
   - updates visitor chats, shown read-only with a Visitor badge
 - **The desktop metadata watcher** supplies titles, archived state and account (from the instance folder).
+- Reading a visitor in the office stores a read mark per session (`readSessions`), compared with the transcript's last turn end, so a read visitor stays read across rescans and relaunches until a new turn finishes (2026-09-24).
 - **Move into the office** confirms, forks via `resume` with `forkSession`, and marks the original Moved.
 
 **Test scenarios:**
@@ -972,7 +985,12 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
 - [ ] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
 - [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
-- [ ] Desks are merged per desk, not per section, so they can come and go; the demo office draws about 14% more calls than before. Merge a section's desks if the 15-agent frame budget gets tight. Unit 14.
+- [ ] Desks are merged per desk, not per section, so they can come and go. With resting agents in the Lounge there are far fewer desks (Aaron's floor: 687 → 500 draw calls), but merge a section's desks if the 15-agent frame budget gets tight. Unit 14.
+- [ ] Floors with two section rows pack at about 1.5× the natural area of their sections (Aaron's single-row floor is 1.21×). Every row needs an aisle, and rows narrower than the office band stretch their sections rather than leave gaps. Walkways stay within about a fifth of the floor. Revisit with a skyline packer if busy days look too roomy. Unit 14.
+- [ ] When nobody rests in the Lounge and three or more sections are active, the packer prefers stretching one section across a row over leaving floor empty beside the office. Rare with Aaron's usage; revisit if it looks odd. Unit 14.
+- [ ] Done-and-unread chats park after a day like before and doze in the Lounge with their green ring, so an old unread reply leaves its desk. Keep them at the desk instead if Aaron misses them. Unit 15.
+- [ ] Standby rows show "done … ago" from the chat's last activity, which for an idle chat that never finished is its last message. Unit 12.
+- [ ] Not run: the Playwright suite. `office-demo.spec.ts` now expects a Lounge sign instead of Parked.
 - [ ] The label test for 15 agents passes with little room at the door queue: the front row's signs sit just above the queue tags. Revisit sign placement if the front row moves. Unit 14.
 - [ ] Outside chats without the hook get their state from transcripts only, so they never show Needs you until the hook is installed. After installing, check on the real machine whether sessions that were already running start reporting, or only after they restart. Unit 13.
 - [ ] A brand-new outside chat appears at its first tool call or Stop: SessionStart and the first UserPromptSubmit arrive before its transcript exists, and the listener drops events without one. Retry once after a second if that feels slow. Unit 13.

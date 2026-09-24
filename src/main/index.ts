@@ -20,6 +20,7 @@ import { createBroker, windowResolver } from './permissions/registry'
 import { createRules } from './permissions/rules'
 import { wireReview } from './review'
 import { run } from './review/git'
+import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createSessionManager, type Engine } from './sessions/manager'
 import { createChatStore } from './store/chats'
@@ -192,6 +193,7 @@ function createWindow(): BrowserWindow {
     },
   })
   hardenWindow(win, appUrl)
+  forwardRendererErrors(win.webContents)
   void win.loadURL(appUrl)
   return win
 }

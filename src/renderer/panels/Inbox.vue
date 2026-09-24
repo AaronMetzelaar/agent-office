@@ -141,6 +141,15 @@ onUnmounted(() => {
       </button>
     </section>
     <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
+    <details v-if="inbox.standby.length" class="grp standby">
+      <summary>Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span></summary>
+      <button v-for="row in inbox.standby" :key="row.id" type="button" class="brow" @click="emit('select', row.id)">
+        <i class="sd" :style="{ background: row.colour }" />
+        <span class="bt">{{ row.title }}</span>
+        <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
+        <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
+      </button>
+    </details>
     <button v-if="inbox.parked || cleanup" type="button" class="pfoot" @click="emit('house')">
       <span><b>{{ inbox.parked }} parked</b> · quiet for a while</span><span>{{ cleanup ? `${cleanup} to clean up →` : 'Housekeeping →' }}</span>
     </button>
@@ -516,6 +525,35 @@ onUnmounted(() => {
 
 .doing.needs {
   color: var(--needs-ink);
+}
+
+.standby summary {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--soft);
+  cursor: pointer;
+}
+
+.standby[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.standby summary .cts {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.standby .bd .dd {
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
 }
 
 .pfoot {

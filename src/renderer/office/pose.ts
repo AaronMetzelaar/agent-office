@@ -1,8 +1,9 @@
 import type { ChatState } from '../../shared/chat'
 import type { SlotKind } from './layout'
+import type { Spot } from './standby'
 
-export type PoseName = 'stand' | 'sleep' | 'type' | 'lean' | 'slump' | 'sit' | 'wave' | 'relax' | 'run' | 'wait'
-export type Anchor = 'queue' | 'seat' | 'stand' | 'lounge' | 'bench' | 'relax' | 'door'
+export type PoseName = 'stand' | 'sleep' | 'type' | 'lean' | 'sit' | 'lounge' | 'wave' | 'relax' | 'run' | 'wait'
+export type Anchor = 'queue' | 'seat' | 'stand' | 'lounge' | 'cooler' | 'door'
 
 export interface Placement {
   anchor: Anchor
@@ -14,23 +15,20 @@ export interface Placement {
 export interface PlacementInput {
   state: ChatState
   kind: SlotKind
+  spot: Spot
   parked: boolean
   queueIndex: number
   spots: number
-  bench: boolean
 }
 
 const busy = (state: ChatState) => state === 'working' || state === 'starting'
 
-export function placementFor({ state, kind, parked, queueIndex, spots, bench }: PlacementInput): Placement {
+export function placementFor({ state, kind, spot, parked, queueIndex, spots }: PlacementInput): Placement {
   const queued = queueIndex >= 0
   if (queued && queueIndex < spots) return { anchor: 'queue', pose: queueIndex === 0 && state === 'needs-you' ? 'wave' : 'wait', y: 0, faceCamera: true }
-  if (parked) return { anchor: 'lounge', pose: busy(state) || queued ? 'sit' : 'sleep', y: 0.15, faceCamera: false }
+  if (spot === 'lounge') return { anchor: 'lounge', pose: parked ? 'sleep' : 'lounge', y: 0.36, faceCamera: false }
   if (queued) return { anchor: 'stand', pose: state === 'needs-you' ? 'wave' : 'wait', y: 0, faceCamera: true }
-  if (kind === 'gym') {
-    if (busy(state)) return { anchor: 'seat', pose: 'run', y: 0.125, faceCamera: false }
-    if (state === 'done' || !bench) return { anchor: 'relax', pose: state === 'done' ? 'relax' : 'wait', y: 0, faceCamera: true }
-    return { anchor: 'bench', pose: 'sit', y: 0.4, faceCamera: false }
-  }
-  return { anchor: 'seat', pose: busy(state) ? 'type' : state === 'done' ? 'lean' : 'slump', y: 0.4, faceCamera: false }
+  if (spot === 'cooler') return { anchor: 'cooler', pose: 'relax', y: 0, faceCamera: true }
+  if (kind === 'gym') return busy(state) ? { anchor: 'seat', pose: 'run', y: 0.125, faceCamera: false } : { anchor: 'seat', pose: 'wait', y: 0.125, faceCamera: true }
+  return { anchor: 'seat', pose: busy(state) ? 'type' : state === 'done' ? 'lean' : 'sit', y: 0.4, faceCamera: false }
 }

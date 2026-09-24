@@ -44,7 +44,7 @@ function overview(samples: Sample[], zoomed: boolean) {
   const floor = layoutFloor(demand)
   const camera = new PerspectiveCamera(24, w / h, 0.5, 220)
   applyRegion(camera, region, w, h)
-  const fit = fitOverview(camera, region, w, h, floor.bounds)
+  const fit = fitOverview(camera, region, w, h, floor.frame)
   camera.position.copy(fit.target).addScaledVector(VIEW, zoomed ? fit.distance * 0.6 : fit.distance)
   camera.lookAt(fit.target)
   camera.updateMatrixWorld()
@@ -64,10 +64,10 @@ function overview(samples: Sample[], zoomed: boolean) {
   const labelled: Labelled[] = []
   for (const s of samples) {
     const queued = queue.get(s.id) ?? -1
-    const who: Labelled = { id: s.id, dept: s.dept, state: s.state, parked: false, queued: queued >= 0 }
+    const who: Labelled = { id: s.id, dept: s.dept, state: s.state, parked: false, lounge: false, queued: queued >= 0 }
     labelled.push(who)
     const mode = chipMode(who, {}, zoomed)
-    const place = placementFor({ state: s.state, kind: kindOf(s.dept), parked: false, queueIndex: queued, spots: queueSpots.length, bench: true })
+    const place = placementFor({ state: s.state, kind: kindOf(s.dept), spot: 'desk', parked: false, queueIndex: queued, spots: queueSpots.length })
     const [bx, bz] = floor.zones[s.dept].world[desks.get(s.id)!]!
     const seat = anchorsFor(kindOf(s.dept), bx, bz).seat
     const [ax, az] = place.anchor === 'queue' ? queueSpots[queued]! : seat
@@ -104,20 +104,20 @@ describe('overview labels', () => {
     expect(labelled.filter((who) => chipMode(who, {}, false) === 0).length).toBeGreaterThan(0)
   })
 
-  it('shows every tag in a department on hover, and parked tags only when hovering Parked', () => {
-    const working: Labelled = { id: 'w', dept: 'mob', state: 'working', parked: false, queued: false }
-    const parked: Labelled = { id: 'p', dept: 'mob', state: 'idle', parked: true, queued: false }
+  it('shows every tag in a department on hover, and lounge tags only when hovering the Lounge', () => {
+    const working: Labelled = { id: 'w', dept: 'mob', state: 'working', parked: false, lounge: false, queued: false }
+    const parked: Labelled = { id: 'p', dept: 'mob', state: 'idle', parked: true, lounge: true, queued: false }
     expect(chipMode(working, {}, false)).toBe(0)
     expect(chipMode(working, { hoverDept: 'mob' }, false)).toBe(1)
     expect(chipMode(working, {}, true)).toBe(1)
     expect(chipMode(working, { hovered: 'w' }, false)).toBe(2)
     expect(chipMode(parked, {}, true)).toBe(0)
-    expect(chipMode(parked, { hoverDept: 'park' }, false)).toBe(1)
+    expect(chipMode(parked, { hoverDept: 'lounge' }, false)).toBe(1)
   })
 })
 
 describe('highlighting', () => {
-  const people: Labelled[] = fifteen.map((s) => ({ id: s.id, dept: s.dept, state: s.state, parked: false, queued: s.state === 'needs-you' }))
+  const people: Labelled[] = fifteen.map((s) => ({ id: s.id, dept: s.dept, state: s.state, parked: false, lounge: false, queued: s.state === 'needs-you' }))
 
   it('hovering a department highlights its agents and dims the rest', () => {
     const lit = people.filter((p) => !isDim(p, { hoverDept: 'mkt' }))

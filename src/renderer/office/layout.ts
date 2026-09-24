@@ -3,38 +3,48 @@ import { deptIds, deptNames, type DeptId } from '../../shared/office'
 export { deptIds, isDeptId, type DeptId } from '../../shared/office'
 export type SlotKind = 'desk' | 'gym'
 export type Tier = 0 | 1 | 2 | 3
+export type Shell = 'room' | 'gym' | 'yard'
+export type Box = [x0: number, z0: number, x1: number, z1: number]
 
 export interface DeptDef {
   id: DeptId
   name: string
   path: string
   accent: number
-  row: 'n' | 's' | 'g'
+  shell: Shell
 }
 
 export const X0 = -13.5
-export const FZ = 7.9
 export const ZF = 12.9
-export const minRight = 4.5
+export const band = { x1: 3.9, z0: 9.1 }
+export const aisle = 1.2
+export const FZ = band.z0 - aisle
+export const walkway = 2
 const gap = 1
-const aisle = 1.2
-const minDepth = 3
+const yardGap = 0.5
+const bandW = band.x1 - X0
+const bandD = ZF - band.z0
+const screenAspect = 1.6
+const sinView = 0.755
+const wallView = 1.7
 
 export const depts: readonly DeptDef[] = [
-  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, row: 'n' },
-  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, row: 'n' },
-  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, row: 'n' },
-  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, row: 's' },
-  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub', accent: 0xea580c, row: 's' },
-  { id: 'rev', name: deptNames.rev, path: 'your review requests', accent: 0x854d0e, row: 's' },
-  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, row: 'g' },
+  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, shell: 'room' },
+  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, shell: 'room' },
+  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, shell: 'room' },
+  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, shell: 'room' },
+  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub · outside', accent: 0xea580c, shell: 'yard' },
+  { id: 'rev', name: deptNames.rev, path: 'your review requests', accent: 0x854d0e, shell: 'room' },
+  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, shell: 'gym' },
 ]
 
 export const dept = Object.fromEntries(depts.map((d) => [d.id, d])) as Record<DeptId, DeptDef>
 export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
 
 export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }
-export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, bench: 1.3, relax: 1.5, front: 0.5 }
+export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, relax: 1.5, front: 0.5 }
+export const yardGrid = { cw: 2.7, cd: 2.5, left: 0.4, right: 0.4, back: 1.6, front: 0.8, side: 1.6 }
+export const loungeGrid = { pitchX: 1, pitchZ: 1.15, left: 0.5, right: 1.1, back: 0.7, front: 0.6 }
 
 export type Demand = Partial<Record<DeptId, number>>
 
@@ -45,6 +55,10 @@ export function tierOf(id: DeptId, desks: number): Tier {
 }
 
 export function gridOf(id: DeptId, desks: number): { cols: number; rows: number } {
+  if (id === 'side') {
+    if (desks <= 3) return { cols: Math.max(2, desks), rows: 1 }
+    return desks <= 8 ? { cols: desks <= 6 ? 3 : 4, rows: 2 } : { cols: Math.max(4, Math.ceil(desks / 3)), rows: 3 }
+  }
   if (id === 'gym') {
     if (desks <= 3) return { cols: 3, rows: 1 }
     return desks <= 8 ? { cols: desks <= 6 ? 3 : 4, rows: 2 } : { cols: Math.max(4, Math.ceil(desks / 3)), rows: 3 }
@@ -85,11 +99,11 @@ export function sectionOf(id: DeptId, desks: number): Section {
     return {
       tier, cols, rows,
       w: g.left + cols * g.cw + g.right,
-      d: g.back + rows * g.cd + g.bench + g.relax + g.front,
+      d: g.back + rows * g.cd + g.relax + g.front,
       slots: cellOrder(id, desks).map(([c, r]) => [g.left + g.cw * (c + 0.5), g.back + g.cd * (r + 0.5)]),
     }
   }
-  const g = deskGrid
+  const g = id === 'side' ? yardGrid : deskGrid
   return {
     tier, cols, rows,
     w: g.left + cols * g.cw + (tier >= 2 ? g.side : 0) + g.right,
@@ -100,11 +114,26 @@ export function sectionOf(id: DeptId, desks: number): Section {
 
 export const minWidth = (id: DeptId, tier: Tier) => sectionOf(id, id === 'gym' ? [0, 1, 4, 9][tier]! : [0, 2, 4, 7][tier]!).w
 
-export const gymBenchZ = (rows: number) => gymGrid.back + rows * gymGrid.cd + gymGrid.bench / 2
-export const gymRelaxZ = (rows: number) => gymGrid.back + rows * gymGrid.cd + gymGrid.bench + gymGrid.relax / 2
-export const gymBench = (i: number, rows: number) => [gymGrid.left + 0.35 + i * 0.7, gymBenchZ(rows)] as const
-export const gymRelax = (i: number, w: number, rows: number) => [w - 1.1 - i * 0.62, gymRelaxZ(rows)] as const
-export const benchSeats = 4
+export const gymRelaxZ = (rows: number) => gymGrid.back + rows * gymGrid.cd + gymGrid.relax / 2
+
+export function gymCooler(k: number, w: number, rows: number): readonly [number, number] {
+  const perLine = Math.max(1, Math.floor((w - 5.2) / 0.95) + 1)
+  return [w - 1.3 - (k % perLine) * 0.95, gymRelaxZ(rows) + (Math.floor(k / perLine) % 2 ? 0.45 : -0.25)]
+}
+
+export const loungeRowsIn = (depth: number) => Math.max(1, Math.floor((depth - loungeGrid.back - loungeGrid.front) / loungeGrid.pitchZ + 1e-9) + 1)
+
+export function loungeShape(seats: number, depth: number) {
+  const g = loungeGrid
+  const rows = loungeRowsIn(depth)
+  const cols = Math.max(1, Math.ceil(seats / rows))
+  return { rows, cols, w: g.left + cols * g.pitchX + g.right, d: g.back + (rows - 1) * g.pitchZ + g.front }
+}
+
+export function loungeSeat(i: number, rows: number): readonly [number, number] {
+  const g = loungeGrid
+  return [g.left + g.pitchX * (Math.floor(i / rows) + 0.5), g.back + g.pitchZ * (rows - 1 - (i % rows))]
+}
 
 export interface Bounds {
   x0: number
@@ -117,50 +146,144 @@ export interface Zone extends Section {
   id: DeptId
   shown: boolean
   desks: number
-  box: [number, number, number, number]
+  box: Box
   world: [number, number][]
 }
 
-export interface Floor {
-  zones: Record<DeptId, Zone>
-  bounds: Bounds
+export interface LoungeZone {
+  shown: boolean
+  seats: number
+  rows: number
+  cols: number
+  box: Box
+  world: [number, number][]
 }
 
-const rows = { n: ['mkt', 'adm', 'mob'], s: ['plat', 'side', 'rev', 'gym'] } as const satisfies Record<string, readonly DeptId[]>
+export type YardSide = 'left' | 'front'
 
-export function layoutFloor(desks: Demand, prev?: Floor): Floor {
+export interface Floor {
+  zones: Record<DeptId, Zone>
+  lounge: LoungeZone
+  yard?: YardSide
+  bounds: Bounds
+  frame: Bounds
+}
+
+interface Plan {
+  rows: DeptId[][]
+  loungeAt: number
+  yard?: YardSide
+  W: number
+  D: number
+  cost: number
+}
+
+const union = (a: Bounds, b?: Box): Bounds => (b ? { x0: Math.min(a.x0, b[0]), z0: Math.min(a.z0, b[1]), x1: Math.max(a.x1, b[2]), z1: Math.max(a.z1, b[3]) } : a)
+
+export function yardBox(side: YardSide, w: number, d: number): Box {
+  return side === 'left' ? [X0 - yardGap - w, ZF - d, X0 - yardGap, ZF] : [X0, ZF + yardGap, X0 + w, ZF + yardGap + d]
+}
+
+export function fitSize(frame: Bounds): number {
+  const across = frame.x1 - frame.x0
+  const up = (frame.z1 - frame.z0) * sinView + wallView
+  return Math.max(across / screenAspect, up)
+}
+
+function compositions<T>(items: readonly T[]): T[][][] {
+  if (!items.length) return [[]]
+  const out: T[][][] = []
+  for (let mask = 0; mask < 1 << (items.length - 1); mask++) {
+    const rows: T[][] = [[items[0]!]]
+    for (let i = 1; i < items.length; i++) {
+      if (mask & (1 << (i - 1))) rows.push([items[i]!])
+      else rows.at(-1)!.push(items[i]!)
+    }
+    out.push(rows)
+  }
+  return out
+}
+
+function plan(sections: Record<DeptId, Section>, inside: readonly DeptId[], standby: number, yard: Section | undefined): Plan {
+  let best: Plan | undefined
+  for (const rows of compositions(inside)) {
+    const depth = rows.map((row) => Math.max(...row.map((id) => sections[id].d)))
+    const natural = rows.map((row) => row.reduce((sum, id) => sum + sections[id].w, 0) + gap * (row.length - 1))
+    for (const loungeAt of standby ? [-1, ...rows.keys()] : [-1]) {
+      const lounge = (r: number) => (standby && loungeAt === r ? loungeShape(standby, r < 0 ? bandD : depth[r]!).w + (r < 0 ? 0 : gap) : 0)
+      const W = Math.max(bandW + lounge(-1), ...natural.map((w, r) => w + lounge(r)))
+      const D = depth.reduce((sum, d) => sum + d, 0) + Math.max(1, rows.length) * aisle + bandD
+      const slack = standby && loungeAt < 0 ? 0 : W - bandW
+      const empty = slack > walkway ? slack * bandD : 0
+      const building: Bounds = { x0: X0, z0: ZF - D, x1: X0 + W, z1: ZF }
+      for (const side of yard ? (['left', 'front'] as const) : [undefined]) {
+        const fit = fitSize(union(building, side && yard ? yardBox(side, yard.w, yard.d) : undefined))
+        const cost = W * D + 0.5 * screenAspect * fit * fit + 50 * empty
+        if (!best || cost < best.cost - 1e-9) best = { rows, loungeAt, yard: side, W, D, cost }
+      }
+    }
+  }
+  return best!
+}
+
+export function layoutFloor(desks: Demand, standby = 0, prev?: Floor): Floor {
   const count = (id: DeptId) => Math.max(0, desks[id] ?? 0)
   const sections = Object.fromEntries(deptIds.map((id) => [id, sectionOf(id, count(id))])) as Record<DeptId, Section>
   const shown = (id: DeptId) => count(id) > 0
-  const depth = (ids: readonly DeptId[]) => Math.max(0, ...ids.filter(shown).map((id) => sections[id].d))
-  const dN = depth(rows.n), dS = depth(rows.s)
-  const z0 = FZ - Math.max(minDepth, dN + dS + (dN && dS ? aisle : 0))
-  const boxes: Partial<Record<DeptId, [number, number, number, number]>> = {}
-  const ends: number[] = []
-  for (const [row, ids] of Object.entries(rows)) {
+  const inside = depts.filter((d) => d.shell !== 'yard' && shown(d.id)).map((d) => d.id)
+  const yard = shown('side') ? sections.side : undefined
+  const { rows, loungeAt, yard: side, W, D } = plan(sections, inside, standby, yard)
+  const boxes: Partial<Record<DeptId, Box>> = {}
+  let loungeBox: Box | undefined
+  let loungeRows = loungeShape(standby, bandD).rows
+  let z = ZF - D
+  rows.forEach((row, r) => {
+    const depth = Math.max(...row.map((id) => sections[id].d))
+    const widths = row.reduce((sum, id) => sum + sections[id].w, 0)
+    const room = loungeAt === r ? loungeShape(standby, depth) : undefined
+    const slack = W - widths - gap * (row.length - 1) - (room ? room.w + gap : 0)
     let x = X0
-    for (const id of ids) {
-      if (!shown(id)) continue
-      boxes[id] = row === 'n' ? [x, z0, x + sections[id].w, z0 + dN] : [x, FZ - dS, x + sections[id].w, FZ]
-      x += sections[id].w + gap
+    for (const id of row) {
+      const w = sections[id].w + (room ? 0 : (slack * sections[id].w) / widths)
+      boxes[id] = [x, z, x + w, z + depth]
+      x += w + gap
     }
-    if (x > X0) ends.push(x - gap)
-  }
+    if (room) {
+      loungeBox = [x, z, X0 + W, z + depth]
+      loungeRows = room.rows
+    }
+    z += depth + aisle
+  })
+  if (standby && loungeAt < 0) loungeBox = [band.x1, band.z0, X0 + W, ZF]
+  if (side && yard) boxes.side = yardBox(side, yard.w, yard.d)
   const zones = {} as Record<DeptId, Zone>
   for (const { id } of depts) {
-    const box = boxes[id] ?? prev?.zones[id].box ?? [X0, z0, X0 + sections[id].w, z0 + sections[id].d]
-    zones[id] = { id, ...sections[id], shown: shown(id), desks: count(id), box, world: sections[id].slots.map(([x, z]) => [box[0] + x, box[1] + z]) }
+    const box = boxes[id] ?? prev?.zones[id].box ?? [X0, FZ - sections[id].d, X0 + sections[id].w, FZ]
+    zones[id] = { id, ...sections[id], shown: shown(id), desks: count(id), box, world: sections[id].slots.map(([x, sz]) => [box[0] + x, box[1] + sz]) }
   }
-  return { zones, bounds: { x0: X0, z0, x1: Math.max(minRight, ...ends), z1: ZF } }
+  const lbox = loungeBox ?? prev?.lounge.box ?? [band.x1, band.z0, band.x1 + loungeShape(1, bandD).w, ZF]
+  const lounge: LoungeZone = {
+    shown: standby > 0,
+    seats: standby,
+    rows: loungeRows,
+    cols: Math.max(1, Math.ceil(standby / loungeRows)),
+    box: lbox,
+    world: Array.from({ length: standby }, (_, i) => {
+      const [x, sz] = loungeSeat(i, loungeRows)
+      return [lbox[0] + x, lbox[1] + sz] as [number, number]
+    }),
+  }
+  const bounds: Bounds = { x0: X0, z0: ZF - D, x1: X0 + W, z1: ZF }
+  return { zones, lounge, yard: side, bounds, frame: union(bounds, boxes.side) }
 }
 
-export function settle(current: Demand, agents: Demand, canRelayout: boolean): { desks: Demand; pending: boolean } {
+export function settle(current: Demand, seated: Demand, canRelayout: boolean, present: ReadonlySet<DeptId> = new Set()): { desks: Demand; pending: boolean } {
   const desks: Demand = {}
   let pending = false
   for (const { id } of depts) {
-    const seated = agents[id] ?? 0
-    const want = seated > 0 ? seated + 1 : 0
-    desks[id] = canRelayout ? want : Math.max(current[id] ?? 0, seated)
+    const n = seated[id] ?? 0
+    const want = n > 0 || present.has(id) ? n + 1 : 0
+    desks[id] = canRelayout ? want : Math.max(current[id] ?? 0, n, present.has(id) ? 1 : 0)
     pending ||= desks[id] !== want
   }
   return { desks, pending }
@@ -188,6 +311,26 @@ export function assignDesks(prev: ReadonlyMap<string, number>, agents: readonly 
   return out
 }
 
+export function assignSeats(prev: ReadonlyMap<string, number>, ids: readonly string[]): Map<string, number> {
+  const used = new Set<number>()
+  const out = new Map<string, number>()
+  for (const id of ids) {
+    const seat = prev.get(id)
+    if (seat !== undefined && seat < ids.length && !used.has(seat)) {
+      used.add(seat)
+      out.set(id, seat)
+    }
+  }
+  let next = 0
+  for (const id of ids) {
+    if (out.has(id)) continue
+    while (used.has(next)) next++
+    used.add(next)
+    out.set(id, next)
+  }
+  return out
+}
+
 export function anchorsFor(kind: SlotKind, x: number, z: number) {
   return kind === 'gym'
     ? { seat: [x, z - 0.1] as const, stand: [x + 1, z + 0.8] as const, chip: [x, 1.25, z - 0.1] as const }
@@ -198,5 +341,11 @@ export const office = { x0: -3.3, x1: 3.1, z0: 9.4, z1: 12.6, h: 2.3, d0: 10.85,
 export const queueZ = 11.4
 export const queueSpots = [-4.3, -5.7, -7.1, -8.5, -9.9].map((x) => [x, queueZ] as const)
 export const door = [-12.2, 12.75] as const
-export const lounge = Array.from({ length: 16 }, (_, i) => [-10.6 + (i % 8) * 0.75, 9.3 + Math.floor(i / 8) * 0.9] as const)
-export const parkedZone = { name: 'Parked', sign: [-13.25, 10.9] as const, box: [-13.4, 8.6, -5.4, 10.9] as const }
+export const cloakroom = { x0: -11.5, lockers: 12, pitch: 0.56, z: 9.55 }
+export const bandArea = bandW * bandD
+export const fixedParts: readonly Box[] = [
+  [office.x0 - 0.3, office.z0 - 0.3, office.x1 + 0.3, ZF],
+  [queueSpots.at(-1)![0] - 0.7, queueZ - 0.6, office.x0 - 0.3, queueZ + 0.6],
+  [X0, 11.2, queueSpots.at(-1)![0] - 0.7, ZF],
+  [cloakroom.x0, cloakroom.z - 0.19, cloakroom.x0 + cloakroom.lockers * cloakroom.pitch, cloakroom.z + 0.19],
+]

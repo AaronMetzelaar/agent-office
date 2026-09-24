@@ -95,11 +95,11 @@ describe('store projection', () => {
     const queue = buildQueue(after)
     const index = queuePositions(queue).get(id)!
     expect(index).toBe(1)
-    const place = placementFor({ state: 'needs-you', kind: 'desk', parked: false, queueIndex: index, spots: queueSpots.length, bench: true })
+    const place = placementFor({ state: 'needs-you', kind: 'desk', spot: 'desk', parked: false, queueIndex: index, spots: queueSpots.length })
     expect(place.anchor).toBe('queue')
     const spot = new Vector3(queueSpots[index]![0], 0, queueSpots[index]![1])
     const nav = createNav()
-    nav.rebuild(floor.bounds, () => [0, 0])
+    nav.rebuild(floor.frame, () => [0, 0])
     const start = walker.pos.distanceTo(spot)
     expect(stepWalker(walker, spot, 1 / 60, nav.route, true)).toBe(true)
     expect(walker.goal).toBe(spot)
@@ -144,11 +144,11 @@ describe('placement and colour', () => {
     expect(projectOf('/Users/a/Documents/GitHub/cookbook/.claude/worktrees/pages')).toBe('cookbook')
   })
 
-  it('walks a chat the store parked to the lounge, with how long it has been quiet', () => {
+  it('lets a chat the store parked doze in the lounge, with how long ago it finished', () => {
     const now = Date.now()
     const day = 86_400_000
     const chat = { id: 'p', accountId: 'main', cwd: '/x/portfolio', title: 'Old', archived: false, parked: true, state: 'idle', stateSince: now - 2 * day, lastActivityAt: now - 2 * day, createdAt: 0, pending: [], pendingRequests: [], subagents: [] } as unknown as ChatView
-    expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Parked · 2d' })
+    expect(toAgents([chat], accounts, now, new Map())[0]).toMatchObject({ parked: true, caption: 'Dozing · done 2d ago' })
   })
 
   it('gives 15 agents 15 different colours and keeps them stable', () => {
