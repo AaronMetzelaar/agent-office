@@ -50,6 +50,7 @@ describe('session manager', () => {
   it('starts a streaming query with only the account token, Auto mode by default and partial messages', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-api-should-not-leak')
     vi.stubEnv('CLAUDE_CONFIG_DIR', '/elsewhere')
+    vi.stubEnv('CLAUDE_CODE_ENTRYPOINT', 'claude-desktop')
     const { engine, seen } = manager()
     sdk.messages = [{ type: 'system', subtype: 'init' }]
 
@@ -62,6 +63,7 @@ describe('session manager', () => {
     expect(sdk.options?.env?.CLAUDE_CODE_OAUTH_TOKEN).toBe(token)
     expect(sdk.options?.env).not.toHaveProperty('ANTHROPIC_API_KEY')
     expect(sdk.options?.env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
+    expect(sdk.options?.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT')
   })
 
   it('feeds sent text into the prompt stream and routes controls to the live query', async () => {

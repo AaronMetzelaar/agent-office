@@ -852,7 +852,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Verification:**
 - Search covers months of existing transcripts within seconds of the first run, and resume works for chats started in the office and before it.
 
-- [ ] **Unit 13: Outside chats and adoption**
+- [x] **Unit 13: Outside chats and adoption**
 
 **Goal:** Show desktop-app and terminal chats live, and move them into the office safely.
 
@@ -974,6 +974,10 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
 - [ ] Desks are merged per desk, not per section, so they can come and go; the demo office draws about 14% more calls than before. Merge a section's desks if the 15-agent frame budget gets tight. Unit 14.
 - [ ] The label test for 15 agents passes with little room at the door queue: the front row's signs sit just above the queue tags. Revisit sign placement if the front row moves. Unit 14.
+- [ ] Outside chats without the hook get their state from transcripts only, so they never show Needs you until the hook is installed. After installing, check on the real machine whether sessions that were already running start reporting, or only after they restart. Unit 13.
+- [ ] A brand-new outside chat appears at its first tool call or Stop: SessionStart and the first UserPromptSubmit arrive before its transcript exists, and the listener drops events without one. Retry once after a second if that feels slow. Unit 13.
+- [ ] Terminal chats show the account as unknown; nothing on disk ties a terminal login to an office account label. Unit 13.
+- [ ] Moving a chat into the office starts nothing: the fork happens on the first message sent there. If the original was mid-turn, that message has to say to carry on. Unit 13.
 
 ## System-Wide Impact
 

@@ -46,7 +46,7 @@ const needsLogin: Refusal = { error: 'This account needs a new login. Add its to
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const modelOrDefault = (model: unknown) => (model === undefined || model === '' || model === 'default' ? defaultModel : model)
 
-function describeTool(name: string, input: unknown): string {
+export function describeTool(name: string, input: unknown): string {
   const args = (input ?? {}) as Record<string, unknown>
   const file = basename(String(args.file_path ?? args.notebook_path ?? args.path ?? ''))
   switch (name) {
@@ -97,7 +97,7 @@ function upsert(rows: ChatRow[], row: ChatRow, cap = maxRows): void {
   else if (rows.push(row) > cap) rows.splice(0, rows.length - cap)
 }
 
-async function transcriptRows(sessionId: string): Promise<ChatRow[]> {
+export async function transcriptRows(sessionId: string): Promise<ChatRow[]> {
   const { events } = await readHistory(sessionId, { limit: Infinity }).catch(() => ({ events: [] }))
   const rows: ChatRow[] = []
   for (const event of events) {
@@ -105,6 +105,15 @@ async function transcriptRows(sessionId: string): Promise<ChatRow[]> {
     if (row) upsert(rows, row, Infinity)
   }
   return rows
+}
+
+export async function olderRowsOf(sessionId: string, loaded: readonly ChatRow[], beforeId?: unknown): Promise<OlderRows> {
+  const rows = await transcriptRows(sessionId)
+  const anchors = new Set(typeof beforeId === 'string' ? [beforeId] : loaded.map((row) => row.id))
+  const end = rows.findIndex((row) => anchors.has(row.id))
+  if (end === -1) return { rows: [], more: false }
+  const start = Math.max(0, end - olderPage)
+  return { rows: rows.slice(start, end), more: start > 0 }
 }
 
 function fromRecord(record: ChatRecord): Chat {
@@ -171,7 +180,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     if (row) addRow(chat, row)
     switch (event.type) {
       case 'session':
-        set(chat, { sessionId: event.sessionId, model: event.model })
+        set(chat, { sessionId: event.sessionId, model: event.model, ...(view.forkPending ? { forkPending: false } : {}) })
         if (view.state === 'starting') transition(chat, 'working')
         else save(chat)
         break
@@ -242,7 +251,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function run(chat: Chat, text: string, fork = false) {
     const view = chat.view
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork ? { forkSession: true } : {}) })
+      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork || view.forkPending ? { forkSession: true } : {}) })
       engine.send(view.id, text)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
@@ -363,13 +372,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     async olderRows(chatId: unknown, beforeId?: unknown): Promise<OlderRows> {
       const chat = find(chatId)
       const sessionId = chat?.view.sessionId
-      if (!chat || !sessionId) return { rows: [], more: false }
-      const rows = await transcriptRows(sessionId)
-      const anchors = new Set(typeof beforeId === 'string' ? [beforeId] : chat.view.rows.map((row) => row.id))
-      const end = rows.findIndex((row) => anchors.has(row.id))
-      if (end === -1) return { rows: [], more: false }
-      const start = Math.max(0, end - olderPage)
-      return { rows: rows.slice(start, end), more: start > 0 }
+      return chat && sessionId ? olderRowsOf(sessionId, chat.view.rows, beforeId) : { rows: [], more: false }
     },
 
     draft(chatId: unknown): string {
@@ -469,6 +472,12 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       transition(chat, 'idle', { stuck: undefined, parked: true })
       send(copy, resumePrompt, {}, true)
       return { chatId: copy.view.id }
+    },
+
+    adopt(init: Pick<ChatView, 'accountId' | 'cwd' | 'title' | 'department' | 'sessionId'>): string {
+      const chat = create({ ...init, state: 'idle', activity: '', forkPending: true })
+      addRow(chat, { kind: 'other', id: randomUUID(), label: 'Moved into the office. Your next message continues a copy; the original stays as it is.' })
+      return chat.view.id
     },
 
     park(chatId: string): void {

@@ -20,6 +20,7 @@ export interface WaitingItem {
   detail: string
   lastReply?: string
   stuckReason?: StuckReason
+  visitor?: boolean
 }
 
 export interface BoardRow {
@@ -71,6 +72,7 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
       requests: item.kind === 'request' ? (chat?.pendingRequests ?? []) : [],
       detail: agent?.caption ?? '',
       ...(agent?.stuckReason ? { stuckReason: agent.stuckReason } : {}),
+      ...(chat?.visitor ? { visitor: true } : {}),
     }
   })
   const seated = agents.filter((agent) => !agent.parked)

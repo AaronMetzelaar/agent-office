@@ -1,0 +1,8 @@
+#!/bin/sh
+config="$(dirname "$0")/hook.curlrc"
+if [ ! -r "$config" ]; then
+  cat >/dev/null
+  exit 0
+fi
+curl -q --silent --noproxy '*' --connect-timeout 1 --max-time 2 --config "$config" --data-binary @- --output /dev/null >/dev/null 2>&1
+exit 0

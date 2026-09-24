@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import type { ChatPatch, ChatPatchBatch, ChatRow, ChatSnapshot, LoginItem } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
 import { handle, send } from '../ipc'
+import type { Visitors } from '../outside/visitors'
 import type { ChatStore } from './chats'
 
 const tickMs = 16
@@ -77,8 +78,8 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
   }
 }
 
-export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) {
-  const sync = createPatchSync(store, (batch) => send(win, 'chatPatches', batch))
+export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore, visitors: Visitors) {
+  const sync = createPatchSync({ events: store.events, snapshot: () => [...store.snapshot(), ...visitors.snapshot()] }, (batch) => send(win, 'chatPatches', batch))
   let openChat: string | undefined
   handle('getSnapshot', win, appUrl, sync.snapshot)
   handle('sendMessage', win, appUrl, store.sendMessage)
@@ -87,15 +88,16 @@ export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) 
   handle('setModel', win, appUrl, store.setModel)
   handle('setEffort', win, appUrl, store.setEffort)
   handle('setPlanMode', win, appUrl, store.setPlanMode)
-  handle('olderRows', win, appUrl, store.olderRows)
+  handle('olderRows', win, appUrl, (chatId, beforeId) => (visitors.has(chatId) ? visitors.olderRows(chatId, beforeId) : store.olderRows(chatId, beforeId)))
   handle('getDraft', win, appUrl, store.draft)
   handle('saveDraft', win, appUrl, store.saveDraft)
   handle('setOpenChat', win, appUrl, (chatId) => {
     openChat = typeof chatId === 'string' ? chatId : undefined
     if (openChat) void store.restore(openChat)
+    visitors.open(openChat)
   })
   handle('resumeChat', win, appUrl, store.resumeChat)
   handle('continueOnAccount', win, appUrl, store.continueOnAccount)
-  handle('markRead', win, appUrl, store.markRead)
+  handle('markRead', win, appUrl, (chatId) => (visitors.has(chatId) ? visitors.markRead(chatId) : store.markRead(chatId)))
   return Object.assign(sync, { openChat: () => openChat })
 }
