@@ -11,6 +11,7 @@ import type { Welcome } from './host/server'
 import type { StripState } from './tray/strip'
 import { guard, handle, send, windowHub } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle'
+import { pinFolder } from './folders'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { createTray } from './tray'
@@ -74,7 +75,9 @@ async function start(): Promise<void> {
   handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version }))
   handle('pickFolder', win, appUrl, async () => {
     const picked = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose' })
-    return picked.canceled ? undefined : picked.filePaths[0]
+    const path = picked.canceled ? undefined : picked.filePaths[0]
+    if (path) pinFolder(path)
+    return path
   })
   handle('openNotificationSettings', win, appUrl, () => void shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings.extension'))
   handle('getHostStatus', win, appUrl, () => status)
