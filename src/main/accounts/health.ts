@@ -68,6 +68,36 @@ export const validateWithSdk: Validator = async (token) => {
   }
 }
 
+export const validateWithHeaders: Validator = async (token) => {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 0, messages: [{ role: 'user', content: 'ok' }] }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (response.status === 401) return { status: 'needs-login' }
+  const headroom = headroomFromHeaders(response.headers)
+  if (response.ok || (response.status === 429 && Object.keys(headroom).length)) return { status: 'ok', headroom }
+  throw new Error(`Claude answered ${response.status}`)
+}
+
+export const validate: Validator = (token) => validateWithHeaders(token).catch(() => validateWithSdk(token))
+
+function headroomFromHeaders(headers: Headers): Headroom {
+  const window = (name: string): UsageWindow | undefined => {
+    const utilization = Number.parseFloat(headers.get(`anthropic-ratelimit-unified-${name}-utilization`) ?? '')
+    if (Number.isNaN(utilization)) return undefined
+    const resetsAt = Number.parseInt(headers.get(`anthropic-ratelimit-unified-${name}-reset`) ?? '', 10)
+    return Number.isNaN(resetsAt) ? { utilization: utilization * 100 } : { utilization: utilization * 100, resetsAt: resetsAt * 1000 }
+  }
+  const headroom: Headroom = {}
+  const fiveHour = window('5h')
+  const sevenDay = window('7d')
+  if (fiveHour) headroom.fiveHour = fiveHour
+  if (sevenDay) headroom.sevenDay = sevenDay
+  return headroom
+}
+
 function headroomFromEvent(info: SDKRateLimitInfo): Headroom {
   const utilization = info.utilization ?? (info.status === 'rejected' ? 1 : undefined)
   if (utilization === undefined) return {}

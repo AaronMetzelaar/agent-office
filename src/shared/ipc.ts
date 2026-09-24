@@ -36,6 +36,10 @@ export interface AccountView {
   health: AccountHealth
 }
 
+const percent = (value?: number) => (value === undefined ? '–' : `${Math.round(value)}%`)
+export const usageLine = (account: AccountView) =>
+  account.health.status === 'needs-login' ? 'needs login' : `5h ${percent(account.health.headroom?.fiveHour?.utilization)} · week ${percent(account.health.headroom?.sevenDay?.utilization)}`
+
 export type AddAccountResult = { account: AccountView } | { error: string }
 
 export type Navigate = { to: 'inbox' } | { to: 'chat'; chatId: string } | { to: 'new' } | { to: 'accounts' } | { to: 'housekeeping' }

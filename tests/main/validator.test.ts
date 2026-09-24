@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { validateWithSdk } from '../../src/main/accounts/health'
+import { validateWithHeaders, validateWithSdk } from '../../src/main/accounts/health'
 
 const sdk = vi.hoisted(() => ({
   messages: [] as unknown[],
@@ -100,5 +100,35 @@ describe('validateWithSdk', () => {
     sdk.messages = [{ ...result, is_error: true, result: 'API Error: 529 overloaded' }]
 
     await expect(validateWithSdk('token')).rejects.toThrow('529 overloaded')
+  })
+})
+
+describe('validateWithHeaders', () => {
+  const answer = (status: number, headers: Record<string, string> = {}) => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status, headers })))
+  const limits = {
+    'anthropic-ratelimit-unified-5h-utilization': '0.42',
+    'anthropic-ratelimit-unified-5h-reset': '1790280600',
+    'anthropic-ratelimit-unified-7d-utilization': '1.0',
+    'anthropic-ratelimit-unified-7d-reset': '1790470800',
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('reads both windows from the rate limit headers of a zero-token request', async () => {
+    answer(200, limits)
+    expect(await validateWithHeaders('token')).toEqual({ status: 'ok', headroom: { fiveHour: { utilization: 42, resetsAt: 1_790_280_600_000 }, sevenDay: { utilization: 100, resetsAt: 1_790_470_800_000 } } })
+    const [, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({ max_tokens: 0 })
+  })
+
+  it('treats a rate limited answer with headers as a valid token out of headroom', async () => {
+    answer(429, limits)
+    expect(await validateWithHeaders('token')).toMatchObject({ status: 'ok' })
+  })
+
+  it('maps 401 to needs login and throws on anything else', async () => {
+    answer(401)
+    expect(await validateWithHeaders('token')).toEqual({ status: 'needs-login' })
+    answer(400)
+    await expect(validateWithHeaders('token')).rejects.toThrow('400')
   })
 })
