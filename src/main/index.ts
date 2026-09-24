@@ -8,7 +8,7 @@ import { createAccounts, fakeValidator, validateWithSdk } from './accounts/healt
 import { openVault } from './accounts/tokens'
 import { createPlacement, loadRules } from './departments/classifier'
 import { handle, send } from './ipc'
-import { confirmQuitWhileBusy, hideOnClose, reveal } from './lifecycle'
+import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle'
 import { createHousekeeping, realSystem, wireHousekeeping } from './housekeeping'
 import { loginShellPath } from './login-path'
 import { createWaitMetrics } from './metrics/wait'
@@ -35,6 +35,8 @@ if (process.env.AGENT_OFFICE_USER_DATA) app.setPath('userData', process.env.AGEN
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 const appUrl = devServerUrl ?? bundleUrl
+const hidden = !app.isPackaged && process.env.AGENT_OFFICE_HIDDEN === '1'
+if (hidden) process.on('uncaughtException', (error) => console.error('[main] uncaught exception', error))
 
 if (app.requestSingleInstanceLock()) {
   registerBundleScheme()
@@ -128,7 +130,7 @@ async function start(): Promise<void> {
     resolve: (requestId, decision) => broker.resolveRequest(requestId, decision, 'notification'),
     sendMessage: store.sendMessage,
     open: show,
-    notification: (options) => new Notification(options),
+    notification: (options) => (hidden ? Object.assign(new Notification(options), { show: () => {} }) : new Notification(options)),
     push: phone.post,
     shown: (chatId) => win.isVisible() && win.isFocused() && sync.openChat() === chatId,
   })
@@ -190,8 +192,10 @@ function createWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: false,
+      backgroundThrottling: !hidden,
     },
   })
+  if (hidden) offstage(win)
   hardenWindow(win, appUrl)
   forwardRendererErrors(win.webContents)
   void win.loadURL(appUrl)
