@@ -3,6 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, wr
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { withTicket } from '../../src/main/workflow/linear'
 import { createWorktree, planWorktree, slugFor } from '../../src/main/worktrees/create'
 import { doingNow } from '../../src/shared/chat'
 import { openOffice } from '../fakes/office'
@@ -109,5 +110,16 @@ describe('starting a chat in a fresh worktree', () => {
     mkdirSync(join(dir, 'loose'))
     expect(office.store.start('main', join(dir, 'loose'), 'Anything', undefined, undefined, { worktree: true })).toEqual({ error: expect.stringContaining('isn’t in a git repository') })
     expect(office.store.snapshot()).toEqual([])
+  })
+
+  it('names the worktree and the chat after a Linear ticket given as the whole prompt', async () => {
+    const linear = { ticket: async (id: string) => ({ ticket: { id, title: 'Deep links for push', status: 'Todo', url: `https://linear.app/mws/issue/${id}/deep-links` } }) }
+    const seeded = await withTicket(linear, 'mob-88', { worktree: true })
+    const result = office.store.start('main', join(repo, 'frontend/mobile'), seeded.prompt, undefined, undefined, seeded.options)
+    if (!('chatId' in result)) throw new Error(result.error)
+    await vi.waitFor(() => expect(office.engine.sent).toHaveLength(1))
+    expect(office.chat(result.chatId)).toMatchObject({ title: 'MOB-88 Deep links for push', worktree: join(repo, '.claude/worktrees/mob-88-deep-links-for-push') })
+    expect(branches()).toContain('mob-88-deep-links-for-push')
+    expect(office.engine.sent[0]!.text).toBe('Work on Linear ticket MOB-88: Deep links for push\n\nStatus: Todo\n\nhttps://linear.app/mws/issue/MOB-88/deep-links')
   })
 })

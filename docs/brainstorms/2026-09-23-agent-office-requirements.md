@@ -26,8 +26,15 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
     - **Backend / infra**: services, API, workers and infra, plus anything else in the monorepo
   - A **Research gym** holding every chat on the research account.
   - A **Side projects** area for the main account's other folders.
+  - A **PR reviews** section for the agents started from the review queue (R28).
 
-  A section only appears while it has active agents (parked chats don't count). Empty sections fold away, and the rest close up in a fixed order: Marketplace, Admin, Mobile, Backend / infra, Side projects, Research gym. Re-layout waits while he's hovering or zoomed in. Starting an agent in a hidden department brings its section back. ⌘N, the job board and the review queue can still target hidden departments.
+  A section only appears while it has active agents (parked chats don't count). Empty sections fold away, and the rest close up in a fixed order: Marketplace, Admin, Mobile, Backend / infra, Side projects, PR reviews, Research gym. Marketplace, Admin and Mobile line the back wall; Backend / infra, Side projects, PR reviews and the gym line the front. Starting an agent in a hidden department brings its section back. ⌘N, the job board and the review queue can still target hidden departments.
+
+  Sections and the building are only as big as they need to be:
+  - A section holds a desk for each active agent plus one free desk, so there's always a desk to start from. The desks form a compact grid that grows in steps (two side by side, then 2×2, 3×2, 3×3, then wider) and shrinks as agents leave. Parked and archived chats don't count. A growing section never moves an existing desk.
+  - Props follow a size tier: a section with one or two agents keeps its signature piece (the Marketplace's auction screen and framed shirts, for example), and bigger tiers add the rest. Props never cover desks or walkways.
+  - The floor, walls and windows fit the sections that are showing, plus the fixed front: his glass office with the door queue, the entrance, and the Parked lounge while anything is parked. The overview camera refits when the building changes.
+  - Resizes and moves animate instead of jumping, and agents walk to their new desks. Re-layout waits while he's hovering or zoomed into a section, and applies when he returns to the overview. The one exception is a newcomer who needs a desk: that desk appears at once, and the next free desk waits.
 
   Each department is a clearly bounded section:
   - its own subtle floor tint
@@ -42,6 +49,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
   - Mobile: a device-testing wall.
   - Backend / infra: server racks and monitoring screens.
   - Side projects: a corner per project.
+  - PR reviews: a quiet reading room with lamps, armchairs and a review board.
   - The gym keeps its gym look.
   No real club crests or MWS logos.
 - R4. Placement follows the files live. A main-account chat sits in the department whose files it has recently read and edited. It walks to another department only when its work clearly and consistently shifts; one stray file read must not move it. A chat working across departments sits where it has edited the most, and a tie keeps it where it is. Subagent activity counts toward the parent.
@@ -74,12 +82,13 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R10. Start a new agent from an empty desk or a command:
   - Choose the folder, or ask for a fresh worktree.
   - Write the first prompt.
-  - Pick model and effort. Every agent runs in Claude Code's Auto mode by default, so only what Auto mode escalates reaches the queue. Plan mode stays available per chat.
+  - Pick model and effort. Every chat the office starts (the form, ⌘N, a desk's "+", Review, Start from ticket) runs on Opus 5.5 (`claude-opus-5-5`) at medium effort unless he picks otherwise. A pick applies to that agent only; the form doesn't remember it.
+  - Every agent runs in Claude Code's Auto mode by default, so only what Auto mode escalates reaches the queue. Plan mode stays available per chat.
   - While it starts, the desk shows progress ("setting up worktree…"). A failure shows on the desk and in the chat, with Retry.
 - R11. A full conversation view:
   - Streaming replies, tool calls with their results, and subagent activity.
   - Send messages and stop the agent.
-  - Change model and effort mid-chat with a visible effort control (low to max); the change applies from the next turn, as in Claude Code.
+  - Change model and effort mid-chat with a visible effort control (low to max); the change applies from the next turn, as in Claude Code, and stays with that chat. A chat saved without a model runs on Opus 5.5, never on the CLI's default.
 
 *Permissions*
 - R12. Handle permission requests with Allow once, Always allow or Deny, from any of:
@@ -124,6 +133,10 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 
 **Workflow**
 - R24. Linear on the desks: each agent shows its Linear ticket (from the branch or worktree name, e.g. AUC-1302) and the ticket's status. An agent can be started from a ticket, with the worktree and branch named after it and the ticket as context. When a chat is done, the office can move its ticket to review, after confirming.
+  - A ticket alone is enough instructions. A prompt that is only a ticket id (any case) or a Linear issue link, or starts with one, starts an agent without a description.
+  - With a Linear key, the office reads the ticket's title, status, description and link and puts them at the top of the first prompt, followed by anything else he typed. Office sessions run on setup tokens without the claude.ai Linear connector, so the agent can't read the ticket itself. The chat is titled "AUC-1302 <title>", and a fresh worktree's branch is named after the ticket.
+  - Without a key, or when Linear doesn't answer, the prompt goes as typed, and the form says quietly that the agent won't see the ticket body.
+  - Reading a ticket never changes it in Linear.
 - R25. Ship-it actions: agents offer the next step for their state, using Aaron's own skills:
   - Changes but no PR yet: write test cases (`/mws-test-cases`), verify (`/mws-verify`), review (`/mws-review`), then commit and open a PR (`/mws-pr`).
   - PR open with unresolved comments: answer them (`/pr-comment-rundown`).
@@ -139,7 +152,8 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
 - R28. Review queue: open PRs where Aaron's review is requested (via `gh`) form a second queue, next to "Waiting for you":
   - In the office: an in-tray on his desk holds them, with the count visible at the overview and older requests in amber.
   - In the drawer: a "Review requests" section lists repo, title, author, age, size and CI status.
-  - One click starts an agent that runs `/pr-review-rundown` on that PR in its own worktree, in the PR's department.
+  - One click starts an agent that runs `/pr-review-rundown <PR URL>`. It needs no worktree, because the skill reads the PR from the outside through `gh`: the agent runs in the repo's local clone (matched by its `origin`), or in the home folder when no clone is known.
+  - Review agents sit in the PR reviews section, not the PR's department. The office knows an agent is a review from how it was started, not by guessing from the prompt.
   - A request leaves the queue once his review is submitted or the request is withdrawn.
   - His own PRs with new review comments surface the `/pr-comment-rundown` action (R25).
 - R27. Morning briefing: the first time he opens the office after a break (6 hours or more, or the first open of the day), one card summarizes what finished, what's waiting, PRs ready, CI failures, and what was parked or cleaned up.

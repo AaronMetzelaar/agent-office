@@ -190,7 +190,7 @@ Two more, added during planning:
 - *How does adoption avoid two writers?* Fork (see above).
 - *Where do git, PR and CI data come from?* Local `git` in the chat's working directory, and `gh` using his existing login. CI logs are fetched on demand, never cached. Refresh happens on Stop events and on panel focus.
 - *Do office-started sessions still fire the shared hooks?* Yes, with default `settingSources`. The office doesn't rely on them for its own chats anyway.
-- *How does the office lay itself out as departments fill?* Each department grows by desk rows within a fixed zone. When a zone is full, it borrows the adjacent free zone and the floor extends toward the front. The performance budget is set at 15 agents (1.5× his typical peak). Details are in Unit 9.
+- *How does the office lay itself out as departments fill?* Each section is sized to its active agents plus one free desk, and the building is sized to the sections showing (revised 2026-09-24; see Unit 6). The performance budget is set at 15 agents (1.5× his typical peak).
 - *What happens with several pending asks, answers from two surfaces at once, and relaunch?* See Key Technical Decisions.
 - *How do DOM labels work inside TresJS?* The prototypes' chips, collapse-to-dot and culling are built on three.js's `CSS2DRenderer`, so the port keeps it and renders it from TresJS's render loop. Rejected: `@tresjs/cientos`'s `Html` component, which uses a different positioning model and would mean rewriting that behaviour. Revisit only if driving CSS2D from the loop turns out awkward.
 
@@ -505,9 +505,15 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - pose: which pose each state and location maps to
   The scene only reads their outputs.
 - **Adaptive floor** (origin R3):
-  - Only departments with active (non-parked) agents are shown, re-packed in a fixed order.
+  - Only departments with active (non-parked) agents are shown, re-packed in a fixed order: Marketplace, Admin and Mobile along the back wall; Backend / infra, Side projects, PR reviews and the gym along the front.
   - Folding and unfolding animate over ~400ms, and re-layout is deferred while he's hovering or zoomed in.
-  - The layout function is pure (visible departments and desk counts in, zone rectangles out) and unit-tested.
+  - The layout function is pure (desk counts in, section boxes and building bounds out) and unit-tested.
+- **Size follows the agents** (revised 2026-09-24):
+  - Desks per section = active agents + 1 free desk. The grid grows in steps (2×1, 2×2, 3×2, 3×3, then wider) through a fixed cell order, so a growing section never moves an existing desk; only newcomers walk.
+  - Props come in three size tiers per section (1–2 agents, 3–5, 6+). Each tier's props are built in two merged groups, one anchored to the back wall and one to the right edge, and rebuilt only when the tier changes. The right-edge group slides as the section widens.
+  - Section shells (floor tint, inlay, partitions, planter) are unit meshes scaled per frame, so resizes animate without creating geometry. Desks are merged one by one, so they can come and go with the agents.
+  - The building's floor, walls, windows and shadow frustum follow the bounds of the sections showing plus the fixed front band (office, door queue, entrance). The Parked lounge folds away while nothing is parked. The overview camera refits to the new bounds.
+  - While he hovers or zooms in, sections never shrink or fold; a newcomer still gets a desk at once, and the next free desk waits for the overview.
 - **Clear sections** (origin R3):
   - each department gets a subtle floor tint from its accent, with a crisp edge inlay
   - low partitions or planters, with an opening onto the main aisle
@@ -537,7 +543,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Test scenarios:**
 - Happy path: three chats in Needs you get queue spots 1–3 in order of their oldest pending request. Releasing spot 1 moves the others up.
 - Edge case: a Stuck chat joins the queue with the warning variant, and an account-login item appears once, however many chats it affects.
-- Edge case: a department with more chats than desks grows a row, and when the zone is full it borrows the adjacent zone. No two agents share a desk.
+- Edge case: a department's section is its agents' desks plus one free desk, grows in steps without moving existing desks, and never lets two agents share a desk.
+- Happy path: one agent in Marketplace gives a 2-desk section and a building no bigger than the fixed front needs; 15 agents grow the building in both directions.
 - Happy path: when Admin's last agent is parked, Admin folds away and the remaining sections keep their relative order. Starting an agent in Admin brings the section back before the agent walks in.
 - Edge case: a department emptying while he hovers over the floor doesn't re-layout until the pointer leaves, or the camera returns to the overview.
 - Happy path: state-to-pose mapping (desk and gym columns of the origin doc's R5 table).
@@ -645,7 +652,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - Starting an agent:
   - Choose a recent repository or a folder. Optionally ask for a fresh worktree (`<repo>/.claude/worktrees/<slug>` on a new branch).
-  - Write the prompt, and pick the model and effort. The default effort is remembered, and Auto mode is on by default.
+  - Write the prompt, and pick the model and effort. Every start defaults to Opus 5.5 (`claude-opus-5-5`) at medium effort, resolved in main too, so an empty or "default" model never falls back to the CLI default. The form remembers only the worktree choice. Auto mode is on by default.
   - The desk shows "setting up worktree…"; a failure shows on the desk and in the chat with Retry.
 - The account defaults to main for main-account folders and research for the gym. When main's headroom is low, the form suggests research for monorepo work (R17); an overflow agent keeps its department and shows an account badge.
 - A rate-limited chat offers "Continue on the other account": the office forks it under the other account's token and parks the original.
@@ -762,12 +769,14 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
   - The ticket id is parsed from the branch or worktree name (e.g. `auc-1302-…` gives AUC-1302).
   - Ticket title and status are fetched with a Linear personal API key, stored with `safeStorage` like the account tokens (optional; without it, tags show the bare id).
   - "Start from ticket" creates the worktree and branch from the ticket id and seeds the prompt with the ticket.
-  - Moving a ticket's status always asks first.
+  - A ticket alone is a prompt (revised 2026-09-24): a prompt that is, or starts with, a ticket id or a Linear issue link is expanded in main before the chat starts. With a key, the ticket's title, status, description and link go at the top of the first prompt, the chat is titled "AUC-1302 <title>", and a fresh worktree is named after the ticket. Without a key, or when Linear fails, the prompt goes as typed and the form shows a quiet note. Office sessions have no claude.ai Linear connector, so this is the only way the agent sees the ticket.
+  - Moving a ticket's status always asks first. Reading one never changes it.
 - **Review queue:**
   - Polls `gh search prs --review-requested=@me --state=open` (every ~5 minutes, and on focus) for repo, title, author, age, size and CI.
   - The office shows an in-tray on Aaron's desk with envelopes, and the count is visible at the overview. Requests older than 2 working days turn amber.
   - The drawer gets a "Review requests" section below "Waiting for you".
-  - "Review" starts an agent in a worktree checked out at the PR head, in the PR's department, running `/pr-review-rundown <PR>`.
+  - "Review" starts an agent running `/pr-review-rundown <PR URL>` without a worktree (revised 2026-09-24): the skill reads the PR through `gh`. The agent runs in the repo's local clone, found by matching `origin` against known chats' repos, or in the home folder when there's none.
+  - Review agents are started with a `review` flag, saved with the chat, and sit in their own PR reviews section (`rev`, a reading room with lamps and a review board). The classifier never moves them.
   - A request leaves the tray when `gh` no longer lists it (review submitted or request withdrawn).
 
 **Test scenarios:**
@@ -776,7 +785,8 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 - Edge case: a Side-projects chat, whose session lacks the MWS skills, doesn't offer MWS actions.
 - Happy path: branch `auc-1302-bid-flow-approach` shows AUC-1302 with its Linear title and status. Without an API key, the tag shows the id only.
 - Error path: the Linear API or `gh` being unavailable shows a quiet notice, and the rest of the office keeps working.
-- Happy path: two review requests appear in the tray and the drawer. "Review" on one starts an agent on that PR's head in a new worktree, running `/pr-review-rundown`.
+- Happy path: two review requests appear in the tray and the drawer. "Review" on one starts an agent in PR reviews, in the repo's clone and without a worktree, running `/pr-review-rundown` with the PR's URL.
+- Happy path: a prompt of only `auc-1302` starts on the ticket's title, description and link when a key is set, and as typed without one.
 - Edge case: a request withdrawn by its author disappears on the next poll without affecting a review agent already running.
 
 **Verification:**
@@ -958,12 +968,12 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] Transcript gap when more than 200 new rows arrive after loading older history. Unit 12.
 - [ ] Department moves are held by polling the open panel once a second, and `departments.json` is only read at startup. Watch the file and use the open-chat IPC. Unit 12.
 - [ ] Tune the classifier thresholds (60% over two evaluations) against real transcripts. After a week of real use.
-- [ ] Marketplace and Side projects fit only one front desk each, because props block the second. Unit 14 (layout pass).
 - [ ] Mac notifications need the self-signed "Agent Office Local" certificate, which Aaron creates (steps in the README). Then build signed and verify the actions on screen.
 - [ ] The tray count is the menu bar title next to the icon, not digits drawn into it. Acceptable unless Aaron wants digits.
 - [ ] Ship-it slash actions need the session's `supportedCommands()`, which the office only learns once a session runs. After a relaunch, an idle chat shows only Clean up and Move ticket until its next turn. Persist the last list per chat if that gets in the way. Unit 11 (it reads the same list).
 - [ ] The Linear ticket shows in the chat header (the ship-it strip), not on the name tag. Move ticket needs a Linear key and moves to the team's first Done-type status after a merge; R24's "move to review when the chat is done" isn't built. Unit 14 or when Aaron adds a key.
-- [ ] "Review" finds the PR's local clone among the repos of existing chats (matching `origin`). A repo with no chat yet gets a message instead of a folder picker. Add a picker if that happens often.
+- [ ] Desks are merged per desk, not per section, so they can come and go; the demo office draws about 14% more calls than before. Merge a section's desks if the 15-agent frame budget gets tight. Unit 14.
+- [ ] The label test for 15 agents passes with little room at the door queue: the front row's signs sit just above the queue tags. Revisit sign placement if the front row moves. Unit 14.
 
 ## System-Wide Impact
 

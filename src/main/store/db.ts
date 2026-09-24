@@ -12,6 +12,7 @@ export interface ChatRecord {
   title: string
   colour?: string
   department?: string
+  review?: boolean
   model?: string
   effort?: Effort
   permissionMode?: ChatMode
@@ -59,6 +60,7 @@ create table if not exists settings (key text primary key, value text not null);
 const addedColumns: [string, string][] = [
   ['permission_mode', 'text'],
   ['parked', 'integer not null default 0'],
+  ['review', 'integer not null default 0'],
 ]
 
 const columns: [keyof ChatRecord, string][] = [
@@ -70,6 +72,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['title', 'title'],
   ['colour', 'colour'],
   ['department', 'department'],
+  ['review', 'review'],
   ['model', 'model'],
   ['effort', 'effort'],
   ['permissionMode', 'permission_mode'],
@@ -85,7 +88,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['usage', 'usage'],
 ]
 const json = new Set<keyof ChatRecord>(['stuck', 'usage'])
-const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'unread'])
+const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'review', 'unread'])
 
 function toRow(record: ChatRecord): Row {
   const row: Row = {}

@@ -80,7 +80,7 @@ export function createPlacement(engine: Pick<Engine, 'events'>, store: Pick<Chat
   engine.events.on('message', (chatId, message) => {
     try {
       const view = store.view(chatId)
-      if (!view || view.department === 'gym') return
+      if (!view || view.department === 'gym' || view.review) return
       const tally = tallies.get(chatId) ?? tallies.set(chatId, newTally()).get(chatId)!
       const dept = classify(tally, evidenceOf(normalize(message), view.cwd, rules))
       if (!dept) return

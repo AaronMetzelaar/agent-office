@@ -1,6 +1,6 @@
 import type { BrowserWindow } from 'electron'
 import type { StartChatResult } from '../../shared/chat'
-import { defaultAccount, type DeptRule } from '../../shared/departments'
+import { defaultAccount } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import type { TicketLookup } from '../../shared/workflow'
 import { handle, send } from '../ipc'
@@ -8,27 +8,31 @@ import { repoRoot } from '../permissions/repo-root'
 import { gitStatus, toplevel, type Run } from '../review/git'
 import type { Engine } from '../sessions/manager'
 import type { ChatStore } from '../store/chats'
-import { chatTicketId, ticketId, type Linear } from './linear'
+import { chatTicketId, ticketId, withTicket, type Linear } from './linear'
 import { loadShipIt } from './next-step'
-import { createReviewQueue, localClone, reviewDept } from './review-requests'
+import { createReviewQueue, reviewStart } from './review-requests'
 
 export interface WorkflowDeps {
   store: Pick<ChatStore, 'view' | 'views' | 'start'>
   engine: Pick<Engine, 'commands'>
   accounts: () => AccountView[]
   linear: Linear
-  rules: readonly DeptRule[]
   gh: Run
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(win: BrowserWindow, appUrl: string, { store, engine, accounts, linear, rules, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(win: BrowserWindow, appUrl: string, { store, engine, accounts, linear, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
     return cwd
   }
   const queue = createReviewQueue(gh, (view) => send(win, 'reviewRequests', view))
+
+  handle('startChat', win, appUrl, async (accountId, cwd, prompt, model, effort, options) => {
+    const seeded = typeof prompt === 'string' ? await withTicket(linear, prompt, options) : { prompt, options }
+    return store.start(accountId, cwd, seeded.prompt, model, effort, seeded.options)
+  })
 
   handle('getShipIt', win, appUrl, (chatId) => loadShipIt(cwdOf(chatId), engine.commands(chatId) ?? [], linear, gh))
 
@@ -50,12 +54,10 @@ export function wireWorkflow(win: BrowserWindow, appUrl: string, { store, engine
   handle('startReview', win, appUrl, async (url): Promise<StartChatResult> => {
     const request = queue.find(url)
     if (!request) return { error: 'That review request isn’t in the list any more.' }
-    const repo = await localClone(request.repo, [...new Set(store.views().map((chat) => repoRoot(chat.cwd)))])
-    if (!repo) return { error: `There’s no local clone of ${request.repo} yet. Start an agent in it once, then try again.` }
-    const dept = reviewDept(repo, request.files, rules)
-    const accountId = defaultAccount(accounts(), dept)
+    const accountId = defaultAccount(accounts(), 'rev')
     if (!accountId) return { error: 'Log in to an account first.' }
-    return store.start(accountId, repo, `/pr-review-rundown ${request.url}`, undefined, undefined, { dept, worktree: true, title: `Review #${request.number} ${request.title}` })
+    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd)))])
+    return store.start(accountId, cwd, prompt, undefined, undefined, options)
   })
 
   win.on('focus', queue.focus)

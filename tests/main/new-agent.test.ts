@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultEffort, defaultModel } from '../../src/shared/chat'
 import { accountHint, defaultAccount } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
@@ -95,5 +96,61 @@ describe('continue on the other account', () => {
     expect(office.store.continueOnAccount(id, 'research')).toMatchObject({ code: 'needs-login' })
     expect(office.store.continueOnAccount(id, 'main')).toBeUndefined()
     expect(office.chat(id)).toMatchObject({ accountId: 'main', state: 'stuck' })
+  })
+})
+
+describe('model and effort defaults', () => {
+  let dir: string
+  let office: ReturnType<typeof openOffice>
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'agent-office-defaults-'))
+    office = openOffice(dir)
+  })
+
+  afterEach(() => {
+    office.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const started = (model?: unknown, effort?: unknown) => {
+    const result = office.store.start('main', dir, 'Fix the bid flow', model, effort)
+    if (!('chatId' in result)) throw new Error(result.error)
+    return result.chatId
+  }
+
+  it('starts every chat on Opus 5.5 at medium effort when nothing is picked, and an empty or "default" model means the same', () => {
+    for (const [model, effort] of [[undefined, undefined], ['', ''], ['default', undefined]]) {
+      const id = started(model, effort)
+      expect(office.chat(id)).toMatchObject({ model: defaultModel, effort: 'medium' })
+      expect(office.engine.starts.find((start) => start.chatId === id)?.options).toMatchObject({ model: 'claude-opus-5-5', effort: 'medium' })
+    }
+    expect(defaultEffort).toBe('medium')
+  })
+
+  it('keeps a model and effort picked for one agent, and an effort changed mid-chat survives the next session start', async () => {
+    const picked = started('sonnet', 'high')
+    expect(office.engine.starts.at(-1)).toMatchObject({ chatId: picked, options: { model: 'sonnet', effort: 'high' } })
+
+    const id = started()
+    office.engine.init(id)
+    office.engine.emit(id, sdk.result())
+    await office.store.setEffort(id, 'low')
+    office.store.stopChat(id)
+    office.store.sendMessage(id, 'Now the tests')
+    expect(office.engine.starts.at(-1)).toMatchObject({ chatId: id, options: { effort: 'low' } })
+    expect(office.chat(id).effort).toBe('low')
+  })
+
+  it('falls back to Opus 5.5 for a chat saved without a model, never to the CLI default', () => {
+    const id = started()
+    office.store.stopChat(id)
+    office.db.saveChat({ ...office.db.listChats().find((record) => record.id === id)!, model: undefined, state: 'idle' })
+    const reopened = openOffice(dir, office.engine)
+    expect(reopened.chat(id).model).toBeUndefined()
+    reopened.store.sendMessage(id, 'Carry on')
+    expect(office.engine.starts).toHaveLength(2)
+    expect(office.engine.starts.at(-1)).toMatchObject({ chatId: id, options: { model: 'claude-opus-5-5' } })
+    reopened.db.close()
   })
 })

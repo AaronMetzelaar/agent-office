@@ -106,7 +106,7 @@ async function start(): Promise<void> {
   wireReview(win, appUrl, store, editor)
   const linear = createLinear(() => vault.linearKey())
   const confirm = async (message: string, detail: string) => (await dialog.showMessageBox(win, { type: 'question', buttons: ['Move', 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
-  const reviews = wireWorkflow(win, appUrl, { store, engine, accounts: accounts.list, linear, rules: deptRules, gh: fakeGithub?.run ?? run, confirm })
+  const reviews = wireWorkflow(win, appUrl, { store, engine, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm })
   handle('setSetting', win, appUrl, (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if (typeof value !== 'boolean') return settings()

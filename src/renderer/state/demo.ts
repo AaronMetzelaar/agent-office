@@ -9,6 +9,7 @@ const where: Record<string, string> = {
   adm: `${home}/monorepo/frontend/admin`,
   mob: `${home}/monorepo/frontend/mobile`,
   plat: `${home}/monorepo/services/api`,
+  rev: `${home}/monorepo`,
 }
 
 type Sample = [dept: string, title: string, state: ChatState, minutes: number, activity: string, extra?: { project?: string; subs?: string[]; ask?: [string, string, boolean] }]
@@ -42,6 +43,7 @@ const samples: Sample[] = [
   ['mob', 'Storybook bump', 'idle', 11520, ''],
   ['plat', 'Sentry sourcemaps', 'done', 12960, ''],
   ['side', 'Portfolio case study', 'done', 4608, '', { project: 'portfolio' }],
+  ['rev', 'Review #412 Round bids to the euro', 'working', 5, 'Running gh pr diff 412'],
 ]
 
 const asks: [string, string][] = [
@@ -75,6 +77,7 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     id,
     accountId: dept === 'gym' ? 'demo-research' : 'demo-main',
     cwd: where[dept] ?? `${home}/${extra.project}`,
+    ...(dept === 'rev' ? { department: 'rev', review: true } : {}),
     title,
     archived: false,
     state,

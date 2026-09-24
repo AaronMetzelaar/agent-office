@@ -3,14 +3,14 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { efforts, emptyUsage, maxRows, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
 import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
-import { createWorktree, planWorktree, reviewPr, slugFor, type WorktreePlan } from '../worktrees/create'
+import { createWorktree, planWorktree, slugFor, type WorktreePlan } from '../worktrees/create'
 import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
@@ -44,6 +44,7 @@ const maxDraft = 100_000
 const needsLogin: Refusal = { error: 'This account needs a new login. Add its token again in Accounts, then try again.', code: 'needs-login' }
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+const modelOrDefault = (model: unknown) => (model === undefined || model === '' || model === 'default' ? defaultModel : model)
 
 function describeTool(name: string, input: unknown): string {
   const args = (input ?? {}) as Record<string, unknown>
@@ -241,7 +242,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function run(chat: Chat, text: string, fork = false) {
     const view = chat.view
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork ? { forkSession: true } : {}) })
+      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork ? { forkSession: true } : {}) })
       engine.send(view.id, text)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
@@ -279,7 +280,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
   function retryWorktree(chat: Chat, worktree: string, prompt: string) {
     try {
-      setUpWorktree(chat, { ...planWorktree(repoPath(chat.view.cwd), basename(worktree)), pr: reviewPr(prompt) }, prompt)
+      setUpWorktree(chat, planWorktree(repoPath(chat.view.cwd), basename(worktree)), prompt)
     } catch (error) {
       worktreeFailed(chat, error)
     }
@@ -401,24 +402,21 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (accounts.needsLogin(accountId)) return needsLogin
       if (typeof cwd !== 'string' || !isAbsolute(cwd) || !statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) return { error: 'Pick an existing folder.' }
       if (typeof prompt !== 'string' || !prompt.trim()) return { error: 'Write a prompt first.' }
-      if (model !== undefined && (typeof model !== 'string' || !modelPattern.test(model))) return { error: 'That model name isn’t valid.' }
-      if (effort !== undefined && !efforts.includes(effort as Effort)) return { error: 'That effort level isn’t valid.' }
+      const chosenModel = modelOrDefault(model)
+      if (typeof chosenModel !== 'string' || !modelPattern.test(chosenModel)) return { error: 'That model name isn’t valid.' }
+      const chosenEffort = effort === undefined || effort === '' ? defaultEffort : effort
+      if (!efforts.includes(chosenEffort as Effort)) return { error: 'That effort level isn’t valid.' }
       const wanted = (typeof options === 'object' && options ? options : {}) as StartOptions
+      const title = (typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : prompt).trim().split('\n')[0]!.slice(0, 60)
       let plan: WorktreePlan | undefined
       try {
-        plan = wanted.worktree === true ? { ...planWorktree(cwd, slugFor(prompt)), pr: reviewPr(prompt) } : undefined
+        plan = wanted.worktree === true ? planWorktree(cwd, slugFor(title)) : undefined
       } catch (error) {
         return { error: errorText(error) }
       }
-      const department: DeptId = isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
-      const chat = create({
-        accountId,
-        cwd,
-        department,
-        title: (typeof wanted.title === 'string' && wanted.title.trim() ? wanted.title : prompt).trim().split('\n')[0]!.slice(0, 60),
-        ...(model ? { model: model as string } : {}),
-        ...(effort ? { effort: effort as Effort } : {}),
-      })
+      const review = wanted.review === true
+      const department: DeptId = review ? 'rev' : isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
+      const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}) })
       if (plan) {
         addRow(chat, { kind: 'user', id: randomUUID(), text: prompt })
         setUpWorktree(chat, plan, prompt)
@@ -460,6 +458,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         title: view.title,
         department: view.department === 'gym' && !research ? homeDept(view.cwd, false, rules) : view.department,
         sessionId: view.sessionId,
+        ...(view.review ? { review: true } : {}),
         ...(view.worktree ? { worktree: view.worktree } : {}),
         ...(view.model ? { model: view.model } : {}),
         ...(view.effort ? { effort: view.effort } : {}),
@@ -509,8 +508,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (midTurn.has(chat.view.state)) stuck(chat, { reason: 'interrupted' })
     },
 
-    async setModel(chatId: unknown, model: unknown): Promise<void> {
+    async setModel(chatId: unknown, wanted: unknown): Promise<void> {
       const chat = find(chatId)
+      const model = modelOrDefault(wanted)
       if (!chat || typeof model !== 'string' || !modelPattern.test(model)) return
       set(chat, { model })
       save(chat)

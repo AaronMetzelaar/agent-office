@@ -13,14 +13,9 @@ export interface WorktreePlan {
   slug: string
   path: string
   cwd: string
-  pr?: number
 }
 
-export const reviewPr = (prompt: string) => Number(/^\/pr-review-rundown\s+https:\/\/[^/\s]+\/[^/\s]+\/[^/\s]+\/pull\/(\d{1,9})\b/.exec(prompt)?.[1]) || undefined
-
 export function slugFor(prompt: string): string {
-  const pr = reviewPr(prompt)
-  if (pr) return `review-${pr}`
   const id = ticket.exec(prompt)?.[1]?.toLowerCase()
   const words = prompt
     .replace(ticket, ' ')
@@ -64,12 +59,9 @@ export function gitError(error: unknown): string {
   return line?.replace(/^(fatal|error):\s*/, '') || (error instanceof Error ? error.message : String(error))
 }
 
-export async function createWorktree({ repo, slug, path, pr }: WorktreePlan): Promise<void> {
+export async function createWorktree({ repo, slug, path }: WorktreePlan): Promise<void> {
   try {
-    if (pr) {
-      await run('git', ['fetch', 'origin', `+refs/pull/${pr}/head:refs/heads/${slug}`], { cwd: repo, timeout: 120_000 })
-      await run('git', ['worktree', 'add', path, slug], { cwd: repo, timeout: 120_000 })
-    } else await run('git', ['worktree', 'add', '-b', slug, path], { cwd: repo, timeout: 120_000 })
+    await run('git', ['worktree', 'add', '-b', slug, path], { cwd: repo, timeout: 120_000 })
   } catch (error) {
     await run('git', ['worktree', 'remove', '--force', path], { cwd: repo }).catch(() => {})
     await rm(path, { recursive: true, force: true })

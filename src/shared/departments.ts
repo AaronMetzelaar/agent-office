@@ -1,4 +1,4 @@
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'gym'] as const
+export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'] as const
 export type DeptId = (typeof deptIds)[number]
 export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
 
@@ -8,6 +8,7 @@ export const deptNames: Record<DeptId, string> = {
   mob: 'Mobile',
   plat: 'Backend / infra',
   side: 'Side projects',
+  rev: 'PR reviews',
   gym: 'Research gym',
 }
 
@@ -22,6 +23,7 @@ export interface StartOptions {
   dept?: DeptId
   worktree?: boolean
   title?: string
+  review?: boolean
 }
 
 export const defaultRules: readonly DeptRule[] = [

@@ -1,39 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { efforts, type Effort } from '../../shared/chat'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { defaultEffort, defaultModel, effortLabels, efforts, modelLabels } from '../../shared/chat'
 import { accountHint, defaultAccount, defaultRules, deptIds, deptNames, homeDept, isResearch, ruleFor, showsAccountBadge, type DeptId, type DeptRule } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
+import { leadingTicket, type Ticket } from '../../shared/workflow'
 import { dept as deptDefs, kindOf } from '../office/layout'
 
 const props = defineProps<{ accounts: AccountView[]; desk?: { dept: DeptId; slot: number } }>()
 const emit = defineEmits<{ close: []; started: [chatId: string, dept: DeptId] }>()
 
-interface Remembered {
-  model: string
-  effort: Effort | ''
-  worktree: boolean
-}
-
 const memoryKey = 'agent-office:new-agent'
-const effortLabels: Record<Effort, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max' }
 
-function recall(): Remembered {
+function recallWorktree(): boolean {
   try {
-    return { model: '', effort: '', worktree: false, ...JSON.parse(localStorage.getItem(memoryKey) ?? '{}') }
+    return JSON.parse(localStorage.getItem(memoryKey) ?? '{}').worktree === true
   } catch {
-    return { model: '', effort: '', worktree: false }
+    return false
   }
 }
 
-const remembered = recall()
 const rules = ref<readonly DeptRule[]>(defaultRules)
 const folders = ref<string[]>([])
 const promptEl = ref<HTMLTextAreaElement>()
-const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: remembered.model, effort: remembered.effort, worktree: remembered.worktree })
+const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
 const error = ref('')
 const busy = ref(false)
 const ticket = reactive({ text: '', note: '', busy: false })
+const lead = computed(() => leadingTicket(form.prompt))
+const found = ref<{ ticket: Ticket; notice?: string }>()
+let lookup: ReturnType<typeof setTimeout> | undefined
 
 const accountId = computed({
   get: () => form.accountId || defaultAccount(props.accounts, props.desk?.dept) || '',
@@ -48,6 +44,12 @@ const section = computed<DeptId>({
 const hint = computed(() => accountHint(props.accounts, accountId.value, section.value))
 const overflow = computed(() => !!account.value && showsAccountBadge(section.value, research.value))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
+const ticketLine = computed(() => {
+  const seen = found.value?.ticket
+  if (!lead.value || seen?.id !== lead.value.id) return ''
+  if (seen.title) return `Starts on ${seen.id} · ${seen.title}${seen.status ? ` · ${seen.status}` : ''}`
+  return `The agent sees only ${seen.id}, not the ticket. ${found.value?.notice ? 'Linear didn’t answer.' : 'Add a Linear key in Accounts to include it.'}`
+})
 const place = computed(() => (props.desk ? `${kindOf(props.desk.dept) === 'gym' ? 'treadmill' : 'desk'} ${props.desk.slot + 1}` : 'first free desk'))
 
 const percent = (value?: number) => (value === undefined ? '–' : `${Math.round(value)}%`)
@@ -67,15 +69,28 @@ async function choose() {
   form.folder = path
 }
 
+watch(
+  () => lead.value?.id,
+  (id) => {
+    clearTimeout(lookup)
+    if (!id) return
+    lookup = setTimeout(async () => {
+      const result = await window.office.lookupTicket(id)
+      if (lead.value?.id === id && !('error' in result)) found.value = result
+    }, 300)
+  },
+)
+onUnmounted(() => clearTimeout(lookup))
+
 async function fromTicket() {
   if (!ticket.text.trim() || ticket.busy) return
   ticket.busy = true
-  const found = await window.office.lookupTicket(ticket.text).finally(() => (ticket.busy = false))
-  if ('error' in found) return void (ticket.note = found.error)
-  const { id, title, description } = found.ticket
-  form.prompt = [title ? `${id} ${title}` : id, description, form.prompt.trim()].filter(Boolean).join('\n\n')
+  const result = await window.office.lookupTicket(ticket.text).finally(() => (ticket.busy = false))
+  if ('error' in result) return void (ticket.note = result.error)
+  ticket.note = ''
+  found.value = result
+  form.prompt = [result.ticket.id, lead.value?.rest ?? form.prompt.trim()].filter(Boolean).join(' ')
   form.worktree = true
-  ticket.note = found.notice ?? (title ? '' : `Without a Linear key only ${id} is filled in. Add one in Accounts to get the title.`)
   promptEl.value?.focus()
 }
 
@@ -84,10 +99,10 @@ async function start() {
   busy.value = true
   error.value = ''
   const dept = section.value
-  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model || undefined, form.effort || undefined, { dept, worktree: form.worktree }).finally(() => (busy.value = false))
+  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept, worktree: form.worktree }).finally(() => (busy.value = false))
   if ('error' in result) return void (error.value = result.error)
   try {
-    localStorage.setItem(memoryKey, JSON.stringify({ model: form.model, effort: form.effort, worktree: form.worktree } satisfies Remembered))
+    localStorage.setItem(memoryKey, JSON.stringify({ worktree: form.worktree }))
   } catch {}
   emit('started', result.chatId, dept)
 }
@@ -122,8 +137,9 @@ onMounted(async () => {
     </div>
     <label class="field">
       Prompt
-      <textarea ref="promptEl" v-model="form.prompt" rows="5" placeholder="What should this agent do?" aria-label="Prompt" />
+      <textarea ref="promptEl" v-model="form.prompt" rows="5" placeholder="What should this agent do? A Linear ticket id or link is enough." aria-label="Prompt" />
     </label>
+    <p v-if="ticketLine" class="note" role="status">{{ ticketLine }}</p>
     <label class="field">
       Folder
       <span class="pick">
@@ -161,16 +177,12 @@ onMounted(async () => {
       <label class="field">
         Model
         <select v-model="form.model" aria-label="Model">
-          <option value="">Default</option>
-          <option value="opus">Opus</option>
-          <option value="sonnet">Sonnet</option>
-          <option value="haiku">Haiku</option>
+          <option v-for="(label, model) in modelLabels" :key="model" :value="model">{{ label }}</option>
         </select>
       </label>
       <label class="field">
         Effort
         <select v-model="form.effort" aria-label="Effort">
-          <option value="">Default</option>
           <option v-for="effort in efforts" :key="effort" :value="effort">{{ effortLabels[effort] }}</option>
         </select>
       </label>

@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { ZC, ZF } from './layout'
+import type { Bounds } from './layout'
 
 export const VIEW = new Vector3(0.22, 1.18, 1).normalize()
 
@@ -11,11 +11,11 @@ export interface Region {
   y1: number
 }
 
-export function fitPoints(right: number): Vector3[] {
-  const R = right + 0.25
+export function fitPoints(b: Bounds): Vector3[] {
+  const [x0, x1, z0, z1] = [b.x0 - 0.25, b.x1 + 0.25, b.z0 - 0.25, b.z1 + 0.25]
   const points: Vector3[] = []
-  for (const x of [-13.75, R]) for (const z of [-8.75, ZF + 0.25]) points.push(new Vector3(x, -0.33, z), new Vector3(x, 0, z))
-  points.push(new Vector3(-13.75, 2.62, -8.75), new Vector3(R, 2.62, -8.75), new Vector3(-13.75, 2.62, ZF + 0.25), new Vector3(R, 0.92, ZF + 0.25))
+  for (const x of [x0, x1]) for (const z of [z0, z1]) points.push(new Vector3(x, -0.33, z), new Vector3(x, 0, z))
+  points.push(new Vector3(x0, 2.62, z0), new Vector3(x1, 2.62, z0), new Vector3(x0, 2.62, z1), new Vector3(x1, 0.92, z1))
   return points
 }
 
@@ -25,11 +25,11 @@ export function applyRegion(camera: PerspectiveCamera, region: Region, w: number
   camera.updateProjectionMatrix()
 }
 
-export function fitOverview(camera: PerspectiveCamera, region: Region, w: number, h: number, right: number): { target: Vector3; distance: number } {
+export function fitOverview(camera: PerspectiveCamera, region: Region, w: number, h: number, bounds: Bounds): { target: Vector3; distance: number } {
   const fc = camera.clone()
-  const target = new Vector3((right - 13.5) / 2, 0.3, ZC)
+  const target = new Vector3((bounds.x0 + bounds.x1) / 2, 0.3, (bounds.z0 + bounds.z1) / 2)
   const p = new Vector3()
-  const points = fitPoints(right)
+  const points = fitPoints(bounds)
   const pad = 8
   const cx = (region.x0 + region.x1) / 2
   const cy = (region.y0 + region.y1) / 2
@@ -86,9 +86,9 @@ export function createRig(camera: PerspectiveCamera, controls: OrbitControls, re
     atOverview: true,
     follow: undefined as (() => Vector3) | undefined,
     tween: undefined as Tween | undefined,
-    layout(region: Region, w: number, h: number, right: number) {
+    layout(region: Region, w: number, h: number, bounds: Bounds) {
       applyRegion(camera, region, w, h)
-      rig.overview = fitOverview(camera, region, w, h, right)
+      rig.overview = fitOverview(camera, region, w, h, bounds)
       controls.maxDistance = rig.overview.distance * 1.6
     },
     flyTo(getT: () => Vector3, distance: number, dir?: Vector3, dur = 1) {

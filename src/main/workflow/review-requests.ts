@@ -1,6 +1,5 @@
 import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { homeDept, ruleFor, type DeptId, type DeptRule } from '../../shared/departments'
+import type { StartOptions } from '../../shared/departments'
 import type { CiSummary, ReviewQueue, ReviewRequest } from '../../shared/workflow'
 import { run, type Run } from '../review/git'
 
@@ -19,7 +18,6 @@ interface RawNode {
   id: string
   additions?: number
   deletions?: number
-  files?: { nodes?: { path: string }[] }
   commits?: { nodes?: { commit?: { statusCheckRollup?: { state?: string } | null } }[] }
   timelineItems?: { nodes?: { createdAt?: string; requestedReviewer?: { login?: string } | null }[] }
 }
@@ -29,18 +27,14 @@ interface RawDetails {
   nodes?: (RawNode | null)[]
 }
 
-export interface Listed extends ReviewRequest {
-  files: string[]
-}
-
 export const searchArgs = ['search', 'prs', '--review-requested=@me', '--state=open', '--json', 'id,number,title,url,repository,author,createdAt,isDraft', '--limit', '100']
 const detailsQuery =
-  'query($ids:[ID!]!){viewer{login} nodes(ids:$ids){... on PullRequest{id additions deletions files(first:100){nodes{path}} commits(last:1){nodes{commit{statusCheckRollup{state}}}} timelineItems(itemTypes:[REVIEW_REQUESTED_EVENT],last:20){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on User{login}}}}}}}}'
+  'query($ids:[ID!]!){viewer{login} nodes(ids:$ids){... on PullRequest{id additions deletions commits(last:1){nodes{commit{statusCheckRollup{state}}}} timelineItems(itemTypes:[REVIEW_REQUESTED_EVENT],last:20){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on User{login}}}}}}}}'
 const ciStates: Record<string, CiSummary> = { SUCCESS: 'pass', FAILURE: 'fail', ERROR: 'fail', PENDING: 'pending', EXPECTED: 'pending' }
 const pollMs = 5 * 60_000
 const focusGapMs = 60_000
 
-export function toRequests(search: RawSearch[], details: RawDetails | undefined): Listed[] {
+export function toRequests(search: RawSearch[], details: RawDetails | undefined): ReviewRequest[] {
   const nodes = new Map((details?.nodes ?? []).flatMap((node) => (node ? [[node.id, node] as const] : [])))
   const me = details?.viewer?.login
   return search.map((pr) => {
@@ -57,7 +51,6 @@ export function toRequests(search: RawSearch[], details: RawDetails | undefined)
       draft: pr.isDraft === true,
       ...(typeof node?.additions === 'number' ? { additions: node.additions, deletions: node.deletions ?? 0 } : {}),
       ...(node?.commits ? { ci: ciStates[node.commits.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ''] ?? 'none' } : {}),
-      files: node?.files?.nodes?.map((file) => file.path) ?? [],
     }
   })
 }
@@ -70,15 +63,6 @@ function unavailable(error: unknown): string {
   return 'Couldn’t reach GitHub, so review requests may be out of date.'
 }
 
-export function reviewDept(repo: string, files: readonly string[], rules: readonly DeptRule[]): DeptId {
-  const votes = new Map<DeptId, number>()
-  for (const file of files) {
-    const dept = ruleFor(join(repo, file), rules)
-    if (dept) votes.set(dept, (votes.get(dept) ?? 0) + 1)
-  }
-  return [...votes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? homeDept(repo, false, rules)
-}
-
 const remoteSlug = (url: string) => /[/:]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]?.toLowerCase()
 
 export async function localClone(repo: string, folders: readonly string[], git: Run = run): Promise<string | undefined> {
@@ -89,14 +73,20 @@ export async function localClone(repo: string, folders: readonly string[], git: 
   return undefined
 }
 
+export async function reviewStart(request: Pick<ReviewRequest, 'url' | 'repo' | 'number' | 'title'>, folders: readonly string[], git: Run = run) {
+  const cwd = (await localClone(request.repo, folders, git)) ?? homedir()
+  const options: StartOptions = { review: true, title: `Review #${request.number} ${request.title}` }
+  return { cwd, prompt: `/pr-review-rundown ${request.url}`, options }
+}
+
 export function createReviewQueue(gh: Run = run, onChange: (queue: ReviewQueue) => void = () => {}, now = Date.now) {
-  let listed: Listed[] = []
+  let listed: ReviewRequest[] = []
   let notice: string | undefined
   let polling: Promise<void> | undefined
   let lastPoll = -Infinity
   let timer: ReturnType<typeof setInterval> | undefined
 
-  const view = (): ReviewQueue => ({ requests: listed.map(({ files: _files, ...request }) => request), ...(notice ? { notice } : {}) })
+  const view = (): ReviewQueue => ({ requests: listed, ...(notice ? { notice } : {}) })
 
   async function fetchAll() {
     lastPoll = now()

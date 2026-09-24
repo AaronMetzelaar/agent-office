@@ -3,6 +3,9 @@ import type { Decision, PendingRequestView, RequestSource } from './permissions'
 export const efforts = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 export type Effort = (typeof efforts)[number]
 export const effortLabels: Record<Effort, string> = { low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max' }
+export const defaultEffort: Effort = 'medium'
+export const defaultModel = 'claude-opus-5-5'
+export const modelLabels: Record<string, string> = { [defaultModel]: 'Opus 5.5', opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' }
 
 export const chatModes = ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk', 'auto'] as const
 export type ChatMode = (typeof chatModes)[number]
@@ -54,6 +57,7 @@ export interface ChatFields {
   setup?: 'worktree' | 'worktree-failed'
   colour?: string
   department?: string
+  review?: boolean
   archived: boolean
   parked?: boolean
   state: ChatState

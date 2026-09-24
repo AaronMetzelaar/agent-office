@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
-import { effortLabels, efforts, type ChatView, type Effort } from '../../shared/chat'
+import { defaultModel, effortLabels, efforts, modelLabels, type ChatView, type Effort } from '../../shared/chat'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
 import type { AgentEntry } from '../office/world'
 import type { WaitingItem } from '../state/inbox'
@@ -16,7 +16,6 @@ import Review from './Review.vue'
 const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string] }>()
 
-const aliases = ['opus', 'sonnet', 'haiku']
 const tab = ref<'chat' | 'review'>('chat')
 const flash = ref('')
 const seen = shallowReactive(new Map<string, PendingRequestView>())
@@ -29,9 +28,8 @@ const pending = computed(() => props.chat?.pendingRequests ?? [])
 const elsewhere = computed(() => answeredElsewhere(seen, pending.value, props.chat?.answered).filter((card) => !dismissed.has(card.request.id)))
 const models = computed(() => {
   const current = props.chat?.model
-  return current && !aliases.includes(current) ? [current, ...aliases] : aliases
+  return current && !(current in modelLabels) ? [current, ...Object.keys(modelLabels)] : Object.keys(modelLabels)
 })
-const modelLabel = (model: string) => (aliases.includes(model) ? model[0]!.toUpperCase() + model.slice(1) : model)
 
 function say(message: string) {
   flash.value = message
@@ -111,9 +109,8 @@ onUnmounted(() => {
         <button type="button" role="tab" :aria-selected="tab === 'chat'" @click="tab = 'chat'">Chat</button>
         <button type="button" role="tab" :aria-selected="tab === 'review'" @click="tab = 'review'">Review</button>
       </div>
-      <select v-if="chat" aria-label="Model" :value="chat.model ?? ''" @change="setModel">
-        <option v-if="!chat.model" value="">Default model</option>
-        <option v-for="model in models" :key="model" :value="model">{{ modelLabel(model) }}</option>
+      <select v-if="chat" aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
+        <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
       </select>
     </div>
     <div v-if="chat" class="effort" role="radiogroup" aria-label="Effort" title="Effort applies from the next turn">

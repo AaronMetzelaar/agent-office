@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { anchorsFor, benchSeats, depts, door, FZ, gymBench, gymRelax, kindOf, lounge as loungeSpots, MZ, office as OF, queueSpots, queueZ, ZC, ZF, ZL, type DeptDef, type DeptId, type SlotKind } from './layout'
+import { anchorsFor, benchSeats, depts, door, gymBench, gymBenchZ, gymRelax, gymRelaxZ, kindOf, lounge as loungeSpots, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
 import type { Nav } from './nav'
 
 type V3 = THREE.Vector3
@@ -38,15 +38,21 @@ export interface DeptScene {
   g: THREE.Group
   gi: THREE.Group
   shell: THREE.Group
-  extra: THREE.Group
   tint: THREE.MeshStandardMaterial
   tintLo: THREE.Color
   tintHi: THREE.Color
   slots: Slot[]
-  width: number
-  cx: number
-  cz: number
+  tier: Tier
+  back?: THREE.Group
+  side?: THREE.Group
+  resize(w: number, d: number): void
+  block(w: number, d: number): void
 }
+
+const refW = 27
+const refD = 21.4
+const sunZ = 2.2
+const WL = -13.61
 
 export const hexCss = (h: number) => '#' + h.toString(16).padStart(6, '0')
 export const lighten = (h: number, a: number) => new THREE.Color(h).lerp(new THREE.Color(0xffffff), a)
@@ -84,9 +90,18 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   let seed = 20260923
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
   const memo = new Map<string, unknown>()
+  const kept = new WeakSet<object>()
   const once = <T>(k: string, f: () => T): T => {
-    if (!memo.has(k)) memo.set(k, f())
+    if (!memo.has(k)) {
+      const v = f()
+      memo.set(k, v)
+      if (typeof v === 'object' && v) kept.add(v)
+    }
     return memo.get(k) as T
+  }
+  const keep = <T extends object>(v: T) => {
+    kept.add(v)
+    return v
   }
   const M = (c: number, r = 0.6, m = 0) =>
     once(`m${c}_${r}_${m}`, () => {
@@ -112,13 +127,27 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1), lounge: M(0xe6dfd3, 1),
   }
   const leaves = [mat.leafA, mat.leafB, mat.leafC]
-  const glassM = new THREE.MeshStandardMaterial({ color: 0xdceaff, roughness: 0.1, transparent: true, opacity: 0.2, depthWrite: false })
+  const glassM = keep(new THREE.MeshStandardMaterial({ color: 0xdceaff, roughness: 0.1, transparent: true, opacity: 0.2, depthWrite: false }))
+  const mirrorM = keep(new THREE.MeshStandardMaterial({ color: 0xe4eaf0, roughness: 0.05, metalness: 1 }))
 
   const root = new THREE.Group()
   scene.add(root)
   let cur: THREE.Object3D = root
-  let owner: DeptId | undefined
+  let owner: string | undefined
   let tag: string | undefined
+
+  function dispose(node: THREE.Object3D, maps = false) {
+    node.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      if (!kept.has(o.geometry)) o.geometry.dispose()
+      for (const m of [o.material].flat() as THREE.MeshBasicMaterial[]) {
+        if (kept.has(m)) continue
+        if (maps) m.map?.dispose()
+        m.dispose()
+      }
+    })
+    node.removeFromParent()
+  }
 
   function mesh(g: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0, p: THREE.Object3D = cur) {
     const o = new THREE.Mesh(g, m)
@@ -149,7 +178,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   const blockAt = (x: number, z: number, hx: number, hz: number, pad?: number) => block(x - hx, z - hz, x + hx, z + hz, pad)
 
   function concreteTex() {
-    const CH = Math.round((1536 * ZL) / 27)
+    const CH = Math.round((1536 * refD) / refW)
     const { x, t } = canvasTex(1536, CH)
     x.fillStyle = '#DEDDD9'
     x.fillRect(0, 0, 1536, CH)
@@ -171,7 +200,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     x.fillStyle = 'rgba(150,145,137,.3)'
     for (let k = 1; k < 6; k++) x.fillRect(Math.round(k * 256) - 1, 0, 2, CH)
     for (let k = 1; k < 5; k++) x.fillRect(0, Math.round((k * CH) / 5) - 1, 1536, 2)
-    t.wrapS = THREE.RepeatWrapping
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
     return t
   }
   function rubberTex() {
@@ -190,11 +219,12 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     x.fillStyle = 'rgba(70,78,88,.3)'
     for (let i = 0; i <= 9; i++) x.fillRect(Math.round(i * tw) - 1, 0, 2, 968)
     for (let j = 0; j <= 17; j++) x.fillRect(0, Math.round(j * th) - 1, 512, 2)
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
     return t
   }
   function poolTex() {
     const { x, t } = canvasTex(256, 1024)
-    const P = ZL / 10, X = (v: number) => ((v + 13.5) / 4) * 256, Z = (v: number) => ((v + 8.5) / ZL) * 1024, sx = 1.2, sz = -0.53
+    const P = refD / 10, X = (v: number) => ((v + 13.5) / 4) * 256, Z = (v: number) => ((v + 8.5) / refD) * 1024, sx = 1.2, sz = -0.53
     x.filter = 'blur(5px)'
     x.fillStyle = '#fff'
     for (let k = 0; k < 10; k++) {
@@ -223,45 +253,47 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     return t
   }
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(27, ZL), new THREE.MeshStandardMaterial({ map: concreteTex(), roughness: 0.9 }))
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: concreteTex(), roughness: 0.9 }))
   floor.rotation.x = -Math.PI / 2
-  floor.position.z = ZC
   floor.receiveShadow = true
   root.add(floor)
   const floorMap = (floor.material as THREE.MeshStandardMaterial).map!
-  const shellG = [0, 1, 2].map(() => grp(0, 0, 0, root))
-  mesh(BX(1, 0.32, ZL + 0.3), mat.slab, 0, -0.165, ZC, shellG[0])
-  mesh(BX(1, 2.6, 0.22), mat.wall, 0, 1.3, -8.61, shellG[1])
-  mesh(BX(1, 0.012, 0.22), mat.cap, 0, 2.606, -8.61, shellG[1])
-  mesh(BX(1, 0.07, 0.014), mat.base, 0, 0.035, -8.493, shellG[1])
-  mesh(BX(0.22, 0.9, ZL + 0.44), mat.wall, 0, 0.45, ZC, shellG[2])
-  mesh(BX(0.22, 0.012, ZL + 0.44), mat.cap, 0, 0.906, ZC, shellG[2])
-  const pool = plane(4, ZL, new THREE.MeshBasicMaterial({ map: poolTex(), color: 0xffe7c2, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }), -11.5, 0.012, ZC, root)
+  const shellG = [0, 1, 2, 3].map(() => grp(0, 0, 0, root))
+  mesh(BX(1, 0.32, 1), mat.slab, 0, -0.165, 0, shellG[0])
+  mesh(BX(1, 2.6, 0.22), mat.wall, 0, 1.3, -0.11, shellG[1])
+  mesh(BX(1, 0.012, 0.22), mat.cap, 0, 2.606, -0.11, shellG[1])
+  mesh(BX(1, 0.07, 0.014), mat.base, 0, 0.035, 0.007, shellG[1])
+  mesh(BX(0.22, 0.9, 1), mat.wall, 0, 0.45, 0, shellG[2])
+  mesh(BX(0.22, 0.012, 1), mat.cap, 0, 0.906, 0, shellG[2])
+  mesh(BX(0.22, 0.85, 1), mat.wall, 0, 0.425, 0, shellG[3])
+  mesh(BX(0.22, 0.35, 1), mat.wall, 0, 2.425, 0, shellG[3])
+  mesh(BX(0.22, 0.012, 1), mat.cap, 0, 2.606, 0, shellG[3])
+  mesh(BX(0.2, 0.05, 1), mat.frame, 0, 2.23, 0, shellG[3])
+  mesh(BX(0.32, 0.04, 1), mat.white, 0.1, 0.87, 0, shellG[3])
+  plane(1, 1.4, glassM, 0, 1.55, 0, shellG[3]).rotation.y = Math.PI / 2
+  const mullions = Array.from({ length: 11 }, () => mesh(BX(0.2, 1.4, 0.07), mat.frame, WL, 1.55, 0, root))
+  const pool = plane(4, 1, new THREE.MeshBasicMaterial({ map: poolTex(), color: 0xffe7c2, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }), -11.5, 0.012, 0, root)
   pool.rotation.x = -Math.PI / 2
-  const WL = -13.61
-  mesh(BX(0.22, 0.85, ZL + 0.44), mat.wall, WL, 0.425, ZC)
-  mesh(BX(0.22, 0.35, ZL + 0.44), mat.wall, WL, 2.425, ZC)
-  mesh(BX(0.22, 0.012, ZL + 0.44), mat.cap, WL, 2.606, ZC)
-  for (let k = 0; k <= 10; k++) mesh(BX(0.2, 1.4, 0.07), mat.frame, WL, 1.55, -8.5 + (k * ZL) / 10)
-  mesh(BX(0.2, 0.05, ZL), mat.frame, WL, 2.23, ZC)
-  mesh(BX(0.32, 0.04, ZL + 0.1), mat.white, WL + 0.1, 0.87, ZC)
-  plane(ZL, 1.4, glassM, WL, 1.55, ZC).rotation.y = Math.PI / 2
   mesh(RB(1.3, 0.016, 0.7, 0.008), mat.doormat, door[0], 0.008, 12.45).castShadow = false
 
   const carpet = carpetTex()
 
-  function wall(x0: number, z0: number, x1: number, z1: number) {
-    const w = Math.max(x1 - x0, 0.07), d = Math.max(z1 - z0, 0.07), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2
-    mesh(BX(w, 0.58, d), mat.white, cx, 0.29, cz)
-    mesh(BX(w + 0.05, 0.035, d + 0.05), mat.wood, cx, 0.597, cz)
-    block(cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2, 0.15)
+  function wallPiece(p: THREE.Object3D) {
+    return { body: mesh(BX(1, 0.58, 1), mat.white, 0, 0.29, 0, p), cap: mesh(BX(1, 0.035, 1), mat.wood, 0, 0.597, 0, p) }
   }
-  function trough(x0: number, x1: number, z: number) {
-    const cx = (x0 + x1) / 2, w = x1 - x0
-    mesh(RB(w, 0.46, 0.32, 0.03), mat.wood, cx, 0.23, z)
-    mesh(BX(w - 0.06, 0.02, 0.26), mat.soil, cx, 0.455, z)
-    for (let k = 0; k < 7; k++) mesh(SP(0.13, 10, 8), leaves[k % 3]!, x0 + 0.12 + (k * (w - 0.24)) / 6, 0.52 + (k % 2) * 0.05, z + (k % 2 ? 0.05 : -0.05)).scale.set(1, 0.72, 0.9)
-    block(x0, z - 0.16, x1, z + 0.16, 0.15)
+  function setWall(w: { body: THREE.Mesh; cap: THREE.Mesh }, x0: number, z0: number, x1: number, z1: number) {
+    const lx = Math.max(x1 - x0, 0.07), lz = Math.max(z1 - z0, 0.07), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2
+    w.body.scale.set(lx, 1, lz)
+    w.body.position.set(cx, 0.29, cz)
+    w.cap.scale.set(lx + 0.05, 1, lz + 0.05)
+    w.cap.position.set(cx, 0.597, cz)
+  }
+  function planter(p: THREE.Object3D) {
+    const g = grp(0, 0, 0, p)
+    mesh(RB(1, 0.46, 0.32, 0.03), mat.wood, 0, 0.23, 0, g)
+    mesh(BX(0.94, 0.02, 0.26), mat.soil, 0, 0.455, 0, g)
+    for (let k = 0; k < 7; k++) mesh(SP(0.13, 10, 8), leaves[k % 3]!, -0.38 + (k * 0.76) / 6, 0.52 + (k % 2) * 0.05, k % 2 ? 0.05 : -0.05, g).scale.set(1, 0.72, 0.9)
+    return g
   }
   function pot(g: THREE.Object3D, r: number, h: number, m: THREE.Material) {
     mesh(CY(r, q2(r * 0.78), h, 24), m, 0, h / 2, 0, g)
@@ -312,26 +344,6 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       l.scale.set(0.7, 0.55, 1.4)
       l.rotation.y = Math.PI / 2 - a
     }
-  }
-  function sofa(x: number, z: number) {
-    const g = grp(x, z)
-    mesh(RB(2.1, 0.3, 0.85, 0.08), mat.fabric, 0, 0.25, 0, g)
-    mesh(RB(2.1, 0.52, 0.24, 0.1), mat.fabric, 0, 0.56, -0.31, g)
-    for (const sx of [-1, 1]) mesh(RB(0.2, 0.48, 0.85, 0.08), mat.fabric, sx * 0.95, 0.36, 0, g)
-    for (const sx of [-0.43, 0.43]) mesh(RB(0.86, 0.13, 0.62, 0.06), mat.fabric2, sx, 0.45, 0.07, g)
-    mesh(RB(0.4, 0.34, 0.12, 0.06), M(0xf2c14e, 0.9), -0.55, 0.63, -0.13, g).rotation.set(-0.25, 0, 0.12)
-    mesh(RB(0.36, 0.3, 0.11, 0.05), M(0x3b7bff, 0.9), 0.62, 0.61, -0.14, g).rotation.set(-0.22, 0, -0.1)
-    for (const sx of [-0.95, 0.95]) for (const sz of [-0.35, 0.35]) mesh(CY(0.025, 0.02, 0.1, 8), mat.woodD, sx, 0.05, sz, g)
-    blockAt(x, z, 1.05, 0.43)
-  }
-  function coffee(x: number, z: number) {
-    const g = grp(x, z)
-    mesh(RB(1.1, 0.04, 0.56, 0.02), mat.wood, 0, 0.38, 0, g)
-    for (const sx of [-0.48, 0.48]) for (const sz of [-0.22, 0.22]) mesh(CY(0.018, 0.015, 0.36, 8), mat.woodD, sx, 0.18, sz, g)
-    succ(0.3, 0.4, 0, g)
-    mesh(BX(0.3, 0.012, 0.22), M(0xeee6d8, 0.8), -0.22, 0.406, 0.02, g).rotation.y = 0.2
-    mesh(BX(0.28, 0.012, 0.2), M(0x1b34ff, 0.7), -0.2, 0.418, 0, g).rotation.y = -0.1
-    blockAt(x, z, 0.55, 0.28)
   }
   function printer(x: number, z: number, ry: number) {
     const g = grp(x, z, ry)
@@ -416,7 +428,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       dept: d.id, i, kind, bx: x, bz: z, g, seat: new V3(), stand: new V3(), bench: new V3(), relax: new V3(), chip: new V3(), mini: new V3(), screen: canvasTex(340, 200),
       lines: Array.from({ length: 24 }, () => ({ ind: Math.floor(rnd() * 4), len: 40 + rnd() * 170, acc: rnd() < 0.2 })), scroll: 0,
     }
-    placeSlot(s, 0)
+    placeSlot(s, 0, 0, 0, 1)
     return s
   }
   function desk(d: DeptDef, i: number, x: number, z: number): Slot {
@@ -442,7 +454,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(CY(0.016, 0.02, 0.16, 8), mat.metal, 0, 0.84, 0.03, m2)
       mesh(RB(0.18, 0.012, 0.12, 0.006), mat.metal, 0, 0.776, 0.02, m2)
     }
-    if (v % 3 === 0) {
+    if (v % 3 === 0 || d.id === 'rev') {
       const lg = grp(0.6, 0.05, -0.6, g)
       mesh(CY(0.07, 0.08, 0.02, 20), mat.black, 0, 0.78, 0, lg)
       mesh(CY(0.01, 0.01, 0.36, 6), mat.black, 0, 0.95, -0.03, lg).rotation.x = -0.18
@@ -518,12 +530,12 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
   const hands: THREE.Group[] = []
   function wallClock(x: number, y: number) {
-    mesh(CY(0.24, 0.24, 0.045, 40), mat.frame, x, y, -8.475).rotation.x = Math.PI / 2
-    plane(0.42, 0.42, new THREE.MeshBasicMaterial({ map: clockFace(), transparent: true }), x, y, -8.45).renderOrder = 1
+    mesh(CY(0.24, 0.24, 0.045, 40), mat.frame, x, y, 0.025).rotation.x = Math.PI / 2
+    plane(0.42, 0.42, new THREE.MeshBasicMaterial({ map: once('clockFace', clockFace), transparent: true }), x, y, 0.05).renderOrder = 1
     const hm = new THREE.MeshBasicMaterial({ color: 0x2a2e36 })
     ;[[0.018, 0.11, 0.045], [0.012, 0.16, 0.07], [0.005, 0.17, 0.06]].forEach(([w, h, o], k) => {
       const g = new THREE.Group()
-      g.position.set(x, y, -8.44 + k * 0.003)
+      g.position.set(x, y, 0.06 + k * 0.003)
       cur.add(g)
       g.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.004).translate(0, o!, 0), k === 2 ? new THREE.MeshBasicMaterial({ color: 0xea580c }) : hm))
       hands.push(g)
@@ -537,10 +549,10 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       ms(BX(0.08, 0.03, 0.5), mat.dark, x + sx, 0.015, z)
     }
     mesh(RB(1.94, 1.12, 0.05, 0.02), mat.frame, x, y, z + 0.03)
-    const tx = canvasTex(1400, 800)
+    const tx = (status ??= canvasTex(1400, 800))
     plane(1.86, 1.04, new THREE.MeshBasicMaterial({ map: tx.t, toneMapped: false }), x, y, z + 0.057)
     block(x - 0.95, z - 0.25, x + 0.95, z + 0.25)
-    return tx
+    drawStatus()
   }
   function atlasGeo(k: string, w: number, h: number, u0: number, v0: number, du: number, dv: number) {
     return once(k, () => {
@@ -610,10 +622,10 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
   drawShirts()
   shirtTex.t.anisotropy = 4
-  const shirtM = bakeM(new THREE.MeshStandardMaterial({ map: shirtTex.t, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.85 }))
+  const shirtM = keep(bakeM(new THREE.MeshStandardMaterial({ map: shirtTex.t, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.85 })))
   const shirtGeo = (i: number, w: number) => atlasGeo(`sh${i}_${w}`, w, w, ((i % 4) * 256 + 18) / 1024, 1 - (Math.floor(i / 4) * 256 + 238) / 512, 220 / 1024, 220 / 512)
   function frameShirt(x: number, y: number, i: number) {
-    const z = -8.5
+    const z = 0
     ms(RB(0.66, 0.78, 0.04, 0.01), mat.frame, x, y, z + 0.02)
     ms(BX(0.58, 0.7, 0.008), mat.paper, x, y, z + 0.044)
     ms(shirtGeo(i, 0.5), shirtM, x, y + 0.03, z + 0.05)
@@ -635,7 +647,11 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     block(x0 - 0.1, z - 0.22, x1 + 0.1, z + 0.22)
   }
   function turfRug(cx: number, cz: number, w: number, d: number) {
-    const { c, x, t } = canvasTex(640, Math.round((640 * d) / w)), H2 = c.height
+    const turf = once(`turf${w}_${d}`, () => {
+      const tex = canvasTex(640, Math.round((640 * d) / w))
+      return { tex, m: bakeM(new THREE.MeshStandardMaterial({ map: tex.t, roughness: 1 })) }
+    })
+    const { c, x, t } = turf.tex, H2 = c.height
     for (let k = 0; k < 10; k++) {
       x.fillStyle = k % 2 ? '#4AA65A' : '#419C52'
       x.fillRect(k * 64, 0, 64, H2)
@@ -656,7 +672,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     x.beginPath()
     x.arc(320, H2 / 2, 4, 0, Math.PI * 2)
     x.fill()
-    ms(new THREE.PlaneGeometry(w, d), bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 1 })), cx, 0.007, cz).rotation.x = -Math.PI / 2
+    t.needsUpdate = true
+    ms(new THREE.PlaneGeometry(w, d), turf.m, cx, 0.007, cz).rotation.x = -Math.PI / 2
   }
   const auction = canvasTex(512, 296)
   let auctionSeconds = 134
@@ -703,9 +720,9 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     t.needsUpdate = true
   }
   function auctionWall(x: number, y: number) {
-    ms(RB(1.52, 0.92, 0.05, 0.02), mat.frame, x, y, -8.475)
+    ms(RB(1.52, 0.92, 0.05, 0.02), mat.frame, x, y, 0.025)
     drawAuction()
-    plane(1.44, 0.83, new THREE.MeshBasicMaterial({ map: auction.t, toneMapped: false }), x, y, -8.447)
+    plane(1.44, 0.83, new THREE.MeshBasicMaterial({ map: auction.t, toneMapped: false }), x, y, 0.053)
   }
   function podium(x: number, z: number) {
     const g = grp(x, z)
@@ -815,7 +832,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     for (let i = 0; i < 4; i++) drawApp(x, i * 256, 256, 256, 256, [0, 1, 2, 0][i]!)
     t.needsUpdate = true
   }
-  const devM = bakeM(new THREE.MeshBasicMaterial({ map: devTex.t, toneMapped: false }))
+  const devM = keep(bakeM(new THREE.MeshBasicMaterial({ map: devTex.t, toneMapped: false })))
   const phoneGeo = (i: number) => atlasGeo(`ph${i}`, 0.13, 0.26, (i * 128) / 1024, 0.5, 128 / 1024, 0.5)
   const tabGeo = (i: number) => atlasGeo(`tb${i}`, 0.34, 0.25, (i * 256) / 1024, 0.04, 256 / 1024, 0.4)
   function phone(x: number, y: number, z: number, i: number, p: THREE.Object3D = cur, rx = 0) {
@@ -827,7 +844,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     ms(phoneGeo(i % 8), devM, 0, 0, 0.0075, g)
   }
   function deviceWall(cx: number, y: number) {
-    const z = -8.5
+    const z = 0
     ms(RB(3.0, 1.3, 0.03, 0.01), M(0xe2e6eb, 0.8), cx, y, z + 0.015)
     for (let k = 0; k < 7; k++) phone(cx - 1.2 + k * 0.4, y + 0.3, z + 0.04, k)
     for (let k = 0; k < 3; k++) {
@@ -842,8 +859,11 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     const g = grp(x, z)
     g.rotation.x = -0.07
     mesh(RB(0.72, 1.44, 0.09, 0.07), mat.black, 0, 0.74, 0, g)
-    const big = canvasTex(256, 512)
-    drawApp(big.x, 0, 0, 256, 512, 1)
+    const big = once('bigPhone', () => {
+      const tex = canvasTex(256, 512)
+      drawApp(tex.x, 0, 0, 256, 512, 1)
+      return tex
+    })
     plane(0.64, 1.3, new THREE.MeshBasicMaterial({ map: big.t, toneMapped: false }), 0, 0.76, 0.047, g)
     ms(BX(0.012, 0.14, 0.03), mat.black, 0.366, 1.12, 0, g)
     blockAt(x, z, 0.4, 0.12)
@@ -897,7 +917,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     for (const s of [-1, 1]) mesh(BX(0.035, 1.62, 0.035), mat.woodD, s * 0.26, 0.8, 0, g).rotation.z = s * 0.13
     mesh(BX(0.035, 1.6, 0.035), mat.woodD, 0, 0.78, -0.28, g).rotation.x = -0.34
     ms(BX(0.72, 0.03, 0.09), mat.woodD, 0, 0.78, 0.03, g)
-    const { x: X, t } = canvasTex(320, 256)
+    const { x: X, t } = once('easel', () => canvasTex(320, 256))
     X.fillStyle = '#F7F7F4'
     X.fillRect(0, 0, 320, 256)
     for (let i = 0; i < 20; i++)
@@ -909,7 +929,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         X.fill()
       }
     mesh(RB(0.74, 0.58, 0.025, 0.008), mat.white, 0, 1.12, 0.03, g).rotation.x = -0.1
-    plane(0.68, 0.53, bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 })), 0, 1.12, 0.046, g).rotation.x = -0.1
+    t.needsUpdate = true
+    plane(0.68, 0.53, once('easelM', () => bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 }))), 0, 1.12, 0.046, g).rotation.x = -0.1
     blockAt(x, z, 0.4, 0.3)
   }
   function swatches(x: number, z: number) {
@@ -926,7 +947,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     const g = grp(x, z)
     ms(RB(1.3, 0.04, 0.8, 0.01), mat.wood, 0, 0.88, 0, g)
     for (const sx of [-0.6, 0.6]) for (const sz of [-0.35, 0.35]) mesh(CY(0.02, 0.02, 0.86, 8), mat.woodD, sx, 0.43, sz, g)
-    const { x: X, t } = canvasTex(512, 300)
+    const { x: X, t } = once('blueprint', () => canvasTex(512, 300))
     X.fillStyle = '#2F5FA8'
     X.fillRect(0, 0, 512, 300)
     X.strokeStyle = 'rgba(255,255,255,.14)'
@@ -957,7 +978,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     X.fillStyle = '#fff'
     X.font = '500 14px "JetBrains Mono", monospace'
     X.fillText('agent-office · floor 1', 44, 30)
-    const sh = plane(1.18, 0.7, bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 })), 0, 0.903, 0, g)
+    t.needsUpdate = true
+    const sh = plane(1.18, 0.7, once('blueprintM', () => bakeM(new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }))), 0, 0.903, 0, g)
     sh.rotation.x = -Math.PI / 2
     sh.rotation.z = 0.04
     ms(BX(0.46, 0.015, 0.3), mat.white, 0.18, 0.915, 0.02, g)
@@ -1027,9 +1049,106 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     block(x0, 8.27, x0 + n * w, 8.65, 0.1)
     block(-10.95, 9.0, -5.0, 10.5, 0.1)
   }
+  function drawBoard() {
+    const { x, t } = once('reviewBoard', () => canvasTex(768, 480))
+    x.fillStyle = '#F4EFE6'
+    x.fillRect(0, 0, 768, 480)
+    x.fillStyle = '#2B2118'
+    x.font = '600 40px Geist, sans-serif'
+    x.fillText('Review board', 36, 62)
+    x.fillStyle = '#8A7560'
+    x.font = '500 20px "JetBrains Mono", monospace'
+    x.fillText('gh pr list --search review-requested:@me', 38, 94)
+    ;[['To read', '#D97706', 3], ['Commented', '#3B7BFF', 2], ['Approved', '#15A34A', 2]].forEach(([title, colour, n], col) => {
+      const X = 36 + (col as number) * 236
+      x.fillStyle = '#5B4A3A'
+      x.font = '600 22px Geist, sans-serif'
+      x.fillText(title as string, X, 138)
+      for (let k = 0; k < (n as number); k++) {
+        const Y = 156 + k * 98
+        x.fillStyle = '#FFFFFF'
+        rr(x, X, Y, 212, 84, 10)
+        x.fill()
+        x.fillStyle = colour as string
+        x.fillRect(X, Y + 8, 6, 68)
+        x.fillStyle = '#374151'
+        x.fillRect(X + 20, Y + 20, 140 - k * 18, 9)
+        x.fillStyle = '#9CA3AF'
+        x.fillRect(X + 20, Y + 40, 96 + k * 14, 7)
+        x.fillStyle = kits[(col * 3 + k) % kits.length]![0]
+        x.beginPath()
+        x.arc(X + 186, Y + 58, 12, 0, Math.PI * 2)
+        x.fill()
+      }
+    })
+    t.needsUpdate = true
+    return t
+  }
+  function reviewBoard(x: number, z: number) {
+    for (const sx of [-0.92, 0.92]) {
+      mesh(CY(0.025, 0.025, 1.9, 10), mat.woodD, x + sx, 0.95, z - 0.02)
+      ms(BX(0.08, 0.03, 0.5), mat.woodD, x + sx, 0.015, z)
+    }
+    mesh(RB(2.0, 1.25, 0.06, 0.02), mat.woodD, x, 1.3, z + 0.03)
+    plane(1.9, 1.15, once('boardM', () => keep(bakeM(new THREE.MeshStandardMaterial({ map: drawBoard(), roughness: 0.85 })))), x, 1.3, z + 0.062)
+    block(x - 1, z - 0.25, x + 1, z + 0.25)
+  }
+  function floorLamp(x: number, z: number) {
+    mesh(CY(0.15, 0.17, 0.03, 20), mat.black, x, 0.015, z)
+    mesh(CY(0.012, 0.012, 1.45, 8), mat.black, x, 0.74, z)
+    mesh(CY(0.12, 0.2, 0.24, 20), M(0xf1e2c4, 0.85), x, 1.52, z)
+    ms(SP(0.05, 10, 8), once('bulbM', () => new THREE.MeshBasicMaterial({ color: 0xffe2a8, toneMapped: false })), x, 1.42, z)
+    const glow = plane(1.6, 1.6, once('lampGlow', () => {
+      const { x: c, t } = canvasTex(128, 128)
+      const g = c.createRadialGradient(64, 64, 0, 64, 64, 64)
+      g.addColorStop(0, 'rgba(255,214,150,.9)')
+      g.addColorStop(1, 'rgba(255,214,150,0)')
+      c.fillStyle = g
+      c.fillRect(0, 0, 128, 128)
+      return new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false })
+    }), x, 0.013, z + 0.2)
+    glow.rotation.x = -Math.PI / 2
+    blockAt(x, z, 0.17, 0.17, 0.15)
+  }
+  function armchair(x: number, z: number, ry = 0) {
+    const g = grp(x, z, ry), leather = M(0x3f5f52, 0.7)
+    mesh(RB(0.74, 0.2, 0.66, 0.06), leather, 0, 0.3, 0, g)
+    mesh(RB(0.74, 0.56, 0.18, 0.08), leather, 0, 0.62, -0.26, g)
+    for (const sx of [-0.33, 0.33]) mesh(RB(0.14, 0.34, 0.66, 0.06), leather, sx, 0.42, 0, g)
+    mesh(RB(0.5, 0.1, 0.46, 0.05), M(0x4f7566, 0.8), 0, 0.44, 0.06, g)
+    for (const sx of [-0.3, 0.3]) for (const sz of [-0.26, 0.26]) mesh(CY(0.022, 0.018, 0.2, 8), mat.woodD, sx, 0.1, sz, g)
+    blockAt(x, z, 0.4, 0.38)
+  }
+  const bookColours = [0x9f1239, 0x1e3a8a, 0x3f6212, 0xb45309, 0x374151, 0xe8e4dc, 0x0e7490]
+  function bookshelf(x: number, z: number) {
+    const g = grp(x, z)
+    mesh(RB(1.6, 1.3, 0.36, 0.02), mat.wood, 0, 0.65, 0, g)
+    ms(BX(1.5, 1.2, 0.02), mat.woodD, 0, 0.65, -0.16, g)
+    for (let r = 0; r < 3; r++) {
+      const y = 0.12 + r * 0.4
+      ms(BX(1.5, 0.025, 0.32), mat.woodD, 0, y, 0.01, g)
+      for (let k = 0; k < 11; k++) {
+        const h = 0.22 + ((k * 7 + r * 3) % 5) * 0.025
+        ms(BX(0.1, h, 0.24), M(bookColours[(k + r * 2) % bookColours.length]!, 0.8), -0.66 + k * 0.125, y + 0.013 + h / 2, 0.03, g).rotation.z = k % 5 === 4 ? 0.12 : 0
+      }
+    }
+    blockAt(x, z, 0.82, 0.2)
+  }
+  function mirrorStand(x: number, z: number, w: number) {
+    for (const sx of [-w / 2 - 0.05, w / 2 + 0.05]) {
+      mesh(CY(0.022, 0.022, 1.95, 10), mat.metal, x + sx, 0.975, z)
+      ms(BX(0.08, 0.03, 0.44), mat.dark, x + sx, 0.015, z)
+    }
+    mesh(RB(w + 0.08, 1.4, 0.04, 0.015), mat.frame, x, 1.2, z)
+    plane(w, 1.32, mirrorM, x, 1.2, z + 0.021)
+    block(x - w / 2 - 0.1, z - 0.22, x + w / 2 + 0.1, z + 0.22)
+  }
+  function rug(x: number, z: number, w: number, d: number, c: number) {
+    ms(RB(w, 0.012, d, 0.006), M(c, 1), x, 0.006, z).castShadow = false
+  }
   const opsTex = canvasTex(512, 300)
   function opsScreen(x: number, y: number) {
-    ms(RB(1.2, 0.72, 0.04, 0.015), mat.frame, x, y, -8.48)
+    ms(RB(1.2, 0.72, 0.04, 0.015), mat.frame, x, y, 0.02)
     const { x: c, t } = opsTex
     c.fillStyle = '#F7F8FB'
     c.fillRect(0, 0, 512, 300)
@@ -1057,11 +1176,12 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       c.fillText(l!, X + 16, Y + 70)
     })
     t.needsUpdate = true
-    plane(1.14, 0.66, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }), x, y, -8.457)
+    plane(1.14, 0.66, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }), x, y, 0.043)
   }
   let ledMesh: THREE.InstancedMesh | undefined
   const ledColours = [new THREE.Color(0x22c55e), new THREE.Color(0x60a5fa), new THREE.Color(0x1f3b2c)]
   function mkLeds() {
+    if (!leds.length) return
     ledMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.034, 0.018, 0.006), new THREE.MeshBasicMaterial({ toneMapped: false }), leds.length)
     const m = new THREE.Matrix4()
     leds.forEach((p, i) => {
@@ -1071,139 +1191,243 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     cur.add(ledMesh)
   }
 
-  const build: Record<DeptId, () => void> = {
-    mkt() {
-      frameShirt(-12.65, 1.58, 0)
-      frameShirt(-11.5, 1.58, 1)
-      auctionWall(-9.9, 1.6)
-      frameShirt(-8.3, 1.58, 2)
-      frameShirt(-7.15, 1.58, 3)
-      podium(-9.9, -7.72)
-      turfRug(-10.85, -1.5, 4.3, 0.9)
-      shirtRail(-8.55, -6.5, -1.02, [4, 5, 6, 7])
-      leafy(-5.95, -8.05, 1.1)
-      cooler(-4.5, -8.22)
-    },
-    adm() {
-      cabinet(-3.65, -8.15)
-      cabinet(-3.1, -8.15)
-      opsScreen(-1.45, 1.5)
-      printer(-0.8, -7.95, 0)
-      leafy(-0.75, -1.2, 0.85)
-    },
-    mob() {
-      deviceWall(-1.7, 1.45)
-      bigPhone(1.35, -8.12)
-      dock(3.25, -8.18)
-      wallClock(3.25, 1.95)
-      lily(-3.55, -8.0, 0.95, true)
-      leafy(3.8, -1.4, 0.9)
-    },
-    plat() {
-      status = statusScreen(-9.0, 1.42, 0.2)
-      racks(-8.05, 5.72, 3)
-      mkLeds()
-      raceway(-10.1, 5.72, -8.4, 5.72)
-      raceway(-7.41, 3.1, -7.41, 5.27)
-      leafy(-12.95, 7.3, 1.05)
-      snake(-12.95, 3.9, 0.85)
-    },
-    side() {
-      easel(-0.4, 0.95, -0.15)
-      swatches(-2.3, 0.25)
-      blueprint(1.45, 0.35)
-      kitchen(1.5, 7.6)
-      printer(3.72, 4.6, -Math.PI / 2)
-      block(3.47, 4.1, 3.97, 5.1)
-      leafy(3.85, 7.55, 1.05)
-      snake(3.9, -0.1, 0.9)
-    },
-    gym() {
-      for (let k = 0; k < 4; k++) {
-        const z = -7.6 + k * 3.8
-        mesh(BX(0.06, 2.4, 0.06), mat.frame, 4.5, 1.2, z)
-        plane(3.74, 2.3, glassM, 4.5, 1.2, z + 1.9).rotation.y = Math.PI / 2
+  type Build = (t: Tier, W: number, strip: (fn: () => void) => void) => void
+  const build: Record<DeptId, Build> = {
+    mkt(t, W, strip) {
+      if (t < 3) {
+        frameShirt(1.75, 1.58, 0)
+        auctionWall(3.5, 1.6)
+        frameShirt(5.25, 1.58, 1)
+        podium(3.5, 0.45)
+        leafy(0.65, 0.5, 1)
+      } else {
+        ;[1, 2.15, 5.65, 6.8].forEach((x, i) => frameShirt(x, 1.58, i))
+        auctionWall(3.9, 1.6)
+        podium(3.9, 0.45)
+        shirtRail(7.8, 9.6, 0.6, [4, 5, 6, 7])
       }
-      mesh(BX(0.06, 2.4, 0.06), mat.frame, 4.5, 1.2, 7.6)
-      mesh(BX(0.07, 0.05, 15.26), mat.frame, 4.5, 2.4, 0)
-      mesh(BX(0.07, 0.04, 15.26), mat.frame, 4.5, 0.02, 0)
-      block(4.45, -7.65, 4.55, 7.65, 0.28)
-      plane(7.6, 1.55, new THREE.MeshStandardMaterial({ color: 0xe4eaf0, roughness: 0.05, metalness: 1 }), 8.9, 1.2, -8.485)
-      mesh(BX(7.72, 1.67, 0.02), mat.frame, 8.9, 1.2, -8.497)
-      bench(7.2, -3.0)
-      rack(12.95, -1.9)
-      ;[0xe0463c, 0x3b7bff, 0xfacc15, 0x2fb344].forEach((c, k) => kettle(12.95, -0.5 + k * 0.42, c, 0.8 + k * 0.1))
-      block(12.7, -0.75, 13.2, 1.0)
-      standingBag(10.5, 0.6)
-      plyo(6.1, 0.7)
-      towels(12.95, 4.6)
-      cooler(12.95, 3.6, -Math.PI / 2)
-      for (const [m, z] of [[mat.mat1, 1.3], [mat.mat2, 2.2], [mat.mat3, 3.1]] as const) mesh(RB(1.8, 0.02, 0.7, 0.01, 1), m, 8.4, 0.014, z).castShadow = false
-      safe(5.35, -7.85)
-      smartTable(11.1, -7.72)
-      lily(13.0, 7.7, 0.95)
-      snake(13.05, -7.95, 0.9)
-      mesh(RB(4.4, 0.012, 2.7, 0.006), mat.lounge, 9, 0.006, 10.8).castShadow = false
-      sofa(9, 10.05)
-      coffee(9, 11.2)
-      leafy(5.35, 12.3, 1)
-      lily(13.0, 12.3, 0.95, true)
-      snake(13.05, 9.1, 0.9)
+      if (t > 1)
+        strip(() => {
+          turfRug(W - 1, 3.3, 1.1, 3.4)
+          leafy(W - 1, 0.6, 1.1)
+          cooler(W - 1, 5.8)
+        })
+    },
+    adm(t, W, strip) {
+      if (t < 3) {
+        cabinet(1, 0.35)
+        cabinet(1.55, 0.35)
+        opsScreen(3.4, 1.5)
+        printer(5.3, 0.35, 0)
+        leafy(6.3, 0.5, 0.85)
+      } else {
+        for (let k = 0; k < 3; k++) cabinet(0.9 + k * 0.55, 0.35)
+        opsScreen(4.6, 1.5)
+        printer(7.2, 0.35, 0)
+        leafy(9.3, 0.5, 0.85)
+      }
+      if (t > 1)
+        strip(() => {
+          cooler(W - 1, 0.6)
+          lily(W - 1, 3)
+          snake(W - 1, 5.4)
+        })
+    },
+    mob(t, W, strip) {
+      hands.length = 0
+      if (t < 3) {
+        dock(1.3, 0.35)
+        deviceWall(4, 1.45)
+        lily(6.2, 0.5, 0.95, true)
+      } else {
+        deviceWall(2.4, 1.45)
+        dock(5.1, 0.35)
+        bigPhone(6.9, 0.3)
+        wallClock(6.9, 1.95)
+        lily(9.2, 0.5, 0.95, true)
+      }
+      if (t > 1)
+        strip(() => {
+          if (t === 2) {
+            bigPhone(W - 1, 0.3)
+            wallClock(W - 1, 1.95)
+          } else leafy(W - 1, 0.6, 0.9)
+          snake(W - 1, 3.4, 0.9)
+        })
+    },
+    plat(t, W, strip) {
+      leds.length = 0
+      ledMesh = undefined
+      const n = [0, 2, 3, 6][t]!
+      statusScreen(2.2, 1.42, 0.35)
+      racks(4, 0.5, n)
+      mkLeds()
+      if (t === 1) return
+      raceway(3.7, 1.05, 3.7 + n * 0.64, 1.05)
+      strip(() => {
+        leafy(W - 1, 2.8, 1.05)
+        snake(W - 1, 5, 0.85)
+      })
+    },
+    side(t, W, strip) {
+      easel(2, 0.55, -0.15)
+      swatches(3.3, 0.5)
+      if (t < 3) snake(5.2, 0.5, 0.9)
+      else {
+        blueprint(5.2, 0.55)
+        snake(6.3, 0.5, 0.9)
+        kitchen(7.8, 0.4)
+      }
+      if (t > 1)
+        strip(() => {
+          printer(W - 1, 3.2, -Math.PI / 2)
+          block(W - 1.25, 2.7, W - 0.75, 3.7)
+          leafy(W - 1, 5.2, 1.05)
+        })
+    },
+    rev(t, W, strip) {
+      reviewBoard(2.4, 0.4)
+      if (t < 3) {
+        floorLamp(4.2, 0.45)
+        armchair(5.1, 0.55)
+      } else {
+        bookshelf(4.6, 0.3)
+        floorLamp(6.3, 0.45)
+        armchair(7.25, 0.55)
+        floorLamp(8.3, 0.45)
+      }
+      if (t > 1)
+        strip(() => {
+          rug(W - 1, 4, 1.2, 3.2, 0xcfc3ad)
+          armchair(W - 1, 3, -Math.PI / 2)
+          floorLamp(W - 1, 4.4)
+          snake(W - 1, 5.6, 0.9)
+        })
+    },
+    gym(t, W, strip) {
+      const bz = gymBenchZ(t), rz = gymRelaxZ(t)
+      mirrorStand((W - 0.6) / 2, 0.3, W - 2.6)
+      bench(2, bz)
+      lily(0.5, 0.5, 0.9)
+      if (t > 1) {
+        plyo(1.3, rz)
+        standingBag(2.7, rz)
+        for (const [m, z] of [[mat.mat1, bz - 0.38], [mat.mat2, bz + 0.38]] as const) mesh(RB(1.8, 0.02, 0.7, 0.01, 1), m, 4.6, 0.014, z).castShadow = false
+      }
+      if (t === 3) {
+        safe(4.1, rz)
+        smartTable(W - 2.4, bz)
+      }
+      strip(() => {
+        towels(W - 0.45, bz)
+        cooler(W - 0.45, rz, -Math.PI / 2)
+        if (t === 1) return
+        rack(W - 0.45, 2.5)
+        ;[0xe0463c, 0x3b7bff, 0xfacc15, 0x2fb344].forEach((c, k) => kettle(W - 0.45, 3.6 + k * 0.42, c, 0.8 + k * 0.1))
+        block(W - 0.7, 3.35, W - 0.2, 5.1)
+      })
     },
   }
 
-  function zoneShell(d: DeptScene, width: number) {
-    d.shell.children.forEach((o) => o instanceof THREE.Mesh && o.geometry instanceof THREE.PlaneGeometry && o.geometry.dispose())
-    d.shell.clear()
-    nav.unblock(`shell:${d.def.id}`)
-    const prev = [cur, owner, tag] as const
-    cur = d.shell
-    owner = d.def.id
-    tag = `shell:${d.def.id}`
-    const [x0, z0, , z1] = d.def.box, x1 = x0 + width, w = x1 - x0, h = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2
-    if (d.def.row === 'g') {
-      const f = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.05, 17), d.tint)
-      f.rotation.x = -Math.PI / 2
-      f.position.set(cx + 0.025, 0.004, cz)
-      f.receiveShadow = true
-      cur.add(f)
-      wall(x0 + 1.8, 8.5, x0 + 9, 8.5)
-    } else {
-      plane(w, h, d.tint, cx, 0.003, cz).rotation.x = -Math.PI / 2
-      const m = M(lighten(d.def.accent, 0.3).getHex(), 0.8), i = 0.16, t = 0.06
-      for (const z of [z0 + i, z1 - i]) ms(BX(w - 2 * i + t, 0.003, t), m, cx, 0.006, z)
-      for (const x of [x0 + i, x1 - i]) ms(BX(t, 0.003, h - 2 * i), m, x, 0.006, cz)
-      const north = d.def.row === 'n', fz = north ? MZ : FZ
-      wall(x0, fz, x1 - 1, fz)
-      trough(x1 - 1, x1, fz)
-      for (const x of [x0, x1]) north ? wall(x, -8.5, x, -2.4) : wall(x, 1.5, x, FZ)
+  function deskShell(d: DeptScene) {
+    const north = d.def.row === 'n', p = d.shell, id = d.def.id, map = d.tint.map!
+    const tint = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), d.tint)
+    tint.rotation.x = -Math.PI / 2
+    p.add(tint)
+    const lineM = M(lighten(d.def.accent, 0.3).getHex(), 0.8)
+    const lines = [0, 1, 2, 3].map(() => ms(BX(1, 0.003, 1), lineM, 0, 0.006, 0, p))
+    const [front, left, right] = [wallPiece(p), wallPiece(p), wallPiece(p)]
+    const trough = planter(p)
+    bake(trough, new Set())
+    const sides = (dd: number) => (north ? [0, dd - 1.95] : [1.95, dd]) as [number, number]
+    d.resize = (w, dd) => {
+      const i = 0.16, t = 0.06
+      tint.scale.set(w, dd, 1)
+      tint.position.set(w / 2, 0.003, dd / 2)
+      map.repeat.set(w / 2.1, dd / 2.1)
+      lines.forEach((line, k) => {
+        if (k < 2) line.scale.set(w - 2 * i + t, 1, t)
+        else line.scale.set(t, 1, dd - 2 * i)
+        line.position.set(k < 2 ? w / 2 : k === 2 ? i : w - i, 0.006, k === 0 ? i : k === 1 ? dd - i : dd / 2)
+      })
+      setWall(front, 0, dd, w - 1, dd)
+      trough.position.set(w - 0.5, 0, dd)
+      const [z0, z1] = sides(dd)
+      setWall(left, 0, z0, 0, z1)
+      setWall(right, w, z0, w, z1)
     }
-    d.shell.traverse((o) => (o.receiveShadow = true))
-    ;[cur, owner, tag] = prev
-    d.width = width
+    d.block = (w, dd) => {
+      nav.unblock(`shell:${id}`)
+      const prev = [owner, tag] as const
+      owner = id
+      tag = `shell:${id}`
+      block(0, dd - 0.035, w - 1, dd + 0.035, 0.15)
+      block(w - 1, dd - 0.16, w, dd + 0.16, 0.15)
+      const [z0, z1] = sides(dd)
+      for (const x of [0, w]) block(x - 0.035, z0, x + 0.035, z1, 0.15)
+      ;[owner, tag] = prev
+    }
+  }
+
+  function gymShell(d: DeptScene) {
+    const p = d.shell, id = d.def.id, map = d.tint.map!
+    const tint = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), d.tint)
+    tint.rotation.x = -Math.PI / 2
+    p.add(tint)
+    const front = wallPiece(p)
+    const posts = [0, 1].map(() => mesh(BX(0.06, 2.4, 0.06), mat.frame, 0, 1.2, 0, p))
+    const rails = [mesh(BX(0.07, 0.05, 1), mat.frame, 0, 2.4, 0, p), mesh(BX(0.07, 0.04, 1), mat.frame, 0, 0.02, 0, p)]
+    const glass = plane(1, 2.3, glassM, 0, 1.2, 0, p)
+    glass.rotation.y = Math.PI / 2
+    const span = (dd: number) => [0.3, Math.max(0.4, dd - 1)] as const
+    d.resize = (w, dd) => {
+      tint.scale.set(w, dd, 1)
+      tint.position.set(w / 2, 0.004, dd / 2)
+      map.repeat.set(w / 9, dd / 17)
+      setWall(front, 1.8, dd, w, dd)
+      const [z0, z1] = span(dd)
+      posts[0]!.position.z = z0
+      posts[1]!.position.z = z1
+      for (const rail of rails) {
+        rail.scale.z = z1 - z0
+        rail.position.z = (z0 + z1) / 2
+      }
+      glass.scale.x = z1 - z0
+      glass.position.z = (z0 + z1) / 2
+    }
+    d.block = (w, dd) => {
+      nav.unblock(`shell:${id}`)
+      const prev = [owner, tag] as const
+      owner = id
+      tag = `shell:${id}`
+      block(1.8, dd - 0.035, w, dd + 0.035, 0.15)
+      const [z0, z1] = span(dd)
+      block(-0.05, z0, 0.05, z1, 0.28)
+      ;[owner, tag] = prev
+    }
   }
 
   const deptScenes = {} as Record<DeptId, DeptScene>
   for (const def of depts) {
-    const [x0, z0, x1, z1] = def.box, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, gym = def.row === 'g'
-    const g = grp(cx, cz, 0, root)
-    const gi = grp(-cx, -cz, 0, g)
-    const shell = grp(0, 0, 0, gi)
-    const extra = grp(0, 0, 0, gi)
+    const gym = def.row === 'g'
+    const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), shell = grp(0, 0, 0, gi)
     const tintLo = lighten(def.accent, gym ? 0.55 : 0.62), tintHi = lighten(def.accent, gym ? 0.42 : 0.5)
-    const tint = gym ? new THREE.MeshStandardMaterial({ map: rubberTex(), roughness: 0.95 }) : new THREE.MeshStandardMaterial({ map: carpet, roughness: 1 })
+    const tint = new THREE.MeshStandardMaterial({ map: gym ? rubberTex() : carpet.clone(), roughness: gym ? 0.95 : 1 })
     tint.color.copy(tintLo)
-    const d: DeptScene = { def, g, gi, shell, extra, tint, tintLo, tintHi, slots: [], width: 0, cx, cz }
+    const d: DeptScene = { def, g, gi, shell, tint, tintLo, tintHi, slots: [], tier: 0, resize: () => {}, block: () => {} }
+    ;(gym ? gymShell : deskShell)(d)
+    shell.traverse((o) => (o.receiveShadow = true))
+    g.visible = false
+    g.scale.setScalar(0.001)
     deptScenes[def.id] = d
-    cur = gi
-    owner = def.id
-    build[def.id]()
-    def.slots.forEach(([x, z], i) => d.slots.push((gym ? treadmill : desk)(def, i, x, z)))
-    cur = root
-    owner = undefined
-    zoneShell(d, x1 - x0)
   }
+  const loungeG = grp(0, 0, 0, root)
+  cur = loungeG
+  owner = 'park'
+  tag = 'lounge'
   loungeArea()
+  cur = root
+  owner = tag = undefined
   snake(-13.05, 11.1, 0.85)
 
   const myScreen = canvasTex(1024, 600)
@@ -1345,31 +1569,59 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       b.g.forEach((g) => g.dispose())
     })
   }
-  bake(root, new Set([...Object.values(deptScenes).map((d) => d.g), ...shellG]))
-  for (const d of Object.values(deptScenes)) bake(d.gi, new Set([d.shell, d.extra]))
+  bake(root, new Set<THREE.Object3D>([...Object.values(deptScenes).map((d) => d.g), ...shellG, ...mullions, loungeG]))
+  bake(loungeG, new Set())
+
+  function setTier(d: DeptScene, tier: Tier) {
+    if (d.tier === tier) return
+    for (const group of [d.back, d.side]) if (group) dispose(group)
+    const id = d.def.id
+    nav.unblock(`props:${id}`)
+    d.tier = tier
+    d.back = d.side = undefined
+    if (!tier) return
+    const back = grp(0, 0, 0, d.gi), side = grp(0, 0, 0, d.gi)
+    const prev = [cur, owner, tag] as const
+    cur = back
+    owner = id
+    tag = `props:${id}`
+    build[id](tier, minWidth(id, tier), (fn) => {
+      const was = [cur, owner] as const
+      cur = side
+      owner = `${id}:side`
+      fn()
+      ;[cur, owner] = was
+    })
+    ;[cur, owner, tag] = prev
+    bake(back, new Set())
+    bake(side, new Set())
+    d.back = back
+    d.side = side
+  }
 
   function addSlot(id: DeptId, i: number, x: number, z: number) {
     const d = deptScenes[id]
-    cur = d.extra
+    const prev = [cur, owner, tag] as const
+    cur = d.gi
     owner = id
     tag = `desk:${id}:${i}`
-    d.slots[i] = (kindOf(id) === 'gym' ? treadmill : desk)(d.def, i, x, z)
-    cur = root
-    owner = tag = undefined
+    const s = (kindOf(id) === 'gym' ? treadmill : desk)(d.def, i, x, z)
+    ;[cur, owner, tag] = prev
+    bake(s.g, new Set())
+    d.slots[i] = s
+    return s
   }
   function removeSlot(id: DeptId, i: number) {
     const s = deptScenes[id].slots[i]
     if (!s) return
-    s.g.removeFromParent()
-    s.screen.t.dispose()
-    s.plate?.tex.t.dispose()
+    dispose(s.g, true)
     nav.unblock(`desk:${id}:${i}`)
     deptScenes[id].slots.length = i
   }
 
   const sun = new THREE.DirectionalLight(0xfff2df, 2.3)
-  sun.position.set(-18, 15, 8 + ZC)
-  sun.target.position.set(0, 0, ZC)
+  sun.position.set(-18, 15, 8 + sunZ)
+  sun.target.position.set(0, 0, sunZ)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
   sun.shadow.bias = -0.0002
@@ -1379,24 +1631,30 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   const fill = new THREE.DirectionalLight(0xe6eeff, 0.55)
   fill.position.set(14, 11, 18)
   scene.add(fill)
-  function fitShadow(right: number) {
+  function fitShadow(bd: Bounds) {
     const lc = sun.shadow.camera, inv = new THREE.Matrix4().lookAt(sun.position, sun.target.position, new V3(0, 1, 0)).setPosition(sun.position).invert(), b = new THREE.Box3()
-    for (const x of [-13.8, right + 0.3]) for (const y of [0, 2.7]) for (const z of [-8.8, ZF + 0.1]) b.expandByPoint(new V3(x, y, z).applyMatrix4(inv))
+    for (const x of [bd.x0 - 0.3, bd.x1 + 0.3]) for (const y of [0, 2.7]) for (const z of [bd.z0 - 0.3, bd.z1 + 0.1]) b.expandByPoint(new V3(x, y, z).applyMatrix4(inv))
     Object.assign(lc, { left: b.min.x - 0.2, right: b.max.x + 0.2, bottom: b.min.y - 0.2, top: b.max.y + 0.2, near: Math.max(0.1, -b.max.z - 1), far: -b.min.z + 1 })
     lc.updateProjectionMatrix()
   }
 
-  function setShell(right: number) {
-    const w = right + 13.5, mid = (right - 13.5) / 2
-    floor.scale.x = w / 27
-    floor.position.x = mid
-    floorMap.repeat.x = w / 27
-    shellG[0]!.scale.x = w + 0.3
-    shellG[0]!.position.x = mid
+  function setShell(bd: Bounds) {
+    const w = bd.x1 - bd.x0, T = bd.z1 - bd.z0, mx = (bd.x0 + bd.x1) / 2, mz = (bd.z0 + bd.z1) / 2
+    floor.scale.set(w, T, 1)
+    floor.position.set(mx, 0, mz)
+    floorMap.repeat.set(w / refW, T / refD)
+    shellG[0]!.scale.set(w + 0.3, 1, T + 0.3)
+    shellG[0]!.position.set(mx, 0, mz)
     shellG[1]!.scale.x = w + 0.44
-    shellG[1]!.position.x = mid
-    shellG[2]!.position.x = right + 0.11
-    fitShadow(right)
+    shellG[1]!.position.set(mx, 0, bd.z0)
+    shellG[2]!.scale.z = T + 0.44
+    shellG[2]!.position.set(bd.x1 + 0.11, 0, mz)
+    shellG[3]!.scale.z = T + 0.44
+    shellG[3]!.position.set(WL, 0, mz)
+    mullions.forEach((m, k) => (m.position.z = bd.z0 + (k * T) / 10))
+    pool.scale.y = T
+    pool.position.z = mz
+    fitShadow(bd)
   }
 
   const hist = Array.from({ length: 30 }, (_, i) => 5 + Math.sin(i * 0.42) * 1.6 + Math.sin(i * 1.3) * 0.8)
@@ -1511,9 +1769,10 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   return {
     root,
     depts: deptScenes,
+    lounge: loungeG,
     myScreen,
     setShell,
-    zoneShell,
+    setTier,
     addSlot,
     removeSlot,
     drawStatus,
@@ -1543,21 +1802,23 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
 }
 
-export function placeSlot(s: Slot, ox: number) {
-  const a = anchorsFor(s.kind, s.bx + ox, s.bz)
+export function placeSlot(s: Slot, ox: number, oz: number, w: number, rows: number) {
+  const a = anchorsFor(s.kind, s.bx + ox, s.bz + oz)
   s.seat.set(a.seat[0], 0, a.seat[1])
   s.stand.set(a.stand[0], 0, a.stand[1])
   s.chip.set(a.chip[0], a.chip[1], a.chip[2])
-  s.mini.set(s.bx + ox, 0, s.kind === 'gym' ? s.bz : s.bz - 0.3)
+  s.mini.set(s.bx + ox, 0, s.bz + oz - (s.kind === 'gym' ? 0 : 0.3))
   if (s.kind === 'desk') {
     s.bench.copy(s.seat)
     s.relax.copy(s.seat)
     return
   }
-  const b = s.i < benchSeats ? gymBench(s.i) : a.seat
-  const r = gymRelax(s.i)
-  s.bench.set(b[0] + (s.i < benchSeats ? ox : 0), 0, b[1])
-  s.relax.set(r[0] + ox, 0, r[1])
+  if (s.i < benchSeats) {
+    const b = gymBench(s.i, rows)
+    s.bench.set(b[0] + ox, 0, b[1] + oz)
+  } else s.bench.copy(s.seat)
+  const r = gymRelax(s.i % 6, w, rows)
+  s.relax.set(r[0] + ox, 0, r[1] + oz - 0.3 + (Math.floor(s.i / 6) % 2) * 0.6)
 }
 
 export function drawPlate(s: Slot, occupant: { colour: number; project: string } | undefined) {

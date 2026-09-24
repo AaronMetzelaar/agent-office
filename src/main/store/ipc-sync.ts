@@ -81,7 +81,6 @@ export function wireChats(win: BrowserWindow, appUrl: string, store: ChatStore) 
   const sync = createPatchSync(store, (batch) => send(win, 'chatPatches', batch))
   let openChat: string | undefined
   handle('getSnapshot', win, appUrl, sync.snapshot)
-  handle('startChat', win, appUrl, store.start)
   handle('sendMessage', win, appUrl, store.sendMessage)
   handle('interruptChat', win, appUrl, store.interruptChat)
   handle('stopChat', win, appUrl, store.stopChat)

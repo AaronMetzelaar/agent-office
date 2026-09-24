@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { applyRegion, fitOverview, VIEW } from '../../src/renderer/office/camera'
 import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
-import { anchorsFor, assignDesks, capacityOf, dept, deptIds, kindOf, layoutFloor, parkedZone, queueSpots, type Demand, type DeptId } from '../../src/renderer/office/layout'
+import { anchorsFor, assignDesks, dept, deptIds, kindOf, layoutFloor, queueSpots, settle, type Demand, type DeptId } from '../../src/renderer/office/layout'
 import { placementFor } from '../../src/renderer/office/pose'
 import { buildQueue, queuePositions } from '../../src/shared/queue'
 
@@ -38,12 +38,13 @@ const overlaps = (a: readonly number[], b: readonly number[]) => a[0]! < b[2]! &
 function overview(samples: Sample[], zoomed: boolean) {
   const w = 1440, h = 853
   const region = { x0: 12, y0: 76, x1: w - 403 - 24, y1: h - 12 }
-  const demand: Demand = {}
-  for (const s of samples) demand[s.dept] = (demand[s.dept] ?? 0) + 1
+  const agents: Demand = {}
+  for (const s of samples) agents[s.dept] = (agents[s.dept] ?? 0) + 1
+  const demand = settle({}, agents, true).desks
   const floor = layoutFloor(demand)
   const camera = new PerspectiveCamera(24, w / h, 0.5, 220)
   applyRegion(camera, region, w, h)
-  const fit = fitOverview(camera, region, w, h, floor.right)
+  const fit = fitOverview(camera, region, w, h, floor.bounds)
   camera.position.copy(fit.target).addScaledVector(VIEW, zoomed ? fit.distance * 0.6 : fit.distance)
   camera.lookAt(fit.target)
   camera.updateMatrixWorld()
@@ -51,16 +52,14 @@ function overview(samples: Sample[], zoomed: boolean) {
     const p = new Vector3(x, y, z).project(camera)
     return [((p.x + 1) / 2) * w, ((1 - p.y) / 2) * h] as const
   }
-  const desks = assignDesks(new Map(), samples, (id) => capacityOf(id, demand[id] ?? 0))
+  const desks = assignDesks(new Map(), samples, (id) => demand[id] ?? 0)
   const queue = queuePositions(buildQueue(samples.map((s) => ({ id: s.id, accountId: 'main', state: s.state, since: Number(s.id.slice(1)) }))))
   const signs = deptIds
     .filter((id) => floor.zones[id].shown)
     .map((id) => {
-      const [x, y] = screen(dept[id].sign[0] + floor.zones[id].ox, 0.62, dept[id].sign[1])
+      const [x, y] = screen(floor.zones[id].box[0] + 0.25, 0.62, floor.zones[id].box[3])
       return [x, y - 40, x + 30 + dept[id].name.length * 6.5, y] as [number, number, number, number]
     })
-  const [px, py] = screen(parkedZone.sign[0], 0.62, parkedZone.sign[1])
-  signs.push([px, py - 40, px + 80, py])
   const items: LabelItem[] = []
   const labelled: Labelled[] = []
   for (const s of samples) {
@@ -69,7 +68,7 @@ function overview(samples: Sample[], zoomed: boolean) {
     labelled.push(who)
     const mode = chipMode(who, {}, zoomed)
     const place = placementFor({ state: s.state, kind: kindOf(s.dept), parked: false, queueIndex: queued, spots: queueSpots.length, bench: true })
-    const [bx, bz] = floor.zones[s.dept].slots[desks.get(s.id)!]!
+    const [bx, bz] = floor.zones[s.dept].world[desks.get(s.id)!]!
     const seat = anchorsFor(kindOf(s.dept), bx, bz).seat
     const [ax, az] = place.anchor === 'queue' ? queueSpots[queued]! : seat
     if (!mode) continue

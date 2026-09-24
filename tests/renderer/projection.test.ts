@@ -82,7 +82,7 @@ describe('store projection', () => {
     const before = agentsOf(projection)
     expect(countsFor(before.filter((a) => a.dept === 'side')).find((c) => c.key === 'needs')?.n).toBe(1)
     const floor = layoutFloor({ side: 2 })
-    const [x, z] = floor.zones.side.slots[1]!
+    const [x, z] = floor.zones.side.world[1]!
     const seat = anchorsFor('desk', x, z).seat
     const walker = newWalker(new Vector3(seat[0], 0, seat[1]))
 
@@ -99,7 +99,7 @@ describe('store projection', () => {
     expect(place.anchor).toBe('queue')
     const spot = new Vector3(queueSpots[index]![0], 0, queueSpots[index]![1])
     const nav = createNav()
-    nav.rebuild(floor.right, () => 0)
+    nav.rebuild(floor.bounds, () => [0, 0])
     const start = walker.pos.distanceTo(spot)
     expect(stepWalker(walker, spot, 1 / 60, nav.route, true)).toBe(true)
     expect(walker.goal).toBe(spot)

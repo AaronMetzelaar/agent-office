@@ -125,6 +125,24 @@ describe('the research account', () => {
   })
 })
 
+describe('PR review agents', () => {
+  it('sit in PR reviews because they were started as a review, whatever the PR’s files or the requested section', () => {
+    const id = startIn(join(monorepo(), 'frontend/marketplace'), 'main', { review: true, dept: 'mkt' })
+    expect(office.chat(id)).toMatchObject({ department: 'rev', review: true })
+    repeat(6, () => touch(id, edit(mkt())))
+    expect(department(id)).toBe('rev')
+    expect(office.db.listChats().find((record) => record.id === id)).toMatchObject({ department: 'rev', review: true })
+  })
+
+  it('never counts a prompt that merely mentions a review as a review agent', () => {
+    mkdirSync(monorepo(), { recursive: true })
+    const result = office.store.start('main', monorepo(), '/pr-review-rundown https://github.com/mws/monorepo/pull/7')
+    if ('error' in result) throw new Error(result.error)
+    expect(office.chat(result.chatId).department).toBe('plat')
+    expect(office.chat(result.chatId).review).toBeUndefined()
+  })
+})
+
 describe('path rules', () => {
   it('maps worktrees to their repository and prefers the most specific rule', () => {
     expect(ruleFor('/Users/a/Documents/GitHub/monorepo/.claude/worktrees/auc-1302/frontend/mobile/App.tsx')).toBe('mob')

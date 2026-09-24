@@ -8,11 +8,11 @@ import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
-import { assignDesks, baseSlots, benchSeats, capacityOf, dept, depts, door, kindOf, layoutFloor, lounge, parkedZone, queueSpots, settle, widthOf, type Demand, type DeptId, type Floor } from './layout'
+import { assignDesks, benchSeats, dept, depts, door, kindOf, layoutFloor, lounge, minWidth, parkedZone, queueSpots, settle, type Bounds, type Demand, type DeptId, type Floor } from './layout'
 import { createIntray } from './intray'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
-import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type DeptScene, type Slot } from './props'
+import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type Slot } from './props'
 import { buildQueue, queuePositions, type QueueItem } from '../../shared/queue'
 
 export interface QueueEntry {
@@ -54,12 +54,18 @@ interface Live {
   screenKey: string
 }
 
+type Rect = [ox: number, oz: number, w: number, d: number]
+
 interface DeptAnim {
   ox: number
+  oz: number
+  w: number
+  d: number
+  rows: number
+  from: Rect
+  to: Rect
   sc: number
-  fo: number
   fs: number
-  tx: number
   want: boolean
   shown: boolean
 }
@@ -113,11 +119,13 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const loungeVecs = lounge.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
-  const anims = Object.fromEntries(depts.map((d) => [d.id, { ox: 0, sc: 0.001, fo: 0, fs: 0, tx: 0, want: false, shown: false }])) as Record<DeptId, DeptAnim>
+  const anims = Object.fromEntries(depts.map((d) => [d.id, { ox: 0, oz: 0, w: 1, d: 1, rows: 1, from: [0, 0, 1, 1], to: [0, 0, 1, 1], sc: 0.001, fs: 0.001, want: false, shown: false }])) as Record<DeptId, DeptAnim>
+  const loungeCentre = [(parkedZone.box[0] + parkedZone.box[2]) / 2, (parkedZone.box[1] + parkedZone.box[3]) / 2] as const
   let applied: Demand = {}
   let floor: Floor = layoutFloor({})
   let layU = 1
-  let R = floor.right, R0 = R, R1 = R
+  let B: Bounds = { ...floor.bounds }, B0 = B, B1 = B
+  let loungeWant = false, loungeSc = 0
   let pendingLayout = false
   let booted = false
   let queue: QueueItem[] = []
@@ -131,7 +139,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const signs = new Map<DeptId | 'park', Sign>()
   for (const d of depts) {
     const sign = createSign(d.name, d.path, hexCss(d.accent), { enter: () => setHoverDept(d.id), leave: () => setHoverDept(undefined), click: () => focusDept(d.id) })
-    sign.obj.position.set(d.sign[0], 0.62, d.sign[1])
     sign.obj.visible = false
     labelScene.add(sign.obj)
     signs.set(d.id, sign)
@@ -139,6 +146,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   {
     const sign = createSign(parkedZone.name, 'no message for 1d+', undefined, { enter: () => setHoverDept('park'), leave: () => setHoverDept(undefined), click: () => focusDept('park') })
     sign.obj.position.set(parkedZone.sign[0], 0.62, parkedZone.sign[1])
+    sign.obj.visible = false
     labelScene.add(sign.obj)
     signs.set('park', sign)
   }
@@ -148,41 +156,48 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const active = () => [...live.values()].filter((l) => !l.gone)
   const labelled = (l: Live): Labelled => ({ id: l.facts.id, dept: l.facts.dept, state: l.facts.state, parked: l.facts.parked, queued: l.queueIndex >= 0 })
 
-  function shiftDept(d: DeptScene, ox: number) {
-    const dx = ox - anims[d.def.id].ox
-    for (const s of d.slots) {
-      if (!s) continue
-      for (const l of live.values()) if (l.slot === s && !l.gone && !l.c.walker.path.length && [s.seat, s.stand, s.bench, s.relax].includes(l.target.p)) l.c.walker.pos.x += dx
-      placeSlot(s, ox)
-    }
-    signs.get(d.def.id)!.obj.position.x = d.def.sign[0] + ox
-    anims[d.def.id].ox = ox
+  function place(id: DeptId, [ox, oz, w, d]: Rect) {
+    const a = anims[id], sc = scenes[id], dx = ox - a.ox, dz = oz - a.oz
+    if (dx || dz) for (const l of live.values()) if (l.slot?.dept === id && !l.gone && !l.c.walker.path.length && [l.slot.seat, l.slot.stand, l.slot.bench, l.slot.relax].includes(l.target.p)) l.c.walker.pos.set(l.c.walker.pos.x + dx, 0, l.c.walker.pos.z + dz)
+    Object.assign(a, { ox, oz, w, d })
+    sc.g.position.set(ox + w / 2, 0, oz + d / 2)
+    sc.gi.position.set(-w / 2, 0, -d / 2)
+    sc.resize(w, d)
+    if (sc.side) sc.side.position.x = w - minWidth(id, sc.tier)
+    for (const s of sc.slots) placeSlot(s, ox, oz, w, a.rows)
+    signs.get(id)!.obj.position.set(ox + 0.25, 0.62, oz + d)
   }
 
-  function applyLayout(next: Floor, demand: Demand, snap: boolean) {
+  function offsetOf(owner: string): readonly [number, number] | undefined {
+    if (owner === 'park') return loungeWant ? [0, 0] : undefined
+    const [id, part] = owner.split(':') as [DeptId, string | undefined]
+    const a = anims[id]
+    if (!a?.want) return undefined
+    return [a.to[0] + (part === 'side' ? a.to[2] - minWidth(id, scenes[id].tier) : 0), a.to[1]]
+  }
+
+  function applyLayout(next: Floor, snap: boolean) {
     for (const d of depts) {
-      const sc = scenes[d.id], n = demand[d.id] ?? 0, cap = capacityOf(d.id, n), width = widthOf(d.id, n)
-      if (n > 0 && sc.width !== width) office.zoneShell(sc, width)
-      const base = baseSlots(d.id, n)
-      for (let i = sc.slots.length; i < cap; i++) {
-        office.addSlot(d.id, i, base[i]![0], base[i]![1])
-        placeSlot(sc.slots[i]!, anims[d.id].ox)
-      }
-      for (let i = sc.slots.length - 1; i >= Math.max(cap, d.slots.length); i--) office.removeSlot(d.id, i)
-    }
-    floor = next
-    R1 = next.right
-    R0 = R
-    for (const d of depts) {
-      const a = anims[d.id], z = next.zones[d.id]
-      a.tx = z.ox
-      if (z.shown && a.sc < 0.01) shiftDept(scenes[d.id], a.tx)
-      a.fo = a.ox
+      const a = anims[d.id], z = next.zones[d.id], sc = scenes[d.id]
+      if (z.shown) {
+        const [x0, z0, x1, z1] = z.box
+        a.to = [x0, z0, x1 - x0, z1 - z0]
+        a.rows = z.rows
+        office.setTier(sc, z.tier)
+        if (a.sc < 0.01) place(d.id, a.to)
+        for (let i = sc.slots.length - 1; i >= z.desks; i--) office.removeSlot(d.id, i)
+        for (let i = sc.slots.length; i < z.desks; i++) placeSlot(office.addSlot(d.id, i, z.slots[i]![0], z.slots[i]![1]), a.ox, a.oz, a.w, a.rows)
+        sc.block(a.to[2], a.to[3])
+      } else a.to = [a.ox, a.oz, a.w, a.d]
+      a.from = [a.ox, a.oz, a.w, a.d]
       a.fs = a.sc
       a.shown ||= z.shown
       a.want = z.shown
       signs.get(d.id)!.obj.visible = z.shown
     }
+    floor = next
+    B0 = { ...B }
+    B1 = next.bounds
     layU = snap ? 0.9999 : 0
     stepLayout(snap ? 1 : 0)
     if (!snap) {
@@ -195,46 +210,62 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     if (layU >= 1) return
     layU = Math.min(1, layU + dt / 0.45)
     const e = ease(layU)
+    const mix = (from: number, to: number) => from + (to - from) * e
     for (const d of depts) {
       const a = anims[d.id], sc = scenes[d.id]
-      const ox = a.fo + (a.tx - a.fo) * e
+      place(d.id, a.from.map((from, k) => mix(from, a.to[k]!)) as Rect)
       const to = a.want ? 1 : 0
       a.sc = a.fs + (to - a.fs) * (to > a.fs ? easeBack(layU) : e)
-      if (ox !== a.ox) shiftDept(sc, ox)
-      sc.g.position.x = sc.cx + ox
       sc.g.scale.setScalar(Math.max(0.001, a.sc))
       sc.g.visible = a.sc > 0.003
     }
-    R = R0 + (R1 - R0) * e
-    office.setShell(R)
+    B = { x0: mix(B0.x0, B1.x0), z0: mix(B0.z0, B1.z0), x1: mix(B0.x1, B1.x1), z1: mix(B0.z1, B1.z1) }
+    office.setShell(B)
     renderer.shadowMap.needsUpdate = true
     kick(120)
     if (layU >= 1) {
       for (const d of depts) anims[d.id].shown = anims[d.id].want
-      nav.rebuild(R, (owner) => (anims[owner as DeptId]?.want ? anims[owner as DeptId].ox : undefined))
+      nav.rebuild(B1, offsetOf)
       for (const l of live.values()) l.c.walker.goal = null
       kick()
     }
   }
 
+  function stepLounge(dt: number) {
+    const to = loungeWant ? 1 : 0
+    if (Math.abs(loungeSc - to) < 0.002) return
+    loungeSc = Math.abs(loungeSc - to) < 0.01 ? to : loungeSc + (to - loungeSc) * Math.min(1, dt * 8)
+    office.lounge.scale.setScalar(Math.max(0.001, loungeSc))
+    office.lounge.position.set(loungeCentre[0] * (1 - loungeSc), 0, loungeCentre[1] * (1 - loungeSc))
+    office.lounge.visible = loungeSc > 0.003
+    renderer.shadowMap.needsUpdate = true
+    kick(120)
+  }
+
   const canFold = () => !focus.hovered && !focus.hoverDept && layU >= 1 && !rig.zoomed()
 
   function relayout() {
-    const wanted: Demand = {}
-    for (const l of active()) if (!l.facts.parked) wanted[l.facts.dept] = (wanted[l.facts.dept] ?? 0) + 1
-    const { demand, pending } = settle(applied, wanted, canFold())
+    const agents: Demand = {}
+    for (const l of active()) if (!l.facts.parked) agents[l.facts.dept] = (agents[l.facts.dept] ?? 0) + 1
+    const { desks, pending } = settle(applied, agents, canFold())
     pendingLayout = pending
-    const next = layoutFloor(demand, Object.fromEntries(depts.map((d) => [d.id, anims[d.id].ox])))
-    const changed = depts.some((d) => next.zones[d.id].shown !== floor.zones[d.id].shown || next.zones[d.id].width !== floor.zones[d.id].width || next.zones[d.id].slots.length !== floor.zones[d.id].slots.length) || !booted
-    applied = demand
-    if (changed) applyLayout(next, demand, !booted)
+    const next = layoutFloor(desks, floor)
+    const moved = (id: DeptId) => next.zones[id].shown !== floor.zones[id].shown || next.zones[id].desks !== floor.zones[id].desks || next.zones[id].box.some((v, k) => v !== floor.zones[id].box[k])
+    const changed = !booted || depts.some((d) => moved(d.id)) || next.bounds.x1 !== floor.bounds.x1 || next.bounds.z0 !== floor.bounds.z0
+    applied = desks
+    if (changed) applyLayout(next, !booted)
+    const parked = active().some((l) => l.facts.parked)
+    if (parked === loungeWant) return
+    loungeWant = parked
+    signs.get('park')!.obj.visible = parked
+    if (layU >= 1) nav.rebuild(B1, offsetOf)
   }
 
   function assign() {
     const seated = active()
       .filter((l) => !l.facts.parked)
       .sort((a, b) => a.facts.createdAt - b.facts.createdAt)
-    const next = assignDesks(new Map([...desks, ...claims]), seated.map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => capacityOf(id, applied[id] ?? 0))
+    const next = assignDesks(new Map([...desks, ...claims]), seated.map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => applied[id] ?? 0)
     desks.clear()
     for (const [id, i] of next) desks.set(id, i)
     for (const id of claims.keys()) if (desks.has(id)) claims.delete(id)
@@ -490,14 +521,14 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function focusDept(id: DeptId | 'park') {
     const box = id === 'park' ? parkedZone.box : floor.zones[id].box
     const [x0, z0, x1, z1] = box
-    const gym = id === 'gym'
+    const span = Math.max(x1 - x0, (z1 - z0) * 1.3)
     rig.atOverview = false
     rig.follow = undefined
-    rig.flyTo(() => new THREE.Vector3((x0 + x1) / 2, 0.3, (z0 + z1) / 2 - (gym ? 1.5 : 0)), Math.min(rig.zoomDistance(region(), innerHeight) * (id === 'park' ? 1.5 : gym ? 2.5 : 1.9), rig.overview.distance * 0.58), VIEW, 0.85)
+    rig.flyTo(() => new THREE.Vector3((x0 + x1) / 2, 0.3, (z0 + z1) / 2), Math.min((rig.zoomDistance(region(), innerHeight) * Math.max(1.5, span / 4.4)), rig.overview.distance * 0.58), VIEW, 0.85)
   }
 
   function layoutView() {
-    rig.layout(region(), innerWidth, innerHeight, R1)
+    rig.layout(region(), innerWidth, innerHeight, B1)
   }
 
   const ray = new THREE.Raycaster()
@@ -658,6 +689,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       }
     }
     stepLayout(dt)
+    stepLounge(dt)
     if (pendingLayout && now - lastPend > 500) {
       lastPend = now
       refresh()
@@ -685,7 +717,9 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   document.addEventListener('visibilitychange', onVisible)
   layoutView()
   rig.goOverview(true)
-  office.setShell(R)
+  office.setShell(B)
+  office.lounge.visible = false
+  office.lounge.scale.setScalar(0.001)
 
   return {
     probe,

@@ -1,11 +1,10 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Run } from '../../src/main/review/git'
-import { createReviewQueue, localClone, reviewDept, searchArgs } from '../../src/main/workflow/review-requests'
-import { defaultRules } from '../../src/shared/departments'
+import { createReviewQueue, localClone, reviewStart, searchArgs } from '../../src/main/workflow/review-requests'
 import { overdue, workingMs } from '../../src/shared/workflow'
 import { createFakeEngine } from '../fakes/fake-engine'
 import { ghMissing, openOffice } from '../fakes/office'
@@ -22,7 +21,6 @@ const nodes = [
     id: 'PR_7',
     additions: 120,
     deletions: 14,
-    files: { nodes: [{ path: 'frontend/marketplace/pages/bid.vue' }, { path: 'frontend/marketplace/utils/round.ts' }, { path: 'backend/bids.ts' }] },
     commits: { nodes: [{ commit: { statusCheckRollup: { state: 'FAILURE' } } }] },
     timelineItems: {
       nodes: [
@@ -32,7 +30,7 @@ const nodes = [
       ],
     },
   },
-  { id: 'PR_9', additions: 3, deletions: 0, files: { nodes: [] }, commits: { nodes: [{ commit: { statusCheckRollup: null } }] }, timelineItems: { nodes: [{ createdAt: '2026-09-21T08:00:00Z', requestedReviewer: {} }] } },
+  { id: 'PR_9', additions: 3, deletions: 0, commits: { nodes: [{ commit: { statusCheckRollup: null } }] }, timelineItems: { nodes: [{ createdAt: '2026-09-21T08:00:00Z', requestedReviewer: {} }] } },
 ]
 
 function fakeGh() {
@@ -64,7 +62,7 @@ describe('review requests', () => {
     expect(searchArgs).toEqual(expect.arrayContaining(['--review-requested=@me', '--state=open']))
     expect(state.calls[1]!.slice(0, 3)).toEqual(['gh', 'api', 'graphql'])
     expect(state.calls[1]).toEqual(expect.arrayContaining(['-f', 'ids[]=PR_7', '-f', 'ids[]=PR_9']))
-    expect(queue.find(search[0]!.url)?.files).toHaveLength(3)
+    expect(state.calls[1]!.join(' ')).not.toContain('files(')
   })
 
   it('drops a request once gh stops listing it', async () => {
@@ -124,14 +122,6 @@ describe('review requests', () => {
     expect(overdue({ requestedAt: friday }, monday + 24 * hour)).toBe(true)
     expect(overdue({ requestedAt: monday }, monday + 47 * hour)).toBe(false)
   })
-
-  it('puts the review in the department most of its files belong to', () => {
-    const repo = '/Users/aaron/Documents/GitHub/monorepo'
-    expect(reviewDept(repo, ['frontend/marketplace/a.vue', 'frontend/marketplace/b.ts', 'backend/c.ts'], defaultRules)).toBe('mkt')
-    expect(reviewDept(repo, ['backend/c.ts'], defaultRules)).toBe('plat')
-    expect(reviewDept('/Users/aaron/code/agent-office', ['src/main/index.ts'], defaultRules)).toBe('side')
-    expect(reviewDept(repo, [], defaultRules)).toBe('plat')
-  })
 })
 
 describe('starting a review', () => {
@@ -149,7 +139,7 @@ describe('starting a review', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('finds the local clone by its origin, starts the agent on the PR head in a new worktree, and a withdrawn request leaves it running', async () => {
+  it('runs the agent in the local clone found by its origin, without a worktree, and a withdrawn request leaves it running', async () => {
     const origin = join(dir, 'mws', 'monorepo.git')
     mkdirSync(origin, { recursive: true })
     git(origin, 'init', '-q', '--bare', '-b', 'main')
@@ -158,13 +148,7 @@ describe('starting a review', () => {
     writeFileSync(join(repo, 'bid.ts'), 'one\n')
     git(repo, 'add', '.')
     git(repo, 'commit', '-q', '-m', 'init')
-    git(repo, 'push', '-q', 'origin', 'main')
-    git(repo, 'checkout', '-q', '-b', 'jan-round')
-    writeFileSync(join(repo, 'bid.ts'), 'two\n')
-    git(repo, 'commit', '-q', '-am', 'round')
-    git(repo, 'push', '-q', 'origin', 'HEAD:refs/pull/7/head')
-    const head = git(repo, 'rev-parse', 'HEAD').trim()
-    git(repo, 'checkout', '-q', 'main')
+    const branches = git(repo, 'branch', '--list').trim()
 
     const other = join(dir, 'other')
     mkdirSync(other)
@@ -175,20 +159,34 @@ describe('starting a review', () => {
     const queue = createReviewQueue(gh)
     await queue.poll()
     const request = queue.find(search[0]!.url)!
-    const started = office.store.start('main', repo, `/pr-review-rundown ${request.url}`, undefined, undefined, { dept: 'mkt', worktree: true, title: `Review #7 ${request.title}` })
+    const { cwd, prompt, options } = await reviewStart(request, [other, repo])
+    expect({ cwd, prompt, options }).toEqual({ cwd: repo, prompt: '/pr-review-rundown https://github.com/mws/monorepo/pull/7', options: { review: true, title: 'Review #7 Round bids to the nearest euro' } })
+    const started = office.store.start('main', cwd, prompt, undefined, undefined, options)
     if (!('chatId' in started)) throw new Error(started.error)
     await vi.waitFor(() => expect(office.chat(started.chatId).state).toBe('done'))
 
     const chat = office.chat(started.chatId)
-    const tree = join(repo, '.claude', 'worktrees', 'review-7')
-    expect(chat).toMatchObject({ title: 'Review #7 Round bids to the nearest euro', department: 'mkt', worktree: tree, cwd: tree })
-    expect(git(tree, 'rev-parse', 'HEAD').trim()).toBe(head)
+    expect(chat).toMatchObject({ title: 'Review #7 Round bids to the nearest euro', department: 'rev', review: true, cwd: repo })
+    expect(chat.worktree).toBeUndefined()
+    expect(git(repo, 'branch', '--list').trim()).toBe(branches)
+    expect(git(repo, 'worktree', 'list').trim().split('\n')).toHaveLength(1)
     expect(office.engine.sent[0]).toEqual({ chatId: started.chatId, text: '/pr-review-rundown https://github.com/mws/monorepo/pull/7' })
 
     state.search = []
     await queue.poll()
     expect(queue.view().requests).toEqual([])
     expect(office.chat(started.chatId)).toMatchObject({ archived: false, state: 'done' })
-    expect(existsSync(tree)).toBe(true)
+  })
+
+  it('falls back to the home folder when no clone of the repo is known, since the skill reads the PR through gh', async () => {
+    const request = { url: 'https://github.com/mws/mobile/pull/9', repo: 'mws/mobile', number: 9, title: 'Deep links for push' }
+    const { cwd, prompt, options } = await reviewStart(request, [dir])
+    expect(cwd).toBe(homedir())
+    expect(prompt).toBe('/pr-review-rundown https://github.com/mws/mobile/pull/9')
+    const started = office.store.start('main', cwd, prompt, undefined, undefined, { ...options, worktree: false, dept: 'mob' })
+    if (!('chatId' in started)) throw new Error(started.error)
+    expect(office.chat(started.chatId)).toMatchObject({ cwd: homedir(), department: 'rev', review: true })
+    expect(office.chat(started.chatId).worktree).toBeUndefined()
+    await vi.waitFor(() => expect(office.chat(started.chatId).state).toBe('done'))
   })
 })

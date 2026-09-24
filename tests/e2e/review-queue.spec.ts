@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test'
@@ -60,11 +60,6 @@ test.beforeAll(() => {
   git(repo, 'add', '.')
   git(repo, 'commit', '-q', '-m', 'init')
   git(repo, 'push', '-q', 'origin', 'main')
-  git(repo, 'checkout', '-q', '-b', 'jan-round')
-  writeFileSync(join(repo, 'frontend', 'marketplace', 'pages', 'bid.vue'), '<p>{{ Math.round(bid) }}</p>\n')
-  git(repo, 'commit', '-q', '-am', 'round')
-  git(repo, 'push', '-q', 'origin', 'HEAD:refs/pull/7/head')
-  git(repo, 'checkout', '-q', 'main')
 })
 
 test.afterAll(() => {
@@ -72,9 +67,8 @@ test.afterAll(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-test('review requests fill the tray and the drawer, Review starts an agent on the PR head, and a withdrawn request leaves quietly', async () => {
+test('review requests fill the tray and the drawer, Review starts an agent in PR reviews without a worktree, and a withdrawn request leaves quietly', async () => {
   test.setTimeout(60_000)
-  const head = git(repo, 'rev-parse', 'jan-round').trim()
   const { app, page, accountId, views } = await launch()
   const known = await page.evaluate(({ accountId, repo }) => window.office.startChat(accountId, repo, 'Bid flow approach'), { accountId, repo })
   if (!('chatId' in known)) throw new Error(known.error)
@@ -98,11 +92,12 @@ test('review requests fill the tray and the drawer, Review starts an agent on th
 
   await old.getByRole('button', { name: 'Review' }).click()
   await expect(drawer.getByRole('heading', { name: 'Review #7 Round bids to the nearest euro' })).toBeVisible()
-  const tree = join(repo, '.claude', 'worktrees', 'review-7')
   await expect.poll(async () => (await views()).find((view) => view.title.startsWith('Review #7'))?.state).toMatch(/^(done|idle)$/)
   const review = (await views()).find((view) => view.title.startsWith('Review #7'))!
-  expect(review).toMatchObject({ department: 'mkt', worktree: tree, cwd: tree, accountId })
-  expect(git(tree, 'rev-parse', 'HEAD').trim()).toBe(head)
+  expect(review).toMatchObject({ department: 'rev', review: true, cwd: repo, accountId, effort: 'medium' })
+  expect(review.worktree).toBeUndefined()
+  expect(existsSync(join(repo, '.claude', 'worktrees'))).toBe(false)
+  await expect(page.locator('.sign', { hasText: 'PR reviews' })).toBeVisible()
   const sent = await app.evaluate(() => (globalThis as unknown as Globals).fakeEngine.sent)
   expect(sent).toContainEqual({ chatId: review.id, text: '/pr-review-rundown https://github.com/mws/monorepo/pull/7' })
 
@@ -112,7 +107,7 @@ test('review requests fill the tray and the drawer, Review starts an agent on th
   await expect(left.locator('.rqi')).toHaveText([/Deep links for push/])
   await expect(tray).toHaveText('✉ 1 review')
   await expect(tray).not.toHaveClass(/late/)
-  await expect(drawer.locator('.brow', { hasText: 'Review #7' })).toBeVisible()
+  await expect(drawer.locator('.grp[data-dept="rev"] .brow', { hasText: 'Review #7' })).toBeVisible()
   expect((await views()).find((view) => view.id === review.id)).toMatchObject({ archived: false, state: 'idle' })
 
   await github(app, { missing: true })
@@ -123,7 +118,7 @@ test('review requests fill the tray and the drawer, Review starts an agent on th
   await quit(app)
 })
 
-test('Start from ticket seeds the prompt and names the worktree after the ticket, without a Linear key', async () => {
+test('a ticket id is enough: Start from ticket or the prompt itself names the chat and the worktree after it, without a Linear key', async () => {
   const { app, page, views } = await launch()
   const drawer = page.getByRole('complementary', { name: 'Inbox' })
   await drawer.getByRole('button', { name: 'New agent' }).click()
@@ -132,7 +127,7 @@ test('Start from ticket seeds the prompt and names the worktree after the ticket
   await drawer.getByRole('button', { name: 'Use ticket' }).click()
   await expect(drawer.getByLabel('Prompt')).toHaveValue('AUC-1302')
   await expect(drawer.getByLabel('Fresh worktree')).toBeChecked()
-  await expect(drawer.getByRole('status')).toContainText('Without a Linear key only AUC-1302 is filled in')
+  await expect(drawer.getByRole('status')).toContainText('The agent sees only AUC-1302, not the ticket.')
 
   await drawer.getByLabel('Prompt').press('End')
   await drawer.getByLabel('Prompt').pressSequentially(' bid flow approach')
@@ -141,6 +136,17 @@ test('Start from ticket seeds the prompt and names the worktree after the ticket
   await expect.poll(async () => (await views()).find((view) => view.title === 'AUC-1302 bid flow approach')?.state).toMatch(/^(done|idle)$/)
   expect(git(tree, 'branch', '--show-current').trim()).toBe('auc-1302-bid-flow-approach')
   await expect(drawer.getByRole('region', { name: 'Next steps' })).toContainText('AUC-1302')
+
+  await drawer.getByRole('button', { name: 'Back to inbox' }).click()
+  await drawer.getByRole('button', { name: 'New agent' }).click()
+  await drawer.getByLabel('Folder').selectOption(repo)
+  await drawer.getByLabel('Prompt').fill('mob-88')
+  await expect(drawer.getByRole('status')).toContainText('The agent sees only MOB-88')
+  await expect(drawer.getByRole('button', { name: 'Start agent' })).toBeEnabled()
+  await drawer.getByRole('button', { name: 'Start agent' }).click()
+  await expect.poll(async () => (await views()).find((view) => view.title === 'MOB-88')?.state).toMatch(/^(done|idle)$/)
+  const sent = await app.evaluate(() => (globalThis as unknown as Globals).fakeEngine.sent)
+  expect(sent.at(-1)?.text).toBe('mob-88')
 
   await quit(app)
 })

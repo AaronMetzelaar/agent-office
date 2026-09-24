@@ -1,4 +1,4 @@
-import type { Ticket } from '../../shared/workflow'
+import { leadingTicket, type Ticket } from '../../shared/workflow'
 
 export type Post = (url: string, init: RequestInit) => Promise<Response>
 export type Linear = ReturnType<typeof createLinear>
@@ -33,6 +33,17 @@ export function ticketId(text: string | undefined): string | undefined {
 const worktreeName = (cwd: string) => /\/\.claude\/worktrees\/([^/]+)/.exec(cwd)?.[1]
 
 export const chatTicketId = (branch: string | undefined, cwd: string) => ticketId(branch) ?? ticketId(worktreeName(cwd))
+
+export const ticketPrompt = (ticket: Ticket, rest: string) => [`Work on Linear ticket ${ticket.id}: ${ticket.title}`, ticket.status && `Status: ${ticket.status}`, ticket.description, ticket.url, rest].filter(Boolean).join('\n\n')
+
+export async function withTicket(linear: Pick<Linear, 'ticket'>, prompt: string, options: unknown): Promise<{ prompt: string; options: unknown }> {
+  const lead = leadingTicket(prompt)
+  if (!lead) return { prompt, options }
+  const wanted = typeof options === 'object' && options ? options : {}
+  const { ticket } = await linear.ticket(lead.id)
+  if (!ticket.title) return { prompt, options: { ...wanted, title: [lead.id, lead.rest].filter(Boolean).join(' ') } }
+  return { prompt: ticketPrompt(ticket, lead.rest), options: { ...wanted, title: `${ticket.id} ${ticket.title}` } }
+}
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 

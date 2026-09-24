@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { openVault } from '../../src/main/accounts/tokens'
-import { chatTicketId, createLinear, ticketId, type Post } from '../../src/main/workflow/linear'
+import { chatTicketId, createLinear, ticketId, withTicket, type Post } from '../../src/main/workflow/linear'
+import { leadingTicket } from '../../src/shared/workflow'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
@@ -106,5 +107,47 @@ describe('Linear', () => {
   it('reports a failed move instead of throwing', async () => {
     const { post } = linearApi((body) => (body.query.startsWith('mutation') ? { errors: [{ message: 'Forbidden' }] } : { data: { issue } }))
     expect(await createLinear(() => 'key', post).moveToDone('AUC-1302', async () => true)).toEqual({ error: 'Couldn’t move AUC-1302: Forbidden' })
+  })
+})
+
+describe('a ticket as the whole prompt', () => {
+  it('finds a leading ticket id in any case, or a Linear issue link, and keeps the rest', () => {
+    expect(leadingTicket('AUC-1302')).toEqual({ id: 'AUC-1302', rest: '' })
+    expect(leadingTicket('  auc-1302 keep the old API\nand add tests')).toEqual({ id: 'AUC-1302', rest: 'keep the old API\nand add tests' })
+    expect(leadingTicket(issue.url)).toEqual({ id: 'AUC-1302', rest: '' })
+    expect(leadingTicket('https://linear.app/mws/issue/auc-1302\n\nskip mobile')).toEqual({ id: 'AUC-1302', rest: 'skip mobile' })
+    expect(leadingTicket('Fix AUC-1302 later')).toBeUndefined()
+    expect(leadingTicket('auc1302 bid')).toBeUndefined()
+    expect(leadingTicket('AUC-1302x')).toBeUndefined()
+    expect(leadingTicket('https://github.com/mws/monorepo/pull/7')).toBeUndefined()
+  })
+
+  it('with a key, puts the ticket’s title, status, description and link before the extra text, and titles the chat after it', async () => {
+    const { post, calls } = linearApi()
+    const linear = createLinear(() => 'key', post)
+    const seeded = await withTicket(linear, 'auc-1302 keep the old API', { dept: 'mkt', worktree: true })
+    expect(seeded).toEqual({
+      prompt: `Work on Linear ticket AUC-1302: Bid flow approach\n\nStatus: In Review\n\nBids round down.\n\n${issue.url}\n\nkeep the old API`,
+      options: { dept: 'mkt', worktree: true, title: 'AUC-1302 Bid flow approach' },
+    })
+    expect((await withTicket(linear, issue.url, undefined)).prompt).toBe(`Work on Linear ticket AUC-1302: Bid flow approach\n\nStatus: In Review\n\nBids round down.\n\n${issue.url}`)
+    expect(calls.every((call) => call.body.query.startsWith('query'))).toBe(true)
+  })
+
+  it('without a key, or when Linear fails, sends the prompt as typed', async () => {
+    const { post, calls } = linearApi()
+    expect(await withTicket(createLinear(() => undefined, post), 'AUC-1302', { worktree: true })).toEqual({ prompt: 'AUC-1302', options: { worktree: true, title: 'AUC-1302' } })
+    expect(calls).toEqual([])
+    const down: Post = async () => {
+      throw new TypeError('fetch failed')
+    }
+    expect((await withTicket(createLinear(() => 'key', down), `${issue.url} and the tests`, {})).prompt).toBe(`${issue.url} and the tests`)
+  })
+
+  it('leaves a prompt that doesn’t start with a ticket alone, and never asks Linear', async () => {
+    const { post, calls } = linearApi()
+    const options = { worktree: true }
+    expect(await withTicket(createLinear(() => 'key', post), 'Fix the bid flow for AUC-1302', options)).toEqual({ prompt: 'Fix the bid flow for AUC-1302', options })
+    expect(calls).toEqual([])
   })
 })

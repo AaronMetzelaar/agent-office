@@ -1,10 +1,8 @@
 import { Vector3 } from 'three'
-import { ZL } from './layout'
+import type { Bounds } from './layout'
 
 const cell = 0.2
 const gx = -13.5
-const gz = -8.5
-const gh = Math.round(ZL / cell)
 const n8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const
 
 interface Blocker {
@@ -22,7 +20,9 @@ export type Nav = ReturnType<typeof createNav>
 export function createNav() {
   const blockers: Blocker[] = []
   let gw = 1
-  let grid = new Uint8Array(gh)
+  let gh = 1
+  let gz = 0
+  let grid = new Uint8Array(1)
 
   const cellOf = (x: number, z: number) => Math.min(gh - 1, Math.max(0, Math.floor((z - gz) / cell))) * gw + Math.min(gw - 1, Math.max(0, Math.floor((x - gx) / cell)))
   const cellPoint = (c: number) => new Vector3(gx + ((c % gw) + 0.5) * cell, 0, gz + (Math.floor(c / gw) + 0.5) * cell)
@@ -76,12 +76,14 @@ export function createNav() {
     unblock(tag: string) {
       for (let i = blockers.length - 1; i >= 0; i--) if (blockers[i]!.tag === tag) blockers.splice(i, 1)
     },
-    rebuild(right: number, offset: (owner: string) => number | undefined) {
-      gw = Math.ceil((right + 1.5 - gx) / cell)
+    rebuild(bounds: Bounds, offset: (owner: string) => readonly [number, number] | undefined) {
+      gz = bounds.z0 - 0.5
+      gw = Math.ceil((bounds.x1 + 1.5 - gx) / cell)
+      gh = Math.ceil((bounds.z1 + 0.5 - gz) / cell)
       grid = new Uint8Array(gw * gh)
       for (const b of blockers) {
-        const dx = b.owner === undefined ? 0 : offset(b.owner)
-        if (dx !== undefined) mark(b.x0 + dx, b.z0, b.x1 + dx, b.z1, b.pad)
+        const [dx, dz] = b.owner === undefined ? [0, 0] : (offset(b.owner) ?? [])
+        if (dx !== undefined && dz !== undefined) mark(b.x0 + dx, b.z0 + dz, b.x1 + dx, b.z1 + dz, b.pad)
       }
     },
     blocked: (x: number, z: number) => grid[cellOf(x, z)] === 1,

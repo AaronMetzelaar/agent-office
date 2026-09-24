@@ -6,6 +6,13 @@ export interface Ticket {
   description?: string
 }
 
+const leading = /^\s*(?:https?:\/\/linear\.app\/[\w-]+\/issue\/)?([a-z]{2,6}-\d{1,6})(?:\/\S*)?(?=\s|$)/i
+
+export function leadingTicket(text: string): { id: string; rest: string } | undefined {
+  const match = leading.exec(text)
+  return match ? { id: match[1]!.toUpperCase(), rest: text.slice(match[0].length).trim() } : undefined
+}
+
 export type StepId = 'test-cases' | 'verify' | 'review' | 'pr' | 'comments' | 'fix-ci' | 'cleanup' | 'move-ticket'
 
 export interface NextStep {

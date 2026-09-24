@@ -58,7 +58,7 @@ export interface Commands {
   clearLinearKey(): void
   hasLinearKey(): boolean
   getSnapshot(): ChatSnapshot
-  startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): StartChatResult
+  startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): Promise<StartChatResult>
   continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined
   departmentRules(): DeptRule[]
   sendMessage(chatId: string, text: string): Refusal | undefined
