@@ -3,7 +3,7 @@ import { TresCanvas, useLoop, useTres } from '@tresjs/core'
 import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import type { DeptId } from '../../shared/departments'
-import { gb, plural, type HousekeepingView } from '../../shared/housekeeping'
+import { gb, plural, type Finished, type HousekeepingView } from '../../shared/housekeeping'
 import type { AccountView, Navigate } from '../../shared/ipc'
 import type { ReviewQueue } from '../../shared/workflow'
 import Chat from '../panels/Chat.vue'
@@ -39,6 +39,9 @@ const reviews = shallowRef<ReviewQueue>()
 const chatList = computed(() => (tick.value, [...projection.chats.values()]))
 const worktreeCount = computed(() => house.value?.worktrees.length ?? 0)
 const newDesk = shallowRef<{ dept: DeptId; slot: number }>()
+const toast = ref('')
+const demoMode = !!import.meta.env.RENDERER_VITE_OFFICE_DEMO
+let toastTimer: ReturnType<typeof setTimeout> | undefined
 const openChat = computed(() => (tick.value, ui.selected ? projection.chats.get(ui.selected.id) : undefined))
 let pendingSelect: string | undefined
 let pendingView: View = 'fly'
@@ -83,6 +86,38 @@ function started(chatId: string, dept: DeptId) {
   const desk = newDesk.value
   if (desk?.dept === dept) world.value?.claimDesk(chatId, desk.slot)
   select(chatId, 'keep')
+}
+
+function say(message: string) {
+  toast.value = message
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = ''), 5000)
+}
+
+function toLounge(chatId: string) {
+  world.value?.sendToLounge(chatId)
+  if (projection.chats.get(chatId)?.state === 'done') void window.office.markRead(chatId)
+}
+
+async function finish(chatIds: string[]) {
+  const { finishChat, finishChats } = props.source
+  if (!chatIds.length || !finishChat || !finishChats) return
+  world.value?.finishing(chatIds, true)
+  if (chatIds.length === 1) {
+    const result: Finished | undefined = await finishChat(chatIds[0]!).catch((error: unknown) => ({ error: String(error) }))
+    if (!result || (result.error && !result.kept)) world.value?.finishing(chatIds, false)
+    if (result?.error) say(result.error)
+    return
+  }
+  const result = await finishChats(chatIds).catch(() => undefined)
+  const done = new Set(result?.finished ?? [])
+  world.value?.finishing(chatIds.filter((id) => !done.has(id)), false)
+  if (result?.skipped.length) say(`Kept ${plural(result.skipped.length, 'chat')}: ${result.skipped.map((skip) => skip.reason).join('; ')}`)
+}
+
+function demoFinish() {
+  const resting = ui.agents.filter((agent) => agent.state === 'idle' || agent.state === 'done').slice(0, 2)
+  void finish(resting.map((agent) => agent.id))
 }
 
 const usable = computed(() => props.accounts.filter((account) => account.health.status !== 'needs-login'))
@@ -130,7 +165,7 @@ const Scene = defineComponent({
     const { scene, renderer, advance } = useTres()
     const { onBeforeRender, render } = useLoop()
     const gl = renderer as WebGLRenderer
-    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }) })
+    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }), onAction: (action, chatId) => (action === 'lounge' ? toLounge(chatId) : void finish([chatId])) })
     world.value = w
     if (probeEnabled) {
       const probe = w.probe
@@ -217,6 +252,7 @@ onUnmounted(() => {
   offHousekeeping()
   offReviews()
   clearInterval(captions)
+  clearTimeout(toastTimer)
   offProjection()
   projection.stop()
 })
@@ -249,13 +285,15 @@ onUnmounted(() => {
       <span class="rg"><i :style="{ width: house ? `${Math.min(100, (house.bytes / house.totalMemory) * 100).toFixed(1)}%` : '0%' }" /></span>
       <span class="rl">RAM</span><b>{{ house ? gb(house.bytes) : '–' }}</b> · <b>{{ worktreeCount }}</b><span class="rl">{{ worktreeCount === 1 ? 'worktree' : 'worktrees' }}</span>
     </button>
+    <button v-if="demoMode" type="button" class="tbtn" title="Demo: finish two resting agents at once" @click="demoFinish">Demo Done ×2</button>
     <slot />
   </header>
+  <p v-if="toast" class="toast" role="status">{{ toast }}</p>
   <aside class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
-    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" />
-    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" />
+    <Chat v-else-if="ui.selected" :agent="ui.selected" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
+    <Inbox v-else :inbox="inbox" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Jump to agent">
@@ -271,6 +309,52 @@ onUnmounted(() => {
 </template>
 
 <style>
+.toast {
+  position: fixed;
+  z-index: 6;
+  left: 16px;
+  bottom: 16px;
+  max-width: min(520px, calc(100vw - 32px - 430px));
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12.5px;
+  box-shadow: 0 4px 14px rgba(17, 24, 39, 0.18);
+}
+
+.chip .acts {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.chip .acts button {
+  all: unset;
+  cursor: pointer;
+  padding: 1px 6px;
+  font: 500 10px/15px var(--mono);
+  color: var(--ink2);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.chip .acts button:hover {
+  color: var(--ink);
+  border-color: #9aa2ae;
+}
+
+.chip .acts button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chip .acts .done {
+  color: #0f7a38;
+}
+
 .labels {
   position: fixed;
   inset: 0;

@@ -117,6 +117,9 @@ export interface Chip {
   number: HTMLSpanElement
   extra: HTMLSpanElement
   badge: HTMLSpanElement
+  acts: HTMLSpanElement
+  lounge: HTMLButtonElement
+  shown?: ChipActions
   key: string
   dx: number
   lift: number
@@ -130,7 +133,9 @@ const span = (className: string, parent: HTMLElement) => {
   return el
 }
 
-export function createChip(on: { click(): void; enter(): void; leave(): void }): Chip {
+export type ChipActions = 'both' | 'done' | undefined
+
+export function createChip(on: { click(): void; enter(): void; leave(): void; act(action: 'lounge' | 'done'): void }): Chip {
   const el = document.createElement('div')
   el.setAttribute('role', 'button')
   el.tabIndex = -1
@@ -150,10 +155,25 @@ export function createChip(on: { click(): void; enter(): void; leave(): void }):
   const caption = span('dn', tx)
   const extra = span('ex', el)
   const badge = span('ab', el)
+  const acts = span('acts', el)
+  acts.hidden = true
+  const [lounge] = (['lounge', 'done'] as const).map((action) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = action
+    button.textContent = action === 'lounge' ? 'Lounge' : 'Done'
+    button.title = action === 'lounge' ? 'Move to the lounge, keeping its desk' : 'Finish: archive the chat and clean up its worktree'
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      on.act(action)
+    })
+    acts.append(button)
+    return button
+  })
   const obj = new CSS2DObject(el)
   obj.center.set(0.5, 1)
   obj.visible = false
-  return { el, obj, title, caption, dot, bubble, number, extra, badge, key: '', dx: 0, lift: 0, mini: false }
+  return { el, obj, title, caption, dot, bubble, number, extra, badge, acts, lounge: lounge!, key: '', dx: 0, lift: 0, mini: false }
 }
 
 export function createDeskChip(label: string, click: () => void): CSS2DObject {
@@ -206,6 +226,13 @@ export function renderChip(chip: Chip, v: ChipView) {
   chip.badge.textContent = v.badge ?? ''
   chip.el.setAttribute('aria-label', `${v.title}, ${queued ? `number ${v.queueIndex + 1} at your door, ` : ''}${v.caption}`)
   return true
+}
+
+export function setChipActions(chip: Chip, acts: ChipActions) {
+  if (chip.shown === acts) return
+  chip.shown = acts
+  chip.acts.hidden = !acts
+  chip.lounge.hidden = acts !== 'both'
 }
 
 export function setChipPlacement(chip: Chip, p: Placed) {

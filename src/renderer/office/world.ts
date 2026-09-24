@@ -3,18 +3,21 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { CSS2DRenderer, type CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { LoginItem } from '../../shared/chat'
+import { day } from '../../shared/housekeeping'
 import type { ReviewRequest } from '../../shared/workflow'
 import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region, type View } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { createGuard } from './guard'
-import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
-import { assignDesks, assignSeats, dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, settle, ZF, type Bounds, type Box, type Demand, type DeptId, type Floor, type YardSide } from './layout'
+import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, stateKey, type Chip, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
+import { dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, ZF, type Bounds, type Box, type DeptId, type Floor, type YardSide } from './layout'
 import { createIntray } from './intray'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
-import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, type Slot } from './props'
-import { demandOf, spotFor, type Spot } from './standby'
+import { createMovers } from './movers'
+import { buildOffice, clearScreen, drawPlate, drawScreen, hexCss, placeSlot, setChair, type Slot } from './props'
+import { noSeating, reseat, type Desk, type Seating } from './seating'
+import { canRest, spotFor, type Spot } from './standby'
 import { buildQueue, queuePositions, type QueueItem } from '../../shared/queue'
 
 export interface QueueEntry {
@@ -51,6 +54,7 @@ interface Live {
   slot?: Slot
   spot?: Spot
   gone: boolean
+  bye: boolean
   wait: number
   queueIndex: number
   target: Target
@@ -82,17 +86,17 @@ export interface WorldOptions {
   ui: WorldUi
   reduce: boolean
   onNewDesk?: (dept: DeptId, slot: number) => void
+  onAction?: (action: 'lounge' | 'done', chatId: string) => void
 }
 
 const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2)
 const easeBack = (u: number) => 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2)
 const room = (): RoomAnim => ({ ox: 0, oz: 0, w: 1, d: 1, rows: 1, from: [0, 0, 1, 1], to: [0, 0, 1, 1], sc: 0.001, fs: 0.001, want: false, shown: false })
-const sameBox = (a: Box, b: Box) => a.every((v, k) => v === b[k])
 const reachOf = (side: YardSide, box: Box): [number, number, number, number] => (side === 'left' ? [0.3, 0.3, door[0] + 0.9 - box[2], ZF + 0.9 - box[3]] : [0.3, box[1] - ZF, 0.3, 0.3])
 
 export type World = ReturnType<typeof createWorld>
 
-export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk }: WorldOptions) {
+export function createWorld({ scene, renderer, camera, labelsEl, region, ui, reduce, onNewDesk, onAction }: WorldOptions) {
   const motion = reduce ? 0.25 : 1
   const guard = createGuard()
   scene.background = new THREE.Color(0xedeff2)
@@ -119,19 +123,19 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   let seed = 7
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
   const live = new Map<string, Live>()
-  const desks = new Map<string, number>()
   const claims = new Map<string, number>()
+  const sent = new Set<string>()
+  const finishing = new Set<string>()
+  const ghosts = new Map<string, Desk>()
   const deskChips = new Map<string, CSS2DObject>()
   const coolers = new Map<string, number>()
-  let seats = new Map<string, number>()
+  let seating: Seating = noSeating
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const seatVecs: THREE.Vector3[] = []
   const coolerVecs: THREE.Vector3[] = []
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
   const anims = Object.fromEntries(depts.map((d) => [d.id, room()])) as Record<DeptId, RoomAnim>
   const lounge = room()
-  let applied: Demand = {}
-  let appliedStandby = 0
   let floor: Floor = layoutFloor({})
   let layU = 1
   let B: Bounds = { ...floor.bounds }, B0 = B, B1 = B
@@ -246,7 +250,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     if (lz.shown) {
       const [x0, z0, x1, z1] = lz.box
       lounge.to = [x0, z0, x1 - x0, z1 - z0]
-      if (lounge.rows !== lz.rows) for (const l of live.values()) if (l.spot === 'lounge') l.c.walker.goal = null
       lounge.rows = lz.rows
       office.lounge.seats(lz.seats, lz.rows)
       if (lounge.sc < 0.01) placeLounge(lounge.to)
@@ -299,44 +302,80 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   const canFold = () => !focus.hovered && !focus.hoverDept && layU >= 1 && !rig.zoomed()
 
-  function relayout() {
-    const act = active()
-    for (const l of act) l.spot = spotFor(l.facts, l.spot, focus.selected === l.facts.id)
-    const { seated, present, standby } = demandOf(act.map((l) => ({ dept: l.facts.dept, spot: l.spot! })))
-    const can = canFold()
-    const { desks: want, pending } = settle(applied, seated, can, present)
-    const standing = can ? standby : Math.max(appliedStandby, standby)
-    pendingLayout = pending || standing !== standby
-    const next = layoutFloor(want, standing, floor)
-    const moved = (id: DeptId) => next.zones[id].shown !== floor.zones[id].shown || next.zones[id].desks !== floor.zones[id].desks || !sameBox(next.zones[id].box, floor.zones[id].box)
-    const loungeMoved = next.lounge.shown !== floor.lounge.shown || next.lounge.seats !== floor.lounge.seats || !sameBox(next.lounge.box, floor.lounge.box)
-    const changed = !booted || loungeMoved || depts.some((d) => moved(d.id)) || next.bounds.x1 !== floor.bounds.x1 || next.bounds.z0 !== floor.bounds.z0 || next.yard !== floor.yard
-    applied = want
-    appliedStandby = standing
-    if (changed) applyLayout(next, !booted)
+  function relayout(): boolean {
+    const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
+    for (const l of act) {
+      if (!canRest(l.facts.state)) sent.delete(l.facts.id)
+      l.spot = spotFor(l.facts, l.spot, focus.selected === l.facts.id, sent.has(l.facts.id))
+    }
+    const sitting = act.filter((l) => l.spot === 'lounge' && settled(l) && l.target.p === seatVecs[seating.seats.get(l.facts.id) ?? -1])
+    const sitters = act.map((l) => ({ id: l.facts.id, dept: l.facts.dept, spot: l.spot!, parked: l.facts.parked, recent: l.facts.quietMs < day }))
+    const next = reseat(seating, [...sitters, ...[...ghosts].map(([id, d]) => ({ id, dept: d.dept, spot: 'gone' as const, parked: false, recent: false }))], canFold(), claims)
+    seating = next
+    pendingLayout = next.pending
+    for (const id of claims.keys()) if (next.desks.has(id)) claims.delete(id)
+    if (booted && !next.repack) return false
+    applyLayout(layoutFloor(next.size, next.lounge, floor), !booted)
+    for (const l of sitting) {
+      const v = seatVecs[next.seats.get(l.facts.id)!]
+      if (!v) continue
+      l.c.walker.pos.copy(v)
+      l.c.walker.goal = null
+    }
+    return true
   }
 
-  function assign() {
-    const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
-    const next = assignDesks(new Map([...desks, ...claims]), act.filter((l) => l.spot === 'desk').map((l) => ({ id: l.facts.id, dept: l.facts.dept })), (id) => applied[id] ?? 0)
-    desks.clear()
-    for (const [id, i] of next) desks.set(id, i)
-    for (const id of claims.keys()) if (desks.has(id)) claims.delete(id)
-    seats = assignSeats(seats, act.filter((l) => l.spot === 'lounge').map((l) => l.facts.id))
+  const slotKey = (d: Desk) => `${d.dept}:${d.slot}`
+
+  function seatCoolers() {
+    const kept = new Map(coolers)
     coolers.clear()
-    act.filter((l) => l.spot === 'cooler').forEach((l, k) => coolers.set(l.facts.id, k))
-    while (coolerVecs.length < coolers.size) coolerVecs.push(new THREE.Vector3())
+    const atCooler = active().filter((l) => l.spot === 'cooler').map((l) => l.facts.id)
+    for (const id of atCooler) if (kept.has(id) && ![...coolers.values()].includes(kept.get(id)!)) coolers.set(id, kept.get(id)!)
+    for (const id of atCooler) {
+      if (coolers.has(id)) continue
+      let k = 0
+      while ([...coolers.values()].includes(k)) k++
+      coolers.set(id, k)
+    }
+    while (coolerVecs.length < Math.max(0, ...coolers.values()) + 1) coolerVecs.push(new THREE.Vector3())
     placeCoolers()
+  }
+
+  function paintDesk(s: Slot, id: string | undefined) {
+    const l = id ? live.get(id) : undefined
+    const here = !!l && !l.gone && l.spot === 'desk'
+    const look = here ? 'here' : l && !l.gone ? `away|${l.facts.title}|${l.facts.colour}|${l.facts.project}` : id ? 'leaving' : 'free'
+    if (s.look === look) return
+    s.look = look
+    setChair(s, !here && !!id)
+    if (here || look === 'leaving') return
+    if (l) {
+      drawScreen(s, { colour: l.facts.colour, title: l.facts.title, state: 'away', caption: '' })
+      drawPlate(s, l.facts)
+    } else {
+      clearScreen(s)
+      drawPlate(s, undefined)
+    }
+  }
+
+  function assign(repacked: boolean) {
+    const holders = new Map([...seating.desks].map(([id, d]) => [slotKey(d), id]))
+    const leaving = new Set([...ghosts.values()].map(slotKey))
+    for (const d of depts)
+      scenes[d.id].slots.forEach((s, i) => {
+        const key = slotKey({ dept: d.id, slot: i })
+        if (s.bare && !leaving.has(key) && (repacked || holders.has(key))) placeSlot(office.rebuildSlot(d.id, i, false)!, anims[d.id].ox, anims[d.id].oz)
+      })
+    seatCoolers()
     for (const l of live.values()) {
-      const slot = l.gone || l.spot !== 'desk' ? undefined : scenes[l.facts.dept].slots[desks.get(l.facts.id)!]
+      const desk = !l.gone && l.spot === 'desk' ? seating.desks.get(l.facts.id) : undefined
+      const slot = desk ? scenes[desk.dept].slots[desk.slot] : undefined
       if (l.slot === slot) continue
-      if (l.slot && ![...live.values()].some((o) => o !== l && o.slot === l.slot)) {
-        drawPlate(l.slot, undefined)
-        clearScreen(l.slot)
-      }
       l.slot = slot
       l.screenKey = ''
     }
+    for (const d of depts) scenes[d.id].slots.forEach((s, i) => paintDesk(s, holders.get(slotKey({ dept: d.id, slot: i }))))
   }
 
   function targetOf(l: Live): Target {
@@ -345,7 +384,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length })
     const p =
       place.anchor === 'queue' ? queueVecs[l.queueIndex]!
-      : place.anchor === 'lounge' ? (seatVecs[seats.get(f.id) ?? 0] ?? doorVec)
+      : place.anchor === 'lounge' ? (seatVecs[seating.seats.get(f.id) ?? 0] ?? doorVec)
       : place.anchor === 'cooler' ? (coolerVecs[coolers.get(f.id) ?? 0] ?? doorVec)
       : !l.slot || place.anchor === 'door' ? doorVec
       : place.anchor === 'stand' ? l.slot.stand
@@ -359,20 +398,30 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function spawn(a: Agent) {
     const walker = newWalker(doorVec)
-    const chip = createChip({ click: () => select(a.id, 'fly'), enter: () => setHovered(a.id), leave: () => focus.hovered === a.id && setHovered(undefined) })
+    const chip = createChip({ click: () => select(a.id, 'fly'), enter: () => setHovered(a.id), leave: () => focus.hovered === a.id && setHovered(undefined), act: (action) => onAction?.(action, a.id) })
     labelScene.add(chip.obj)
     const c = kit.create(a.colour, doorVec, walker, booted, rnd)
     c.chipAt = chip.obj.position.copy(c.chipAt)
     c.proxy.userData.agent = a.id
-    const l: Live = { facts: a, c, chip, gone: false, wait: 0, queueIndex: -1, target: { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }, screenKey: '' }
+    const l: Live = { facts: a, c, chip, gone: false, bye: false, wait: 0, queueIndex: -1, target: { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }, screenKey: '' }
     live.set(a.id, l)
     return l
   }
 
   function leave(l: Live, i: number) {
+    const id = l.facts.id
     l.gone = true
-    l.wait = i * 0.18
-    if (focus.selected === l.facts.id) select(undefined, 'overview')
+    l.bye = finishing.delete(id)
+    l.wait = (l.bye ? 1.1 : 0) + i * 0.18
+    sent.delete(id)
+    const desk = seating.desks.get(id)
+    if (l.bye && desk) {
+      ghosts.set(id, desk)
+      movers.add({ id, ...desk })
+    }
+    if (focus.selected !== id) return
+    if (l.bye) rig.follow = undefined
+    select(undefined, l.bye ? 'keep' : 'overview')
   }
 
   function dispose(l: Live) {
@@ -491,11 +540,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   }
 
   function refresh() {
-    relayout()
-    assign()
+    assign(relayout())
     const act = active()
     queue = buildQueue(
-      act.map((l) => ({ id: l.facts.id, accountId: l.facts.accountId, state: l.facts.state, since: l.facts.since, stuckReason: l.facts.stuckReason })),
+      act.filter((l) => !sent.has(l.facts.id)).map((l) => ({ id: l.facts.id, accountId: l.facts.accountId, state: l.facts.state, since: l.facts.since, stuckReason: l.facts.stuckReason })),
       logins,
     )
     const positions = queuePositions(queue)
@@ -623,6 +671,12 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerleave', onLeave)
 
+  const deskCentre = (job: { dept: DeptId; slot: number }) => {
+    const s = scenes[job.dept].slots[job.slot]
+    return s && new THREE.Vector3(s.bx + anims[job.dept].ox, 0, s.bz + anims[job.dept].oz)
+  }
+  const movers = createMovers(scene, kit, (a, b) => nav.route(a, b), deskCentre, motion)
+
   const timers = [
     setInterval(() => {
       if (!document.hidden) guard.run('auction screen', undefined, office.tickAuction)
@@ -644,10 +698,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function layoutDeskChips(zoomed: boolean) {
     for (const chip of deskChips.values()) chip.visible = false
     if (!zoomed || !onNewDesk || layU < 1) return
-    const taken = new Set(active().map((l) => l.slot))
+    const taken = new Set([...seating.desks.values()].map(slotKey))
     for (const d of shown())
       scenes[d.id].slots.forEach((slot, i) => {
-        if (taken.has(slot)) return
+        if (taken.has(slotKey({ dept: d.id, slot: i }))) return
         const chip = deskChip(d.id, i)
         chip.position.copy(slot.chip)
         chip.visible = true
@@ -675,6 +729,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     for (const l of live.values()) {
       const who = labelled(l)
       const mode = l.gone ? 0 : chipMode(who, focus, zoomed)
+      const acts = mode && (mode === 2 || zoomed) && canRest(l.facts.state) ? (l.spot === 'lounge' ? 'done' : 'both') : undefined
+      setChipActions(l.chip, acts)
       if (mode) {
         projected.copy(l.c.chipAt)
         const distance = projected.distanceToSquared(camera.position)
@@ -686,7 +742,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
             key: f.id,
             x: ((projected.x + 1) / 2) * w,
             y: ((1 - projected.y) / 2) * h,
-            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0 && f.subagents.length < 3, l.queueIndex >= 0),
+            hw: chipHalfWidth(f.title, f.caption, far, f.state === 'working' && f.subagents.length > 0 && f.subagents.length < 3, l.queueIndex >= 0) + (acts === 'both' ? 50 : acts ? 22 : 0),
             miniHw: l.queueIndex >= 0 ? 22 : 14,
             h: (far ? 32 : 38) + (bubble ? (far ? 30 : 36) : 0),
             priority: mode === 2 ? 0 : loud(who) ? 1 : stateKey(f.state) === 'working' ? 2 : f.state === 'done' ? 3 : 4,
@@ -731,7 +787,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
           let target = l.target
           if (l.gone && l.wait > 0) {
             l.wait -= dt
-            target = { ...l.target, p: l.c.walker.pos }
+            target = { ...l.target, p: l.c.walker.pos, ...(l.bye ? { pose: 'wave' as const, face: null } : {}) }
           }
           const looking = focus.selected === l.facts.id || focus.hovered === l.facts.id
           return animate(l.c, target, kit, l.facts.colour, { dt, t, motion, faceCamera, route, looking, dim: isDim(labelled(l), focus), gone: l.gone })
@@ -740,6 +796,16 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
         dispose(l)
         refresh()
       }
+    }
+    const crew = guard.run('movers', undefined, () => movers.step(dt, t))
+    if (crew) {
+      for (const job of crew.picked) {
+        const s = office.rebuildSlot(job.dept, job.slot, true)
+        if (s) placeSlot(s, anims[job.dept].ox, anims[job.dept].oz)
+      }
+      for (const job of crew.cleared) ghosts.delete(job.id)
+      if (crew.cleared.length) refresh()
+      moved ||= crew.active
     }
     guard.run('layout', undefined, () => stepLayout(dt))
     if (pendingLayout && now - lastPend > 500) {
@@ -778,6 +844,16 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     claimDesk(chatId: string, slot: number) {
       claims.set(chatId, slot)
       refresh()
+    },
+    sendToLounge(chatId: string) {
+      sent.add(chatId)
+      refresh()
+    },
+    finishing(chatIds: readonly string[], on: boolean) {
+      for (const id of chatIds) {
+        if (on) finishing.add(id)
+        else finishing.delete(id)
+      }
     },
     setFilter,
     setReviews(requests: readonly ReviewRequest[]) {

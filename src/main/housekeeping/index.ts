@@ -1,8 +1,9 @@
 import { EventEmitter } from 'node:events'
 import { totalmem } from 'node:os'
+import { basename } from 'node:path'
 import type { BrowserWindow } from 'electron'
-import type { ChatState } from '../../shared/chat'
-import { hotShare, visitorHold, type AgentMemory, type CleanupSummary, type GitSafety, type HousekeepingView, type OutsideMemory, type Proc, type StopReport } from '../../shared/housekeeping'
+import { isBusy, type ChatState, type ChatView } from '../../shared/chat'
+import { hotShare, plural, visitorHold, type AgentMemory, type CleanupSummary, type Finished, type FinishedMany, type GitSafety, type HousekeepingView, type OutsideMemory, type Proc, type StopReport } from '../../shared/housekeeping'
 import { handle, send } from '../ipc'
 import type { Visitors } from '../outside/visitors'
 import { repoRoot } from '../permissions/repo-root'
@@ -10,6 +11,7 @@ import { run as runCommand, type Run } from '../review/git'
 import type { Engine } from '../sessions/manager'
 import type { ChatStore } from '../store/chats'
 import { gitSafety, isAlive, removeWorktree, stopProcesses, type Signals } from './cleanup'
+import { finishSteps, type Confirm, type FinishSteps } from './finish'
 import { diskBytes, inside, isClaude, listWorktrees, processTable, processTree, toProc, workingDirs, type ProcessRow, type Worktree } from './resources'
 import { cleanupCandidates, cleanupNotice, parkStale, readThresholds, toThresholds, type CleanupNotice } from './stale'
 
@@ -49,8 +51,16 @@ const settled = new Set<ChatState>(['idle', 'done', 'stuck'])
 const total = (items: readonly { bytes: number }[]) => items.reduce((sum, item) => sum + item.bytes, 0)
 const noStop: StopReport = { freedBytes: 0, stopped: 0, stubborn: [] }
 const noVisitors: VisitorList = { views: () => [], view: () => undefined, archive: () => false }
+const gone = 'That chat isn’t in the office any more.'
 
-export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'park' | 'archive'>, engine: Pick<Engine, 'pid' | 'stop'>, settings: Settings, system: System, notifyCleanup: (count: number) => void = () => {}, visitors: VisitorList = noVisitors) {
+interface FinishPlan {
+  chat: Readonly<ChatView>
+  visitor: boolean
+  tree?: Listed
+  steps: FinishSteps
+}
+
+export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'park' | 'archive' | 'stopChat'>, engine: Pick<Engine, 'pid' | 'stop'>, settings: Settings, system: System, notifyCleanup: (count: number) => void = () => {}, visitors: VisitorList = noVisitors) {
   const events = new EventEmitter<{ view: [HousekeepingView] }>()
   const repos = new Map<string, string>()
   const sizes = new Map<string, { bytes: number; at: number }>()
@@ -212,6 +222,37 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     return bytes === undefined ? {} : { bytes }
   }
 
+  async function planFinish(chatId: unknown): Promise<FinishPlan | { error: string }> {
+    const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
+    const chat = typeof chatId === 'string' ? (store.view(chatId) ?? visitor) : undefined
+    if (!chat || chat.archived) return { error: gone }
+    const tree = worktreeOf(chat.cwd)
+    const shared = tree && live().some((other) => other.id !== chat.id && inside(other.cwd, tree.path)) ? 'another chat still works in it' : undefined
+    const blocked = tree && (shared ?? (await blockedReason(tree)))
+    return { chat, visitor: !!visitor, tree, steps: finishSteps(chat, tree && { name: basename(tree.path), blocked }) }
+  }
+
+  async function runFinish({ chat, visitor, tree, steps }: FinishPlan): Promise<Finished> {
+    const now = store.view(chat.id) ?? visitors.view(chat.id)
+    if (!now || now.archived) return { error: gone }
+    if (isBusy(now.state) && (visitor || !steps.stop)) return { error: 'It started working again, so nothing was changed.' }
+    const keep = tree && !steps.remove ? { kept: tree.path } : {}
+    if (visitor) {
+      const error = tree && steps.remove ? await remove(tree) : undefined
+      visitors.archive(chat.id)
+      return error ? { error, kept: tree!.path } : tree && steps.remove ? { removed: tree.path } : keep
+    }
+    const report = await stopTree(chat.id, true)
+    if (isBusy(now.state)) store.stopChat(chat.id)
+    store.archive(chat.id)
+    if (!tree || !steps.remove) return keep
+    if (report.stubborn.length) return { error: 'A process didn’t exit, so the worktree was kept.', kept: tree.path }
+    const error = await remove(tree)
+    if (error) return { error, kept: tree.path }
+    sizes.delete(tree.path)
+    return { removed: tree.path }
+  }
+
   function measure(): Promise<void> {
     return (measuring ??= (async () => {
       for (const tree of worktrees) {
@@ -318,6 +359,50 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       return removeListed(tree)
     },
 
+    async finish(chatId: unknown, ask: Confirm): Promise<Finished | undefined> {
+      await sample()
+      const plan = await planFinish(chatId)
+      if ('error' in plan) return plan
+      const { steps } = plan
+      if (steps.refuse) return { error: steps.refuse }
+      if (steps.stop && !(await ask('Stop and finish this chat?', 'It’s still working. Stopping interrupts its turn, then the chat is archived.', 'Stop and finish'))) return undefined
+      if (steps.keep && !(await ask(steps.keep, 'The chat is archived and the worktree stays on disk.', 'Archive only'))) return undefined
+      const result = await runFinish(plan)
+      await sample()
+      return result
+    },
+
+    async finishMany(chatIds: unknown, ask: Confirm): Promise<FinishedMany | undefined> {
+      await sample()
+      const ids = [...new Set(Array.isArray(chatIds) ? chatIds.filter((id): id is string => typeof id === 'string') : [])]
+      const out: FinishedMany = { finished: [], skipped: [], removed: 0 }
+      const plans: FinishPlan[] = []
+      for (const chatId of ids) {
+        const plan = await planFinish(chatId)
+        const reason = 'error' in plan ? plan.error : plan.steps.refuse ?? (plan.steps.stop ? 'it’s still working' : undefined)
+        if (reason) out.skipped.push({ chatId, reason })
+        else plans.push(plan as FinishPlan)
+      }
+      if (!plans.length) return out
+      const removing = plans.filter((plan) => plan.steps.remove)
+      const keeping = plans.filter((plan) => plan.steps.keep)
+      const lines = [
+        `Archive ${plural(plans.length, 'chat')}.`,
+        ...(removing.length ? [`Remove ${plural(removing.length, 'worktree')}: ${removing.map((plan) => basename(plan.tree!.path)).join(', ')}.`] : []),
+        ...keeping.map((plan) => `Keep ${plan.steps.keep!.replace(/: archive only and keep the worktree\?$/, '')}.`),
+        ...out.skipped.map((skip) => `Skip ${store.view(skip.chatId)?.title ?? visitors.view(skip.chatId)?.title ?? 'a chat'}: ${skip.reason.replace(/\.$/, '')}.`),
+      ]
+      if (!(await ask(`Clear ${plural(plans.length, 'chat')}?`, lines.join('\n'), 'Clear'))) return undefined
+      for (const plan of plans) {
+        const result = await runFinish(plan)
+        if (result.error && !result.kept) out.skipped.push({ chatId: plan.chat.id, reason: result.error })
+        else out.finished.push(plan.chat.id)
+        if (result.removed) out.removed++
+      }
+      await sample()
+      return out
+    },
+
     setThresholds(value: unknown): HousekeepingView {
       const next = toThresholds(value)
       if (next) {
@@ -339,7 +424,9 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   }
 }
 
-export function wireHousekeeping(win: BrowserWindow, appUrl: string, house: Housekeeping): void {
+export function wireHousekeeping(win: BrowserWindow, appUrl: string, house: Housekeeping, confirm: Confirm = async () => false): void {
+  handle('finishChat', win, appUrl, (chatId) => house.finish(chatId, confirm))
+  handle('finishChats', win, appUrl, (chatIds) => house.finishMany(chatIds, confirm))
   handle('getHousekeeping', win, appUrl, async (fresh) => (fresh === true ? house.refresh() : house.view()))
   handle('stopProcesses', win, appUrl, house.stopChat)
   handle('archiveChat', win, appUrl, house.archive)

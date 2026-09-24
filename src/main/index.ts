@@ -133,7 +133,7 @@ async function start(): Promise<void> {
     shown: (chatId) => win.isVisible() && win.isFocused() && sync.openChat() === chatId,
   })
   const house = createHousekeeping(store, engine, db, fakeEngine ? { ...realSystem(), ...fakeEngine.processes, graceMs: 1000 } : realSystem(), notifier.cleanup, outside.visitors)
-  wireHousekeeping(win, appUrl, house)
+  wireHousekeeping(win, appUrl, house, confirm)
   house.start()
   const strip = createTray(() => show({ to: 'inbox' }), () => stripState([...store.views(), ...outside.visitors.views()], loginItems(accounts.list())))
   store.events.on('patch', (patch) => {

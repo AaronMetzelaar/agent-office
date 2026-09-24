@@ -1,5 +1,6 @@
 import { Color } from 'three'
 import { ago, applyPatch, doingNow, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
+import type { Finished, FinishedMany } from '../../shared/housekeeping'
 import type { AccountView } from '../../shared/ipc'
 import { showsAccountBadge } from '../../shared/departments'
 import { departmentOf, isResearch, palette, type DeptId } from '../../shared/office'
@@ -8,6 +9,8 @@ export interface ChatSource {
   getSnapshot(): Promise<ChatSnapshot>
   onChatPatches(listener: (batch: ChatPatchBatch) => void): () => void
   onWindowVisibility?(listener: (payload: { visible: boolean }) => void): () => void
+  finishChat?(chatId: string): Promise<Finished | undefined>
+  finishChats?(chatIds: string[]): Promise<FinishedMany | undefined>
 }
 
 export type Projection = ReturnType<typeof createProjection>

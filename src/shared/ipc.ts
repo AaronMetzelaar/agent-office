@@ -1,6 +1,6 @@
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
-import type { CleanupSummary, HousekeepingView, StopReport, Thresholds } from './housekeeping'
+import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
 import type { ReviewQueue, ShipIt, TicketLookup } from './workflow'
@@ -92,6 +92,8 @@ export interface Commands {
   removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
   removeVisitorWorktree(chatId: string): Promise<{ error?: string; bytes?: number }>
   setThresholds(thresholds: Thresholds): HousekeepingView
+  finishChat(chatId: string): Promise<Finished | undefined>
+  finishChats(chatIds: string[]): Promise<FinishedMany | undefined>
   getShipIt(chatId: string): Promise<ShipIt>
   lookupTicket(text: string): Promise<TicketLookup>
   moveTicket(chatId: string): Promise<{ status?: string; error?: string }>

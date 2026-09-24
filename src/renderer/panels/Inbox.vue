@@ -7,7 +7,7 @@ import type { Inbox, WaitingItem } from '../state/inbox'
 import ReviewRequests from './ReviewRequests.vue'
 
 const props = defineProps<{ inbox: Inbox; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: [] }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: []; finish: [chatIds: string[]] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
@@ -142,13 +142,19 @@ onUnmounted(() => {
     </section>
     <p v-if="!inbox.board.length" class="none">Nobody else is working right now.</p>
     <details v-if="inbox.standby.length" class="grp standby">
-      <summary>Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span></summary>
-      <button v-for="row in inbox.standby" :key="row.id" type="button" class="brow" @click="emit('select', row.id)">
-        <i class="sd" :style="{ background: row.colour }" />
-        <span class="bt">{{ row.title }}</span>
-        <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
-        <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
-      </button>
+      <summary>
+        Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span>
+        <button type="button" class="btn sm clear" title="Archive every chat in the lounge and remove the worktrees that are safe to remove. Shows what it will do first." @click.prevent.stop="emit('finish', inbox.standby.map((row) => row.id))">Clear all done</button>
+      </summary>
+      <div v-for="row in inbox.standby" :key="row.id" class="srow">
+        <button type="button" class="brow" @click="emit('select', row.id)">
+          <i class="sd" :style="{ background: row.colour }" />
+          <span class="bt">{{ row.title }}</span>
+          <span class="bm">{{ row.dozing ? 'dozing' : '' }}</span>
+          <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · done {{ since(row.at) }} ago</span>
+        </button>
+        <button type="button" class="btn sm sdone" :aria-label="`Done: finish ${row.title}`" title="Archive the chat and clean up its worktree" @click="emit('finish', [row.id])">Done</button>
+      </div>
     </details>
     <button v-if="inbox.parked || cleanup" type="button" class="pfoot" @click="emit('house')">
       <span><b>{{ inbox.parked }} parked</b> · quiet for a while</span><span>{{ cleanup ? `${cleanup} to clean up →` : 'Housekeeping →' }}</span>
@@ -548,6 +554,35 @@ onUnmounted(() => {
   font-size: 10.5px;
   font-weight: 400;
   color: var(--muted);
+}
+
+.standby .srow {
+  position: relative;
+}
+
+.standby .srow + .srow {
+  border-top: 1px solid var(--line2);
+}
+
+.standby .srow .brow {
+  padding-right: 64px;
+}
+
+.standby .sdone {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  translate: 0 -50%;
+  opacity: 0.55;
+}
+
+.standby .srow:hover .sdone,
+.standby .sdone:focus-visible {
+  opacity: 1;
+}
+
+.standby summary .clear {
+  margin-left: 8px;
 }
 
 .standby .bd .dd {

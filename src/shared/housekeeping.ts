@@ -87,6 +87,18 @@ export interface CleanupSummary {
   stubborn: Proc[]
 }
 
+export interface Finished {
+  error?: string
+  removed?: string
+  kept?: string
+}
+
+export interface FinishedMany {
+  finished: string[]
+  skipped: { chatId: string; reason: string }[]
+  removed: number
+}
+
 export const hotShare = 0.4
 export const recentMs = 10 * 60_000
 

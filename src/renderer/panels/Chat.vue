@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
 import { defaultModel, effortLabels, efforts, modelLabels, type ChatView, type Effort } from '../../shared/chat'
+import { canRest } from '../office/standby'
 import { runsIn } from '../../shared/housekeeping'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
 import type { AgentEntry } from '../office/world'
@@ -15,7 +16,7 @@ import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
 const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string] }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; finish: [chatIds: string[]] }>()
 
 const tab = ref<'chat' | 'review'>('chat')
 const flash = ref('')
@@ -118,7 +119,11 @@ onUnmounted(() => {
         <h2>{{ agent.title }}</h2>
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
-      <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
+      <div class="hact">
+        <button v-if="chat && canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
+        <button v-if="chat" type="button" class="btn sm" title="Finish: archive the chat and clean up its worktree" @click="emit('finish', [chat.id])">Done</button>
+        <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
+      </div>
     </div>
     <div v-if="chat?.visitor" class="visit" role="status">
       <p>{{ chat.moved ? 'Moved into the office. This original stays read-only.' : `Read-only. It runs in ${runsIn(chat)}.` }}</p>
@@ -172,6 +177,12 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.chatp .hact {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .chatp .qstrip {
