@@ -84,6 +84,8 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   const usedOutside = (path: string) => claudeDirs.some((cwd) => inside(cwd, path))
   const heldBy = (path: string) => visitors.views().flatMap((chat) => (inside(chat.cwd, path) ? [visitorHold(chat, system.now())] : [])).find(Boolean)
   const table = () => processTable(system.run).catch((): ProcessRow[] => [])
+  const sharers = (path: string, except?: string) => live().filter((chat) => chat.id !== except && chat.finished === undefined && inside(chat.cwd, path))
+  const busyIn = (path: string, except?: string) => sharers(path, except).some((chat) => isBusy(chat.state))
 
   function view(): HousekeepingView {
     const now = system.now()
@@ -96,7 +98,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     const chats = [...live(), ...visitors.views()]
     const removable = chats.flatMap((chat) => {
       const tree = worktreeOf(chat.cwd)
-      const ok = tree && git.get(tree.path)?.safe === true && !tree.locked && !usedOutside(tree.path) && !heldBy(tree.path) && !live().some((other) => other.id !== chat.id && inside(other.cwd, tree.path))
+      const ok = tree && git.get(tree.path)?.safe === true && !tree.locked && !usedOutside(tree.path) && !heldBy(tree.path) && !busyIn(tree.path, chat.id)
       return ok ? [chat.id] : []
     })
     return {
@@ -219,8 +221,11 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   }
 
   async function remove(tree: Listed, archiveVisitors = true): Promise<string | undefined> {
+    const resting = sharers(tree.path)
+    await Promise.all(resting.map((chat) => stopTree(chat.id, true)))
     const error = await removeWorktree(system.run, tree.repo, tree.path)
     if (error) return error
+    for (const chat of resting) store.finish(chat.id)
     git.delete(tree.path)
     if (archiveVisitors) for (const chat of visitors.views()) if (inside(chat.cwd, tree.path)) visitors.archive(chat.id)
     return undefined
@@ -242,7 +247,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     const chat = typeof chatId === 'string' ? (store.view(chatId) ?? visitor) : undefined
     if (!chat || chat.archived) return { error: gone }
     const tree = removing ? worktreeOf(chat.cwd) : undefined
-    const shared = tree && live().some((other) => other.id !== chat.id && inside(other.cwd, tree.path)) ? 'another chat still works in it' : undefined
+    const shared = tree && busyIn(tree.path, chat.id) ? 'another chat still works in it' : undefined
     const blocked = tree && (shared ?? (await blockedReason(tree)))
     return { chat, visitor: !!visitor, tree, steps: finishSteps(chat, tree && { name: basename(tree.path), blocked }) }
   }
@@ -341,7 +346,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
         summary.stubborn.push(...report.stubborn)
         if (!tree) continue
         if (report.stubborn.length) skip(chatId, 'a process didn’t exit, so the worktree was kept')
-        else if (live().some((other) => inside(other.cwd, tree.path))) skip(chatId, 'another chat still works in the worktree, so it was kept')
+        else if (busyIn(tree.path)) skip(chatId, 'another chat still works in the worktree, so it was kept')
         else {
           const error = await remove(tree)
           if (error) skip(chatId, error)
@@ -370,7 +375,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       await sample()
       const tree = worktreeOf(visitor.cwd)
       if (!tree) return { error: 'This chat doesn’t work in a git worktree.' }
-      if (live().some((chat) => inside(chat.cwd, tree.path))) return { error: 'An office chat still works in it. Clean up that chat instead.' }
+      if (busyIn(tree.path)) return { error: 'An office chat still works in it. Clean up that chat instead.' }
       return removeListed(tree)
     },
 

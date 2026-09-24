@@ -120,6 +120,28 @@ describe('finishing an office chat', () => {
     expect(existsSync(tree)).toBe(false)
   })
 
+  it('removes a worktree shared with a chat resting in the Lounge, finishing that one too, but not one shared with a working chat', async () => {
+    const tree = worktree('shared')
+    const id = office.start('Office work', 'main', tree)
+    office.finish(id)
+    const lounging = office.start('Original', 'main', tree)
+    office.finish(lounging)
+    office.store.park(lounging)
+    const working = office.start('Busy', 'main', worktree('busy'))
+    const beside = office.start('Beside', 'main', join(repo, '.claude', 'worktrees', 'busy'))
+    office.finish(beside)
+    const { house } = openHousekeeping(office)
+    const view = await house.sample()
+    expect(view.removable).toContain(id)
+    expect(view.removable).not.toContain(beside)
+    expect(office.chat(working).state).not.toBe('idle')
+
+    expect(await house.finish(id, true, async () => false)).toEqual({ removed: tree })
+    expect(existsSync(tree)).toBe(false)
+    expect(finished(lounging)).toBe(true)
+    expect(office.engine.running(lounging)).toBe(false)
+  })
+
   it('asks before finishing only when the worktree has uncommitted changes, and changes nothing on no', async () => {
     const tree = worktree('dirty', true)
     const id = office.start('Office work', 'main', tree)
