@@ -95,6 +95,7 @@ export interface Commands {
   setSetting(name: SettingName, value: boolean | string): Settings
   openNotificationSettings(): void
   simulatorScreenshot(device: string): Promise<SimulatorShot>
+  openArtifact(path: string, url: string): Promise<void>
   getReview(chatId: string): Promise<Review>
   getCiLog(chatId: string, checkId: string): Promise<CiLog>
   openInEditor(chatId: string, path: string, line?: number): Promise<{ error: string } | undefined>

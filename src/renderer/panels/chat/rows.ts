@@ -102,3 +102,32 @@ export function subagentState(row: ToolRow, running: ReadonlySet<string>): 'runn
 }
 
 export const plainLabel = (row: ChatRow) => ('label' in row && typeof row.label === 'string' ? row.label : String((row as { kind?: unknown }).kind ?? 'event'))
+
+export type Artifact = { title: string; url: string; path: string; version?: number; edited: boolean }
+
+export function artifacts(rows: readonly ChatRow[]): Map<string, Artifact> {
+  const published = new Map<string, Artifact>()
+  const seen = new Set<string>()
+  for (const row of rows) {
+    if (row.kind !== 'tool' || row.name !== 'Artifact' || !row.result || row.result.isError) continue
+    const input = (row.input ?? {}) as Record<string, unknown>
+    if (input.action !== undefined && input.action !== 'publish') continue
+    const url = /\bat (https:\/\/\S+)/.exec(row.result.text)?.[1] ?? text(input.url)
+    const path = text(input.file_path)
+    if (!url || !path) continue
+    const version = Number(/\(Version (\d+)\)/.exec(row.result.text)?.[1]) || undefined
+    const title = text(input.title) || baseName(path).replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
+    published.set(row.id, { title, url, path, version, edited: seen.has(url) || !!input.url || (version ?? 1) > 1 })
+    seen.add(url)
+  }
+  return published
+}
+
+export function latestArtifacts(rows: readonly ChatRow[]): Artifact[] {
+  const byUrl = new Map<string, Artifact>()
+  for (const artifact of artifacts(rows).values()) {
+    byUrl.delete(artifact.url)
+    byUrl.set(artifact.url, artifact)
+  }
+  return [...byUrl.values()].reverse()
+}

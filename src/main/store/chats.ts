@@ -68,6 +68,8 @@ export function describeTool(name: string, input: unknown): string {
     case 'WebFetch':
     case 'WebSearch':
       return 'Searching the web'
+    case 'Artifact':
+      return 'Publishing an artifact'
     case simulatorTool:
       return `Using the simulator · ${String(args.action ?? '')}`
     default:

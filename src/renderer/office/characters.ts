@@ -72,6 +72,8 @@ export interface Character {
   walker: Walker
   anim: Anim
   ring: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
+  folder: THREE.Group
+  held: number
   disc: THREE.Mesh
   proxy: THREE.Mesh
   minis: Mini[]
@@ -97,10 +99,12 @@ export interface Target {
   homeKind: 'desk' | 'gym' | 'none'
   parked: boolean
   needs: boolean
+  folder: boolean
   subs: number
   miniCentre?: THREE.Vector3
 }
 
+const ease = (u: number) => u * u * (3 - 2 * u)
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 function spring(a: Anim, k: 'y' | 'turn' | keyof Joints, to: number, dt: number, w: number) {
@@ -200,6 +204,10 @@ export function createKit(scene: THREE.Scene) {
     scene.add(breath, ...puffs.map((p) => p.m))
     return { stick, tip, puffs, breath }
   }
+  const folderGeo = mergeGeometries([new THREE.BoxGeometry(0.46, 0.36, 0.022), new THREE.BoxGeometry(0.16, 0.05, 0.022).translate(-0.13, 0.2, 0)]).translate(0, 0.14, 0)
+  const sheetGeo = new THREE.BoxGeometry(0.4, 0.3, 0.014).translate(0, 0.2, 0)
+  const folderM = new THREE.MeshStandardMaterial({ color: 0xf2a922, roughness: 0.7 })
+  const paperM = new THREE.MeshStandardMaterial({ color: 0xfbfaf6, roughness: 0.8 })
 
   function part(g: THREE.BufferGeometry, m: THREE.Material, p: THREE.Object3D) {
     const o = new THREE.Mesh(g, m)
@@ -267,8 +275,15 @@ export function createKit(scene: THREE.Scene) {
     proxy.visible = false
     body.g.add(proxy)
     body.g.position.copy(at)
+    const folder = new THREE.Group()
+    folder.add(new THREE.Mesh(sheetGeo, paperM), new THREE.Mesh(folderGeo, folderM))
+    folder.position.set(0.5, 0.5, 0.08)
+    folder.rotation.set(-0.35, -0.3, -0.12)
+    folder.scale.setScalar(0.001)
+    folder.visible = false
+    body.hips.add(folder)
     return {
-      body, walker, ring, disc, proxy, minis: [], chipAt: new THREE.Vector3(at.x, 1.42, at.z),
+      body, walker, ring, disc, proxy, folder, held: 0, minis: [], chipAt: new THREE.Vector3(at.x, 1.42, at.z),
       anim: { v: {}, y: 0, cyc: 0, turn: 0, gx: 0, gy: 0, ...pose.stand },
       ph: rnd() * 6, nextBlink: 1 + rnd() * 3, blinkAt: -9, gazeAt: 0, gtx: 0, gty: 0, born: spawn ? 0 : 1, out: 0, rr: 0.4,
     }
@@ -380,6 +395,15 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   b.arms[1]!.rotation.x = a.a1 - ao - typ + rub - drag * 1.5
   b.arms[0]!.rotation.z = a.z0
   b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0) - drag * 0.35
+  c.held += ((T.folder && !f.gone && name !== 'sleep' && name !== 'smoke' ? 1 : 0) - c.held) * Math.min(1, dt * 6)
+  c.folder.visible = c.held > 0.02
+  if (c.folder.visible) {
+    const lift = ease(c.held)
+    b.arms[1]!.rotation.x += (-0.1 - b.arms[1]!.rotation.x) * lift
+    b.arms[1]!.rotation.z += (2.5 + (name === 'wave' ? 0 : Math.sin(t * 2.4 + c.ph) * 0.1 * am) - b.arms[1]!.rotation.z) * lift
+    c.folder.scale.setScalar(Math.max(0.001, lift))
+    c.folder.position.y = 0.5 + Math.sin(t * 2.4 + c.ph) * 0.015 * am
+  }
   b.hips.rotation.set(a.lean, name === 'lean' ? Math.sin(t * 0.8 + c.ph) * 0.06 * am : 0, roll)
   b.hips.position.y = 0.17 + (name === 'wave' ? Math.abs(Math.sin(t * 4.5)) * 0.06 * am : 0)
   const br = name === 'sleep' ? Math.sin(t * 1.3 + c.ph) * 0.035 * am : Math.sin(t * 2.1 + c.ph) * (name === 'lounge' ? 0.026 : 0.018) * am

@@ -15,6 +15,7 @@ import { pinFolder } from './folders'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { simulatorScreenshot } from './simulator'
+import { openArtifact } from './artifacts'
 import { createTray } from './tray'
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
@@ -82,6 +83,7 @@ async function start(): Promise<void> {
   })
   handle('openNotificationSettings', win, appUrl, () => void shell.openExternal('x-apple.systempreferences:com.apple.Notifications-Settings.extension'))
   handle('simulatorScreenshot', win, appUrl, simulatorScreenshot)
+  handle('openArtifact', win, appUrl, openArtifact)
   handle('getHostStatus', win, appUrl, () => status)
 
   if (prepared) {

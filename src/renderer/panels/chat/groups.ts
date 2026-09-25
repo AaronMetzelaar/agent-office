@@ -1,9 +1,10 @@
 import type { ChatRow } from '../../../shared/chat'
-import { entries, isSubagent, toolTarget, type ToolRow } from './rows'
+import { artifacts, entries, isSubagent, toolTarget, type Artifact, type ToolRow } from './rows'
 
 export type AgentItem = { kind: 'agent'; row: ToolRow; items: Item[]; summary: string }
 export type GroupItem = { kind: 'group'; id: string; rows: ChatRow[]; summary: string }
-export type Item = { kind: 'row'; row: ChatRow } | AgentItem | GroupItem
+export type ArtifactItem = { kind: 'artifact'; row: ToolRow; artifact: Artifact }
+export type Item = { kind: 'row'; row: ChatRow } | AgentItem | GroupItem | ArtifactItem
 
 type Phrase = (count: number) => string
 type Kind = { key: string; phrase: Phrase; perFile?: boolean }
@@ -90,11 +91,13 @@ function subagentLine(row: ToolRow, children: readonly ChatRow[]): string {
   return [text(inputOf(row).subagent_type), steps.length ? summarize(steps) : ''].filter(Boolean).join(' · ')
 }
 
-export function items(rows: readonly ChatRow[]): Item[] {
+export function items(rows: readonly ChatRow[], published = artifacts(rows)): Item[] {
   const out: Item[] = []
   for (const { row, children } of entries(rows)) {
     const last = out.at(-1)
-    if (!groupable(row)) out.push(row.kind === 'tool' ? { kind: 'agent', row, items: items(children), summary: subagentLine(row, children) } : { kind: 'row', row })
+    const artifact = published.get(row.id)
+    if (artifact && row.kind === 'tool') out.push({ kind: 'artifact', row, artifact })
+    else if (!groupable(row)) out.push(row.kind === 'tool' ? { kind: 'agent', row, items: items(children, published), summary: subagentLine(row, children) } : { kind: 'row', row })
     else if (last?.kind === 'group') last.rows.push(row)
     else out.push({ kind: 'group', id: row.id, rows: [row], summary: '' })
   }

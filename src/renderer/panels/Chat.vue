@@ -2,11 +2,14 @@
 import { computed, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
 import { defaultModel, effortLabels, efforts, modelLabels, simulatorOf, usingSimulator, type ChatView, type Effort } from '../../shared/chat'
 import { canRest } from '../office/standby'
+import { hasNewArtifact, sawArtifacts } from '../state/artifacts'
 import { runsIn } from '../../shared/housekeeping'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
 import type { AgentEntry } from '../office/world'
 import type { WaitingItem } from '../state/inbox'
+import ArtifactCard from './chat/ArtifactCard.vue'
 import { answeredElsewhere } from './chat/cards'
+import { latestArtifacts } from './chat/rows'
 import Composer from './chat/Composer.vue'
 import PlanCard from './chat/PlanCard.vue'
 import QuestionCard from './chat/QuestionCard.vue'
@@ -18,9 +21,9 @@ import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 
 const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean; removable?: boolean }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; finish: [chatIds: string[], withTrees?: boolean] }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; saw: []; finish: [chatIds: string[], withTrees?: boolean] }>()
 
-const tab = ref<'chat' | 'review' | 'simulator'>('chat')
+const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
 const flash = ref('')
 const moving = ref(false)
 const seen = shallowReactive(new Map<string, PendingRequestView>())
@@ -30,6 +33,7 @@ let flashTimer: ReturnType<typeof setTimeout> | undefined
 const waiting = computed(() => [...new Set(props.queue.flatMap((item) => (item.chatId ? [item.chatId] : [])))])
 const at = computed(() => waiting.value.indexOf(props.agent.id))
 const device = computed(() => (props.chat ? simulatorOf(props.chat.rows) : undefined))
+const published = computed(() => (props.chat ? latestArtifacts(props.chat.rows) : []))
 const pending = computed(() => props.chat?.pendingRequests ?? [])
 const elsewhere = computed(() => answeredElsewhere(seen, pending.value, props.chat?.answered).filter((card) => !dismissed.has(card.request.id)))
 const models = computed(() => {
@@ -84,9 +88,16 @@ watch(
   (chatId) => {
     seen.clear()
     dismissed.clear()
-    tab.value = props.chat && usingSimulator(props.chat) ? 'simulator' : 'chat'
+    tab.value = props.chat && usingSimulator(props.chat) ? 'simulator' : props.chat && hasNewArtifact(props.chat) ? 'artifacts' : 'chat'
     flash.value = ''
     void window.office.setOpenChat(chatId)
+  },
+  { immediate: true },
+)
+watch(
+  () => tab.value === 'artifacts' && props.chat,
+  (chat) => {
+    if (chat && sawArtifacts(chat)) emit('saw')
   },
   { immediate: true },
 )
@@ -135,6 +146,7 @@ onUnmounted(() => {
         <button type="button" role="tab" :aria-selected="tab === 'chat'" @click="tab = 'chat'">Chat</button>
         <button type="button" role="tab" :aria-selected="tab === 'review'" @click="tab = 'review'">Review</button>
         <button v-if="device" type="button" role="tab" :aria-selected="tab === 'simulator'" @click="tab = 'simulator'">Simulator</button>
+        <button v-if="published.length" type="button" role="tab" :aria-selected="tab === 'artifacts'" @click="tab = 'artifacts'">Artifacts · {{ published.length }}</button>
       </div>
       <select v-if="chat && !chat.visitor" aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
         <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
@@ -151,6 +163,9 @@ onUnmounted(() => {
     </template>
     <Simulator v-else-if="tab === 'simulator' && device" :key="device" :device="device" />
     <Review v-else-if="tab === 'review' && chat" :chat="chat" />
+    <div v-else-if="tab === 'artifacts'" class="arts">
+      <ArtifactCard v-for="artifact in published" :key="artifact.url" :artifact="artifact" />
+    </div>
     <div v-if="chat && (pending.length || elsewhere.length)" class="cards">
       <template v-for="(request, index) in pending" :key="request.id">
         <PlanCard v-if="request.tool === 'ExitPlanMode'" :request="request" :first="index === 0" @decide="decide(request, $event)" />
@@ -310,6 +325,16 @@ onUnmounted(() => {
 
 .chatp .doing {
   margin: 8px 16px 0;
+}
+
+.chatp .arts {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
 .chatp .cards {

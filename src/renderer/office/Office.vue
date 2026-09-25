@@ -12,6 +12,7 @@ import Inbox from '../panels/Inbox.vue'
 import NewAgent from '../panels/NewAgent.vue'
 import { buildInbox, emptyInbox, finishedOf } from '../state/inbox'
 import { keyAction } from '../state/keys'
+import { hasNewArtifact } from '../state/artifacts'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
 import { createCamera, type View } from './camera'
 import { stateKey, type ChipAction, type StateKey } from './labels'
@@ -68,7 +69,7 @@ function push() {
   const w = world.value
   if (!w) return
   for (const id of leaving) if (projection.chats.get(id)?.finished !== undefined) leaving.delete(id)
-  const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours).filter((a) => !leaving.has(a.id))
+  const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours, hasNewArtifact).filter((a) => !leaving.has(a.id))
   for (const a of agents) colours.set(a.id, a.colour)
   inbox.value = buildInbox(projection.chats, agents, projection.logins, w.sentAway())
   w.sync(agents, projection.logins)
@@ -325,7 +326,7 @@ onUnmounted(() => {
   <aside class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
-    <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
+    <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
     <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
     <button type="button" class="limits" aria-label="Account usage" @click="emit('accounts')">
       <span v-for="account in accounts" :key="account.id" :class="{ hot: account.health.status === 'needs-login' || Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0) >= 80 }">

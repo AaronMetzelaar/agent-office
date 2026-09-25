@@ -94,3 +94,23 @@ describe('grouping rows', () => {
     ])
   })
 })
+
+describe('artifacts', () => {
+  const published = (path: string, url: string, version?: number) => tool('Artifact', { file_path: path }, { text: `Published ${path} at ${url}${version ? ` (Version ${version})` : ''}\n\nTo update: republish`, isError: false })
+
+  it('shows each publish as its own card, marking republishes as updates', () => {
+    const rows = [bash('ls'), published('/tmp/scratchpad/sales-report.html', 'https://claude.ai/artifact/a', 1), bash('pwd'), published('/tmp/scratchpad/sales-report.html', 'https://claude.ai/artifact/a'), published('/tmp/x/old.html', 'https://claude.ai/artifact/b', 3)]
+    const cards = items(rows).flatMap((item) => (item.kind === 'artifact' ? [item.artifact] : []))
+    expect(cards.map(({ title, edited }) => [title, edited])).toEqual([
+      ['sales report', false],
+      ['sales report', true],
+      ['old', true],
+    ])
+    expect(groups(rows).map((group) => group.summary)).toEqual(['Ran 1 command', 'Ran 1 command'])
+  })
+
+  it('ignores failed publishes and other Artifact actions', () => {
+    const rows = [tool('Artifact', { action: 'list' }, { text: 'Published nothing at https://claude.ai/artifact/z', isError: false }), tool('Artifact', { file_path: '/tmp/a.html' }, { text: 'Denied', isError: true })]
+    expect(items(rows).some((item) => item.kind === 'artifact')).toBe(false)
+  })
+})

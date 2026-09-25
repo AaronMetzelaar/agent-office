@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Item } from './groups'
 import { toolTarget } from './rows'
+import ArtifactCard from './ArtifactCard.vue'
 import ToolGroup from './ToolGroup.vue'
 
 defineProps<{ items: Item[] }>()
@@ -10,6 +11,7 @@ defineProps<{ items: Item[] }>()
   <div class="steps">
     <template v-for="child in items" :key="child.kind === 'group' ? `g:${child.id}` : child.row.id">
       <ToolGroup v-if="child.kind === 'group'" :rows="child.rows" :summary="child.summary" />
+      <ArtifactCard v-else-if="child.kind === 'artifact'" :artifact="child.artifact" />
       <p v-else-if="child.kind === 'row' && child.row.kind === 'text'" class="step">{{ child.row.text.slice(0, 240) }}</p>
       <p v-else-if="child.kind === 'agent'" class="step">{{ child.row.name }} · {{ toolTarget(child.row) }}</p>
     </template>

@@ -393,7 +393,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function targetOf(l: Live): Target {
     const f = l.facts
-    if (l.gone) return { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }
+    if (l.gone) return { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, folder: false, subs: 0 }
     const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length, smoking: smoking.has(f.id) })
     const p =
       place.anchor === 'queue' ? queueVecs[l.queueIndex]!
@@ -405,7 +405,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       : l.slot.seat
     const seated = place.anchor === 'seat' && !!l.slot
     return {
-      p, face: place.faceCamera ? null : 0, pose: place.pose, y: place.y, home: seated, homeKind: l.slot?.kind ?? 'none', parked: f.parked, needs: f.state === 'needs-you',
+      p, face: place.faceCamera ? null : 0, pose: place.pose, y: place.y, home: seated, homeKind: l.slot?.kind ?? 'none', parked: f.parked, needs: f.state === 'needs-you', folder: f.artifact,
       subs: seated && f.state === 'working' ? f.subagents.length : 0, miniCentre: seated ? l.slot!.mini : undefined,
     }
   }
@@ -417,7 +417,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const c = kit.create(a.colour, doorVec, walker, booted, rnd)
     c.chipAt = chip.obj.position.copy(c.chipAt)
     c.proxy.userData.agent = a.id
-    const l: Live = { facts: a, c, chip, gone: false, bye: false, wait: 0, queueIndex: -1, target: { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }, screenKey: '' }
+    const l: Live = { facts: a, c, chip, gone: false, bye: false, wait: 0, queueIndex: -1, target: { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, folder: false, subs: 0 }, screenKey: '' }
     live.set(a.id, l)
     return l
   }

@@ -4,6 +4,7 @@ import { isBusy, maxRows, type ChatRow, type ChatView, type RewindPreview } from
 import { items } from './groups'
 import { Markdown } from './markdown'
 import { plainLabel, subagentState } from './rows'
+import ArtifactCard from './ArtifactCard.vue'
 import Subagent from './Subagent.vue'
 import ToolGroup from './ToolGroup.vue'
 
@@ -108,6 +109,7 @@ watch(
     <button v-if="canLoad" type="button" class="btn sm older" :disabled="loading" @click="loadOlder">{{ loading ? 'Loading…' : 'Load earlier messages' }}</button>
     <template v-for="item in list" :key="item.kind === 'group' ? `g:${item.id}` : item.row.id">
       <ToolGroup v-if="item.kind === 'group'" :rows="item.rows" :summary="item.summary" :live="item === live" />
+      <ArtifactCard v-else-if="item.kind === 'artifact'" :artifact="item.artifact" />
       <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" />
       <div v-else-if="item.row.kind === 'user'" class="uw">
         <div class="ur">{{ item.row.text }}</div>

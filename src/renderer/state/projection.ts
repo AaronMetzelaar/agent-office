@@ -102,6 +102,7 @@ export interface Agent {
   colour: number
   badge?: string
   sim: boolean
+  artifact: boolean
   request?: { tool: string; summary: string; dangerous: boolean }
 }
 
@@ -155,7 +156,7 @@ export function assignColours(agents: readonly { id: string; dept: DeptId; creat
 
 const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.test(value) ? Number.parseInt(value.slice(1), 16) : undefined)
 
-export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
+export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>, newArtifact: (chat: ChatView) => boolean = () => false): Agent[] {
   const research = new Set(accounts.filter(isResearch).map((account) => account.id))
   const labels = new Map(accounts.map((account) => [account.id, account.label]))
   const live = [...chats].filter((chat) => !chat.archived && !chat.retained && chat.finished === undefined)
@@ -186,6 +187,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
       sim: usingSimulator(chat),
+      artifact: newArtifact(chat),
       ...(chat.visitor ? { badge: 'Visitor' } : showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
       ...(chat.state === 'needs-you' && tool ? { request: { tool, summary: first?.summary ?? tool, dangerous: first?.dangerous ?? false } } : {}),
     }
