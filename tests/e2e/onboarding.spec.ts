@@ -82,7 +82,8 @@ test('settings opens Accounts, shows headroom and adds the second account withou
   await expect(main).toContainText('5-hour 42%')
   await expect(main).toContainText('Weekly 81%')
 
-  await expect(drawer.getByLabel('Label')).toHaveValue('research')
+  await expect(drawer.getByLabel('Label')).toHaveValue('work')
+  await drawer.getByLabel('Label').fill('research')
   await drawer.getByLabel('Token').fill(researchToken)
   await drawer.getByRole('button', { name: 'Add account' }).click()
   await expect(drawer.locator('[data-account="research"]')).toContainText('OK')

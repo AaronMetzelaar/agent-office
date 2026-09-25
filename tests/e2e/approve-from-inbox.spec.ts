@@ -76,7 +76,7 @@ test('⌘N quick start runs a chat in the chosen folder and account; Allow in th
   await expect(drawer().getByRole('heading', { name: 'New agent' })).toBeVisible()
   await drawer().getByRole('button', { name: 'Choose…' }).click()
   await expect(drawer().getByLabel('Folder')).toHaveValue(folder)
-  await expect(drawer().getByLabel('Account')).toHaveValue(accountId)
+  await expect(drawer().getByLabel('Account', { exact: true })).toHaveValue(accountId)
   await drawer().getByLabel('Prompt').fill('Run the tests [ask]')
   await drawer().getByLabel('Effort').selectOption('high')
 

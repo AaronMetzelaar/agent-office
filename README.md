@@ -1,6 +1,6 @@
 # Agent Office
 
-A personal macOS app that hosts Claude Code chats for two accounts and shows each chat as a character in a 3D office. The plan lives in `docs/plans/2026-09-23-001-feat-agent-office-app-plan.md`.
+A macOS app that hosts Claude Code chats for one or more accounts and shows each chat as a character in a 3D office, with a room for each repo. The plan lives in `docs/plans/2026-09-23-001-feat-agent-office-app-plan.md`.
 
 Stack: Electron built with electron-vite, Vue 3, TresJS, TypeScript in strict mode. Vitest for unit tests, Playwright for end-to-end tests against the built app.
 
@@ -78,14 +78,43 @@ A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck c
 
 Stopping the host while a chat is mid-turn asks first, then interrupts its turn. After the host restarts, or crashes, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
 
+## Rooms
+
+Every git repository gets its own room the first time a chat starts in it, office chat or outside chat. Worktrees share their repository's room. A room is named after the repository's folder; when two rooms on the floor share a name, their signs add the parent folder. New rooms get a plain look (floor tint, sign and desks) and an accent colour no other room uses. Folders outside any git repository go to the Side projects playground, and agents started from the review queue go to PR reviews. Placement moves a chat between rooms that already exist; it never builds one. Empty rooms fold away.
+
+The MWS monorepo gets Marketplace, Admin, Mobile and Backend / infra with no setup, wherever it's cloned. A repository counts as MWS when its `origin` is in the MatchWornShirt GitHub organisation, or its folder name, README title or package names mention MWS or MatchWornShirt, and it's the monorepo when it also has `frontend/marketplace`.
+
+`~/.config/agent-office/departments.json` covers anything else. The office reads it when the agent host starts, so edits apply after a host restart, to chats that start afterwards. Aaron's looks like this:
+
+```json
+{
+  "rooms": [{ "name": "Research gym", "account": "research", "look": "gym", "accent": "#0d9488" }],
+  "playground": ["/"],
+  "commands": {
+    "ship": ["/mws-test-cases", "/mws-verify", "/mws-review", "/mws-pr"],
+    "fixCi": "/gh-fix-ci",
+    "answerComments": "/pr-comment-rundown",
+    "review": "/pr-review-rundown"
+  }
+}
+```
+
+- `rooms` lists rooms in floor order. Each has a `name` and either `folders` (paths, `~` allowed) or `account` (part of an account label, ignoring case). `accent` is a colour like `#3b7bff`, and `look` is one of `showroom`, `backoffice`, `devices`, `servers`, `reading`, `gym` or `plain`. An account room holds that account's chats unless you start one from a desk in another room, and placement never moves them out.
+- `playground` lists folders whose repositories stay on the playground. `"/"` keeps every repository there that no room covers.
+- `commands` names the skills behind the ship-it buttons (Test cases, Verify, Code review, Ship, in that order), Fix CI, Answer comments and the review queue's Review. With no ship commands the ship buttons stay hidden and a hint points here. Without `review`, a review agent starts with "Review this pull request: <url>".
+
+The most specific folder wins, across config rooms, MWS rooms and playground folders, and config rooms win over built rooms. An unreadable file shows its error at the top of the inbox and new repositories go to the playground until it's fixed. A bad room entry is skipped and named there too.
+
+The first launch after the rooms update keeps an existing office as it was: if there's no `departments.json` and the office has a research account or gym chats, it writes the file above. Narrow `playground` to let your other repositories get their own rooms.
+
 ## Outside chats
 
 Chats running in the desktop app (both instances) or `claude` in a terminal show up as visitors: read-only, with a Visitor badge. At startup, and whenever a transcript or a desktop chat file changes, the office lists the chats active in the last 24 hours:
-- Desktop chats come from each instance's `~/Library/Application Support/<instance>/claude-code-sessions/**/local_*.json`, which gives the title, archived state and account (the `Claude-Research` instance maps to the research account). Archived chats are left out.
+- Desktop chats come from each instance's `~/Library/Application Support/<instance>/claude-code-sessions/**/local_*.json`, which gives the title, archived state and account. An instance belongs to the account whose label appears in its name, the longest match winning, so `Claude-Research` maps to the research account; an instance that matches no label belongs to the first account no other instance claims. Archived chats are left out.
 - Terminal chats are transcripts whose entrypoint is `cli`. Their account shows as unknown, and their title is the first prompt.
 - Transcripts from Agent SDK sessions, including the office's own, are left out.
 
-A first state comes from the transcript: written in the last 5 minutes and mid-turn means Working; a finished turn means Done if the desktop app hasn't focused the chat since, otherwise Idle. Placement uses the same path rules and file classifier as office chats, and research chats sit in the gym.
+A first state comes from the transcript: written in the last 5 minutes and mid-turn means Working; a finished turn means Done if the desktop app hasn't focused the chat since, otherwise Idle. Placement uses the same rooms and file classifier as office chats, and chats on an account with its own room sit there.
 
 Settings → Outside chats installs the hook bridge after a consent dialog. It backs up `~/.claude/settings.json` to `settings.json.agent-office-<time>.bak`, then adds one hook entry, marked by its `agent-office-hook` command, for SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Notification, Stop, SubagentStop and SessionEnd. Every write re-reads the file and replaces it through a temporary file, so edits Claude Code makes in between survive. Turning it off removes exactly that entry. The hook script lives in `~/.config/agent-office/agent-office-hook` and posts each event with `curl` to `127.0.0.1`, reading the port and a per-install secret from `~/.config/agent-office/hook.curlrc` (mode 0600). With the office closed it exits at once. Hook events then drive the visitors' states live: a permission prompt shows the chat as Needs you.
 
@@ -114,7 +143,7 @@ Clicking an agent in the office, a chip, or a board row opens that chat in the d
 
 ## Quick start
 
-⌘N (File → New Agent…) or the New agent button opens a form in the drawer: a recent folder or one from the folder picker, the account with its 5-hour and weekly usage, the prompt, the model and the effort. Every new agent starts on Opus 5.5 at medium effort unless you change it, for that agent only. A Linear ticket id or link on its own is enough of a prompt. It warns when the chosen account is past 80% of its 5-hour window and the other one has room. Sessions always start in Auto mode. Worktrees come with the full new-agent flow in Unit 9.
+⌘N (File → New Agent…) or the New agent button opens a form in the drawer: a recent folder or one from the folder picker, the account with its 5-hour and weekly usage, the prompt, the model and the effort. Every new agent starts on Opus 5.5 at medium effort unless you change it, for that agent only. A Linear ticket id or link on its own is enough of a prompt. It shows the room the agent will land in, and warns when the chosen account is past 80% of either window and another account has more room. Sessions always start in Auto mode. Worktrees come with the full new-agent flow in Unit 9.
 
 Each chat gets a colour from a 22-colour palette when it starts, never one already used in its department. The colour lives in `office.db`, so a reload never reshuffles it.
 
@@ -149,10 +178,10 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 - `AGENT_OFFICE_INLINE_HOST=1` runs the host inside the window app's process, the way the app worked before the split, so a test can reach `store`, `notifier` and `dialog` in one process. `playwright.config.ts` sets it, and `tests/e2e/host.spec.ts` clears it to test the real host. Packaged builds ignore it.
 - `AGENT_OFFICE_FAKE_GH=1` answers the review queue's `gh` calls from `tests/fakes/github.ts` instead of GitHub. `playwright.config.ts` sets it, so no end-to-end test reaches GitHub. Packaged builds ignore it.
 - `AGENT_OFFICE_HIDDEN=1` keeps the window off screen. It still renders at 1440×900 with WebGL, timers and animation running, but it never shows, never takes focus and never posts a macOS notification banner. An uncaught error in main goes to stderr instead of the error dialog. `show()`, `hide()` and `isVisible()` track a visibility flag instead of the real window. `playwright.config.ts` sets it, so the end-to-end suite runs without a window appearing. A test that depends on focus pins `isFocused` in main, as `approve-from-inbox.spec.ts` does. Packaged builds ignore it.
-- `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads the ntfy files from and writes the hook script and endpoint to. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.
+- `AGENT_OFFICE_CONFIG_DIR` replaces `~/.config/agent-office` as the place the office reads `departments.json` and the ntfy files from and writes the hook script and endpoint to. `playwright.config.ts` points it at an empty folder, so the end-to-end tests never post to your real topic.
 - `CLAUDE_CONFIG_DIR` and `AGENT_OFFICE_DESKTOP_DIR` replace `~/.claude` and `~/Library/Application Support` for outside chats and the hook installer. `playwright.config.ts` points both at empty folders, so the end-to-end tests never read your chats or touch your settings.
 - `RENDERER_VITE_OFFICE_DEMO=1 pnpm dev` runs the office on the prototype's sample chats instead of your accounts: working, waiting, stuck and parked agents, with Admin folded until its first agent walks in after 10 seconds. The flag is read at build time, so a normal `pnpm build` leaves the demo out. The Playwright demo check builds its own copy into `out-demo/` and reads the fps probe on `window.__fps`, which only dev and demo builds expose.
-- `tests/e2e/real-floor.spec.ts` launches the office once per floor in `tests/fixtures/floors.ts`: an anonymised capture of a real floor (`real-floor.json`), then 1, 3 and 25 agents, then sections at every size tier. It seeds office chats into `office.db` and visitors through the outside-chat store. It fails on any `[renderer]` line, console error or page error. It also fails when a section with a desk agent has no sign, when the sign counts don't add up to the chats that belong on the floor, or when the canvas is a flat colour. `AGENT_OFFICE_CAPTURE_FLOOR=1 pnpm test tests/main/capture-real-floor.test.ts` refreshes `real-floor.json` from your own chats. It runs the app's discovery code on a copy of `office.db`, then keeps states, departments, accounts, visitor flags, worktrees and ages. Titles, paths and ids become placeholders of the same length, and the department part of each path stays. It's skipped otherwise.
+- `tests/e2e/real-floor.spec.ts` launches the office once per floor in `tests/fixtures/floors.ts`: an anonymised capture of a real floor (`real-floor.json`), then 1, 3 and 25 agents, then sections at every size tier. It lays out the floor's folders on disk with the monorepo as a real MWS repository, seeds office chats with their old department ids into `office.db` and visitors through the outside-chat store, and lets the one-time rooms upgrade run, checking the config it writes. It fails on any `[renderer]` line, console error or page error. It also fails when a section with a desk agent has no sign, when any room's sign count differs from the chats that belong in it, or when the canvas is a flat colour. `AGENT_OFFICE_CAPTURE_FLOOR=1 pnpm test tests/main/capture-real-floor.test.ts` refreshes `real-floor.json` from your own chats. It runs the app's discovery code on a copy of `office.db`, then keeps states, departments, accounts, visitor flags, worktrees and ages. Titles, paths and ids become placeholders of the same length, and the department part of each path stays. It's skipped otherwise.
 - `AGENT_OFFICE_REAL_TOKENS=1 pnpm test tests/main/real-tokens.test.ts --silent=false --reporter=verbose` uses the `MAIN_TOKEN` and `RESEARCH_TOKEN` in `~/.config/agent-office/spike.env` for real. It validates both accounts, then runs a one-turn Haiku chat on each through the session engine. It prints labels, states and usage only, and is skipped otherwise.
 
 ## Post-merge check

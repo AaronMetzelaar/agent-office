@@ -99,7 +99,7 @@ test('review requests fill the tray and the drawer, Review starts an agent in PR
   expect(existsSync(join(repo, '.claude', 'worktrees'))).toBe(false)
   await expect(page.locator('.sign', { hasText: 'PR reviews' })).toBeVisible()
   const sent = await app.evaluate(() => (globalThis as unknown as Globals).fakeEngine.sent)
-  expect(sent).toContainEqual({ chatId: review.id, text: '/pr-review-rundown https://github.com/mws/monorepo/pull/7' })
+  expect(sent).toContainEqual({ chatId: review.id, text: 'Review this pull request: https://github.com/mws/monorepo/pull/7' })
 
   await drawer.getByRole('button', { name: 'Back to inbox' }).click()
   await github(app, { search: [requests[1]], nodes: [nodes[1]] })
