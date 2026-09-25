@@ -134,7 +134,9 @@ async function finish(chatIds: string[]) {
   const { finishChat, finishChats } = props.source
   if (!chatIds.length || !finishChat || !finishChats) return
   const focused = ui.selected?.id
-  const next = focused && chatIds.includes(focused) ? [...inbox.value.waiting.map((item) => item.chatId), ...ui.agents.map((agent) => agent.id)].find((id) => id && !chatIds.includes(id) && !leaving.has(id)) : undefined
+  const stays = ui.agents.map((agent) => agent.id).filter((id) => id === focused || (!chatIds.includes(id) && !leaving.has(id)))
+  const after = focused && chatIds.includes(focused) ? cycleAgent(stays, focused, false) : undefined
+  const next = after === focused ? undefined : after
   world.value?.finishing(chatIds, true)
   for (const id of chatIds) leaving.add(id)
   push()
