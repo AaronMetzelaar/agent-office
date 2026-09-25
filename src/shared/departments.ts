@@ -127,6 +127,11 @@ export function defaultAccount(accounts: readonly AccountLike[], dept?: DeptId):
   return (open.find((account) => isResearch(account) === (dept === 'gym')) ?? open[0])?.id
 }
 
+export function defaultAccountFor(accounts: readonly AccountLike[], tiedRoom: (label: string) => string | undefined, room?: string): string | undefined {
+  const open = accounts.filter(usable)
+  return (open.find((account) => tiedRoom(account.label) === room) ?? open.find((account) => !tiedRoom(account.label)) ?? open[0])?.id
+}
+
 export function accountHint(accounts: readonly AccountLike[], chosenId: string, dept: DeptId): { accountId: string; text: string } | undefined {
   const chosen = accounts.find((account) => account.id === chosenId)
   const research = accounts.find((account) => isResearch(account) && usable(account))

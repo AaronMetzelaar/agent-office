@@ -1,12 +1,15 @@
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { app } from 'electron'
-import { departmentOf, deptNames, isResearch } from '../../shared/office'
+import { defaultRules, playgroundRoom } from '../../shared/departments'
 import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
-import { createPlacement, loadRules } from '../departments/classifier'
+import { createPlacement } from '../departments/classifier'
+import { loadConfig } from '../departments/config'
+import { createRooms } from '../departments/rooms'
+import { upgradeRooms } from '../departments/upgrade'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
 import { loginShellPath } from '../login-path'
@@ -46,14 +49,17 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validate, db)
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
-  const deptRules = loadRules(configDir())
-  const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
+  upgradeRooms(db, accounts.list().map((account) => account.label), configDir())
+  const rooms = createRooms(db, loadConfig(configDir()), () => [...store.views(), ...outside.visitors.views()].flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])))
+  const store = createChatStore(engine, db, accounts, rooms, rules.forSession)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
-  const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
-  const sync = wireChats(hub, store, outside.visitors)
-  createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
-  hub.handle('departmentRules', () => deptRules)
+  const outside = createOutside({ store, accounts: accounts.list, rooms, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
+  outside.rescan()
+  const sync = wireChats(hub, store, outside.visitors, rooms)
+  createPlacement(engine, store, rooms, (chatId) => sync.openChat() === chatId)
+  hub.handle('departmentRules', () => [...defaultRules])
+  hub.handle('roomFor', (cwd, accountId) => (typeof cwd === 'string' && isAbsolute(cwd) ? rooms.roomFor(cwd, typeof accountId === 'string' ? accounts.label(accountId) : undefined) : playgroundRoom))
   sync.setAccounts(accounts.list())
   hub.handle('resolveRequest', windowResolver(broker, () => ui.state().focused))
   hub.handle('listRules', rules.list)
@@ -79,8 +85,8 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
-  wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  wireOutside(hub, outside, { store, accounts: accounts.list, rooms, settings, confirm: ui.confirm })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if (typeof value !== 'boolean') return settings()
@@ -89,10 +95,9 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     return settings()
   })
 
-  const research = () => new Set(accounts.list().filter(isResearch).map((account) => account.id))
   const notifier = createNotifier({
     store,
-    department: (chat) => deptNames[departmentOf(chat, research().has(chat.accountId))],
+    department: (chat) => rooms.nameOf(chat.department),
     resolve: (requestId, decision) => broker.resolveRequest(requestId, decision, 'notification'),
     sendMessage: store.sendMessage,
     open: ui.show,

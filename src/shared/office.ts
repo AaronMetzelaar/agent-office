@@ -1,5 +1,3 @@
-import type { DeptId } from './departments'
-
 export { departmentOf, deptIds, deptNames, isDeptId, isResearch, type DeptId } from './departments'
 
 export const palette = [
@@ -9,7 +7,7 @@ export const palette = [
 
 export const hexOf = (colour: number) => `#${colour.toString(16).padStart(6, '0')}`
 
-export function pickColour(taken: readonly { colour?: string; dept: DeptId }[], dept: DeptId): string | undefined {
+export function pickColour(taken: readonly { colour?: string; dept: string }[], dept: string): string | undefined {
   const used = new Set(taken.map((chat) => chat.colour))
   const nearby = new Set(taken.filter((chat) => chat.dept === dept).map((chat) => chat.colour))
   const colours = palette.map(hexOf)

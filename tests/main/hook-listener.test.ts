@@ -7,12 +7,13 @@ import { networkInterfaces, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { doingNow, type ChatPatch } from '../../src/shared/chat'
-import { defaultRules } from '../../src/shared/departments'
+import { createRooms } from '../../src/main/departments/rooms'
 import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
 import { install, scriptPath, writeEndpoint } from '../../src/main/outside/installer'
 import { secretHeader, startListener, type Listener } from '../../src/main/outside/listener'
 import { createDiscovery } from '../../src/main/outside/transcripts'
 import { createVisitors, type Visitors } from '../../src/main/outside/visitors'
+import { configOf } from '../fakes/office'
 import { line, writeTranscript } from '../fakes/outside'
 
 const secret = 'b'.repeat(64)
@@ -73,13 +74,15 @@ beforeEach(async () => {
   logs = []
   patches = []
   const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(join(root, 'desktop')).read })
+  const settings = memorySettings()
   visitors = createVisitors({
     patch: (patch) => patches.push(patch),
     accounts: () => [{ id: 'main', label: 'main' }],
-    rules: defaultRules,
+    instances: () => [],
+    rooms: createRooms(settings, configOf(), () => []),
     officeSessions: () => office,
     describe: (id) => discovery.describe(id, Date.now()),
-    settings: memorySettings(),
+    settings,
     log: (message) => logs.push(message),
   })
   listener = await startListener({ secret, onEvent: visitors.hook, log: (message) => logs.push(message) })

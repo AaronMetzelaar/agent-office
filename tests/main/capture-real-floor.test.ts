@@ -3,7 +3,10 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { describe, expect, it, vi } from 'vitest'
-import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
+import { loadConfig } from '../../src/main/departments/config'
+import { createRooms } from '../../src/main/departments/rooms'
+import { configDir } from '../../src/main/notify/ntfy'
+import { createDesktopMeta, instances } from '../../src/main/outside/desktop-meta'
 import { createDiscovery, inLinkedWorktree } from '../../src/main/outside/transcripts'
 import { createVisitors } from '../../src/main/outside/visitors'
 import { transcriptRows } from '../../src/main/store/chats'
@@ -16,6 +19,7 @@ vi.mock('electron', () => import('../fakes/electron'))
 const enabled = process.env.AGENT_OFFICE_CAPTURE_FLOOR === '1'
 const dataDir = join(homedir(), 'Library', 'Application Support', 'Agent Office')
 const kept = new Set(['', ...defaultRules.flatMap((rule) => rule.path.split('/')), '.claude', 'worktrees'])
+const legacyDept = (id?: string | null) => (isDeptId(id) ? id : id === 'c-research-gym' ? 'gym' : 'side')
 
 interface OfficeRow {
   id: string
@@ -87,10 +91,13 @@ describe.skipIf(!enabled)('capture the real floor', () => {
     }))
 
     const claudeDir = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
-    const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(join(homedir(), 'Library', 'Application Support')).read })
+    const desktopDir = join(homedir(), 'Library', 'Application Support')
+    const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read })
     const officeSessions = new Set(office.flatMap((row) => (row.session_id ? [row.session_id] : [])))
     const seeds = discovery.scan(now, officeSessions)
-    const visitors = createVisitors({ patch: () => {}, accounts: () => accounts, rules: defaultRules, officeSessions: () => officeSessions, describe: () => undefined, settings: { setting: (key) => settings.get(key), saveSetting: () => {} }, log: () => {} })
+    const readOnly = { setting: (key: string) => settings.get(key), saveSetting: () => undefined }
+    const rooms = createRooms(readOnly, loadConfig(configDir()), () => [])
+    const visitors = createVisitors({ patch: () => {}, accounts: () => accounts, instances: () => instances(desktopDir), rooms, officeSessions: () => officeSessions, describe: () => undefined, settings: readOnly, log: () => {} })
     visitors.sync(seeds)
 
     const hide = anonymiser()
@@ -105,7 +112,7 @@ describe.skipIf(!enabled)('capture the real floor', () => {
         account: accountOf(row.account_id),
         title: hide.title(row.title),
         cwd: hide.path(row.cwd),
-        department: isDeptId(row.department) ? row.department : 'side',
+        department: legacyDept(row.department),
         state,
         ...(stuck ? { stuck } : {}),
         ...(request ? { request } : {}),
@@ -125,7 +132,7 @@ describe.skipIf(!enabled)('capture the real floor', () => {
         account: accountOf(view.accountId),
         title: hide.title(view.title),
         cwd: hide.path(view.cwd),
-        department: isDeptId(view.department) ? view.department : 'side',
+        department: legacyDept(view.department),
         state: view.state,
         unread: view.unread,
         ...(view.parked ? { parked: true } : {}),

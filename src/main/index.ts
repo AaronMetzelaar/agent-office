@@ -3,7 +3,7 @@ import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
 import { version } from '../../package.json'
 import type { Events, HostStatus, Navigate } from '../shared/ipc'
 import { createCore, prepareCore, type Core } from './host/core'
-import { forwarded } from './host/forwarded'
+import { forwarded, rendererEvents } from './host/forwarded'
 import { hostBuild, hostFlag, hostSecret, socketPath } from './host/identity'
 import { connectHost } from './host/client'
 import { localUi, noteBridge, spawnHost, uiState } from './host/link'
@@ -21,7 +21,6 @@ const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_
 const appUrl = devServerUrl ?? bundleUrl
 const inlineHost = !app.isPackaged && process.env.AGENT_OFFICE_INLINE_HOST === '1'
 const hidden = !app.isPackaged && process.env.AGENT_OFFICE_HIDDEN === '1'
-const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests'] satisfies (keyof Events)[])
 
 if (hidden) {
   process.on('uncaughtException', (error) => console.error('[main] uncaught exception', error))

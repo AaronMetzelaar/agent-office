@@ -117,8 +117,10 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
 
   return {
     events,
+    configErrors: { ...(loaded.unreadable ? { unreadable: loaded.unreadable } : {}), skipped: loaded.skipped },
     list,
     byId,
+    nameOf: (id?: string) => ((id && byId(id)) || playgroundRoom).name,
     resolve,
     tiedRoom,
     isTied: (id: string) => tied.some((room) => room.id === id),

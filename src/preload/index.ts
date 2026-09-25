@@ -20,6 +20,7 @@ const office: OfficeApi = {
   startChat: (accountId, cwd, prompt, model, effort, options) => ipcRenderer.invoke('startChat', accountId, cwd, prompt, model, effort, options),
   continueOnAccount: (chatId, accountId) => ipcRenderer.invoke('continueOnAccount', chatId, accountId),
   departmentRules: () => ipcRenderer.invoke('departmentRules'),
+  roomFor: (cwd, accountId) => ipcRenderer.invoke('roomFor', cwd, accountId),
   sendMessage: (chatId, text) => ipcRenderer.invoke('sendMessage', chatId, text),
   interruptChat: (chatId) => ipcRenderer.invoke('interruptChat', chatId),
   stopChat: (chatId) => ipcRenderer.invoke('stopChat', chatId),
@@ -72,6 +73,7 @@ const office: OfficeApi = {
   onNavigate: (listener) => subscribe('navigate', listener),
   onHousekeeping: (listener) => subscribe('housekeeping', listener),
   onReviewRequests: (listener) => subscribe('reviewRequests', listener),
+  onRooms: (listener) => subscribe('rooms', listener),
   onHostStatus: (listener) => subscribe('hostStatus', listener),
 }
 

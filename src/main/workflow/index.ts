@@ -1,5 +1,5 @@
 import type { StartChatResult } from '../../shared/chat'
-import { defaultAccount } from '../../shared/departments'
+import { defaultAccountFor, reviewRoom } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import type { TicketLookup } from '../../shared/workflow'
 import type { Hub } from '../ipc'
@@ -14,12 +14,13 @@ export interface WorkflowDeps {
   store: Pick<ChatStore, 'view' | 'views' | 'start'>
   commandNames(chatId: string): string[]
   accounts: () => AccountView[]
+  tiedRoom(label: string): string | undefined
   linear: Linear
   gh: Run
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(hub: Hub, { store, commandNames, accounts, tiedRoom, linear, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
@@ -52,7 +53,7 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
   hub.handle('startReview', async (url): Promise<StartChatResult> => {
     const request = queue.find(url)
     if (!request) return { error: 'That review request isn’t in the list any more.' }
-    const accountId = defaultAccount(accounts(), 'rev')
+    const accountId = defaultAccountFor(accounts(), tiedRoom, reviewRoom.id)
     if (!accountId) return { error: 'Log in to an account first.' }
     const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd)))])
     return store.start(accountId, cwd, prompt, undefined, undefined, options)

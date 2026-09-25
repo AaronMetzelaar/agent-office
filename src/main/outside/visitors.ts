@@ -1,6 +1,7 @@
 import { emptyUsage, maxRows, type ChatFields, type ChatPatch, type ChatState, type ChatView, type OlderRows } from '../../shared/chat'
-import { homeDept, isResearch, type DeptId, type DeptRule } from '../../shared/departments'
-import { classify, evidenceOf, newTally, type Tally } from '../departments/classifier'
+import { playgroundRoom } from '../../shared/departments'
+import { classify, evidenceOf, newTally, placeable, type Tally } from '../departments/classifier'
+import type { Rooms } from '../departments/rooms'
 import type { ChatEvent } from '../sessions/normalize'
 import { describeTool, olderRowsOf, transcriptRows } from '../store/chats'
 import type { HookEvent } from './listener'
@@ -9,7 +10,8 @@ import { activeWindowMs, titleOf, type VisitorSeed } from './transcripts'
 export interface VisitorOptions {
   patch(patch: ChatPatch): void
   accounts(): readonly { id: string; label: string }[]
-  rules: readonly DeptRule[]
+  instances(): readonly string[]
+  rooms: Pick<Rooms, 'resolve' | 'evidenceRoom' | 'isTied'>
   officeSessions(): ReadonlySet<string>
   describe(sessionId: string): VisitorSeed | undefined
   settings: { setting(key: string): unknown; saveSetting(key: string, value: unknown): void }
@@ -43,7 +45,7 @@ const asksPermission = (event: HookEvent) => (event.notification_type ? permissi
 const isActivity = (event: HookEvent) => (event.hook_event_name === 'Notification' ? asksPermission(event) : event.hook_event_name !== 'SessionStart' && event.hook_event_name !== 'SessionEnd')
 const isArchiveEntry = (value: unknown): value is [string, number] => Array.isArray(value) && typeof value[0] === 'string' && typeof value[1] === 'number'
 
-export function createVisitors({ patch, accounts, rules, officeSessions, describe, settings, log = (message) => console.warn(`[outside] ${message}`), now = Date.now }: VisitorOptions) {
+export function createVisitors({ patch, accounts, instances, rooms, officeSessions, describe, settings, log = (message) => console.warn(`[outside] ${message}`), now = Date.now }: VisitorOptions) {
   const visitors = new Map<string, Entry>()
   const saved = settings.setting(movedKey)
   const moved = new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [])
@@ -64,12 +66,15 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
   let open: string | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
-  const accountFor = (instance?: string) => {
-    if (!instance) return unknownAccount
-    const research = /research/i.test(instance)
-    return accounts().find((account) => isResearch(account) === research)?.id ?? unknownAccount
+  const accountMap = () => {
+    const list = accounts()
+    const match = (name: string) => list.filter((account) => name.toLowerCase().includes(account.label.toLowerCase())).sort((a, b) => b.label.length - a.label.length)[0]
+    let names: readonly string[] | undefined
+    const unclaimed = (instance: string) => list.find((account) => !(names ??= instances()).some((name) => name !== instance && match(name) === account))
+    return (instance?: string) => (instance && (match(instance) ?? unclaimed(instance))?.id) || unknownAccount
   }
-  const inResearch = (accountId: string) => isResearch({ label: accounts().find((account) => account.id === accountId)?.label ?? '' })
+  const labelOf = (accountId: string) => accounts().find((account) => account.id === accountId)?.label
+  const awake = ({ view }: Entry): Partial<ChatFields> => ({ retained: false, ...(view.department === playgroundRoom.id ? { department: rooms.resolve(view.cwd, labelOf(view.accountId), { build: true }) } : {}) })
   const retainedAt = (id: string, lastActivityAt: number) => !moved.has(id) && now() - lastActivityAt > activeWindowMs
   const saveArchived = () => settings.saveSetting(archivedKey, [...archived].slice(-maxMoved))
   const unarchive = (id: string) => archived.delete(id) && saveArchived()
@@ -87,19 +92,20 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     set(entry, { ...(entry.view.state === state ? {} : { state, stateSince: at }), lastActivityAt: at, ...fields })
   }
 
-  function placed(entry: Entry, events: readonly ChatEvent[]): DeptId | undefined {
-    return entry.view.department === 'gym' ? undefined : classify(entry.tally, evidenceOf(events, entry.view.cwd, rules))
+  function placed(entry: Entry, events: readonly ChatEvent[]): string | undefined {
+    return placeable(rooms, entry.view) ? classify(entry.tally, evidenceOf(events, entry.view.cwd, rooms)) : undefined
   }
 
-  function add(seed: VisitorSeed): Entry {
+  function add(seed: VisitorSeed, accountFor = accountMap()): Entry {
     const accountId = accountFor(seed.instance)
+    const retained = retainedAt(seed.sessionId, seed.lastActivityAt)
     const view: ChatView = {
       id: seed.sessionId,
       sessionId: seed.sessionId,
       accountId,
       cwd: seed.cwd,
       title: seed.title,
-      department: homeDept(seed.cwd, inResearch(accountId), rules),
+      department: rooms.resolve(seed.cwd, labelOf(accountId), { build: !retained }),
       visitor: seed.source,
       archived: false,
       state: stateOf(seed),
@@ -115,7 +121,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
       lastActivityAt: seed.lastActivityAt,
       rows: [],
       ...(moved.has(seed.sessionId) ? { moved: true, parked: true } : {}),
-      ...(retainedAt(seed.sessionId, seed.lastActivityAt) ? { retained: true } : {}),
+      ...(retained ? { retained: true } : {}),
       ...(finishedAt(seed) !== undefined ? { finished: finishedAt(seed) } : {}),
     }
     const entry: Entry = { view, tally: newTally(), titled: seed.titled }
@@ -182,6 +188,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
     sync(seeds: readonly VisitorSeed[]): void {
       const office = officeSessions()
       const fresh = new Set<string>()
+      const accountFor = accountMap()
       for (const seed of seeds) {
         if (office.has(seed.sessionId)) continue
         const entry = visitors.get(seed.sessionId)
@@ -191,7 +198,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         }
         fresh.add(seed.sessionId)
         if (!entry) {
-          add(seed)
+          add(seed, accountFor)
           continue
         }
         const fields: Partial<ChatFields> = {}
@@ -201,7 +208,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         if (seed.lastActivityAt > entry.view.lastActivityAt) fields.lastActivityAt = seed.lastActivityAt
         if (entry.view.finished !== undefined && finishedAt(seed) === undefined) fields.finished = undefined
         const retained = retainedAt(entry.view.id, fields.lastActivityAt ?? entry.view.lastActivityAt)
-        if (retained !== !!entry.view.retained) fields.retained = retained
+        if (retained !== !!entry.view.retained) Object.assign(fields, retained ? { retained } : awake(entry))
         const hookGoneQuiet = entry.view.state === 'working' && now() - (entry.hookAt ?? 0) > hookQuietMs
         if ((entry.hookAt === undefined || hookGoneQuiet) && stateOf(seed) !== entry.view.state) Object.assign(fields, { state: stateOf(seed), stateSince: now(), unread: unreadDone(seed) })
         if (Object.keys(fields).length) set(entry, fields)
@@ -230,7 +237,7 @@ export function createVisitors({ patch, accounts, rules, officeSessions, describ
         saveFinished()
         set(entry, { finished: undefined })
       }
-      if (entry.view.retained) set(entry, { retained: false })
+      if (entry.view.retained) set(entry, awake(entry))
       if (open !== id || !refreshOn.has(event.hook_event_name)) return
       clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => void refresh(id), refreshMs)

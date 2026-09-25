@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultRules } from '../../src/shared/departments'
 import { wireHousekeeping } from '../../src/main/housekeeping'
 import { windowHub } from '../../src/main/ipc'
 import { finishSteps } from '../../src/main/housekeeping/finish'
@@ -63,7 +62,7 @@ function openVisitors() {
   const claudeDir = join(dir, 'claude')
   const desktopDir = join(dir, 'desktop')
   const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read })
-  const visitors = createVisitors({ patch: () => {}, accounts: () => [{ id: 'main', label: 'main' }], rules: defaultRules, officeSessions: () => new Set(), describe: (id) => discovery.describe(id, Date.now()), settings: office.db, log: () => {} })
+  const visitors = createVisitors({ patch: () => {}, accounts: () => [{ id: 'main', label: 'main' }], instances: () => [], rooms: office.rooms, officeSessions: () => new Set(), describe: (id) => discovery.describe(id, Date.now()), settings: office.db, log: () => {} })
   const add = (cwd: string, ago = hour) => {
     const id = randomUUID()
     writeTranscript(claudeDir, id, [line.user('Fix the bid flow'), line.text('Done.')], { cwd, at: Date.now() - ago })
@@ -182,13 +181,13 @@ describe('finishing an office chat', () => {
     office.finish(id)
     expect(office.store.finish(id)).toBe(true)
     const db = openDb(join(dir, 'office.db'))
-    const store = createChatStore(createFakeEngine(), db, office.accounts)
+    const store = createChatStore(createFakeEngine(), db, office.accounts, office.rooms)
     expect(store.view(id)?.finished).toEqual(office.chat(id).finished)
     expect(toAgents(store.snapshot(), [], Date.now(), new Map()).map((agent) => agent.id)).not.toContain(id)
 
     store.sendMessage(id, 'One more thing')
     expect(store.view(id)).toMatchObject({ state: 'working', finished: undefined })
-    const reopened = createChatStore(createFakeEngine(), db, office.accounts)
+    const reopened = createChatStore(createFakeEngine(), db, office.accounts, office.rooms)
     expect(reopened.view(id)?.finished).toBeUndefined()
     const agent = toAgents(store.snapshot(), [], Date.now(), new Map()).find((a) => a.id === id)!
     expect(agent.state).toBe('working')

@@ -1,4 +1,4 @@
-import type { Commands } from '../../shared/ipc'
+import type { Commands, Events } from '../../shared/ipc'
 
 type Local = 'getAppInfo' | 'pickFolder' | 'openNotificationSettings' | 'simulatorScreenshot' | 'getHostStatus' | 'restartHost' | 'stopHost'
 
@@ -14,6 +14,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   startChat: true,
   continueOnAccount: true,
   departmentRules: true,
+  roomFor: true,
   sendMessage: true,
   interruptChat: true,
   stopChat: true,
@@ -57,3 +58,4 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
 }
 
 export const forwarded = Object.keys(names) as (keyof typeof names)[]
+export const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests', 'rooms'] satisfies (keyof Events)[])
