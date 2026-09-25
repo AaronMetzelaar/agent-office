@@ -18,16 +18,19 @@ async function launch(config?: string) {
   })
   opened.push(app)
   const page = await app.firstWindow()
+  const problems: string[] = []
+  page.on('pageerror', (error) => problems.push(error.message))
+  page.on('console', (message) => message.type() === 'error' && problems.push(message.text()))
   const accountId = await page.evaluate(async () => {
     const added = await window.office.addAccount('main', 'sk-ant-oat01-fake-ok')
     if (!('account' in added)) throw new Error(added.error)
     return added.account.id
   })
-  const start = async (cwd: string, prompt: string) => {
-    const started = await page.evaluate(({ accountId, cwd, prompt }) => window.office.startChat(accountId, cwd, `${prompt} [hang]`), { accountId, cwd, prompt })
+  const start = async (cwd: string, prompt: string, hang = true) => {
+    const started = await page.evaluate(({ accountId, cwd, prompt }) => window.office.startChat(accountId, cwd, prompt), { accountId, cwd, prompt: hang ? `${prompt} [hang]` : prompt })
     expect(started).toHaveProperty('chatId')
   }
-  return { page, start }
+  return { page, start, problems }
 }
 
 const sign = (page: Page, name: string) => page.locator('.sign', { hasText: name })
@@ -102,4 +105,16 @@ test('ten repos get ten rooms, all signed and on screen', async () => {
     return !!box && box.x >= canvas.x - 1 && box.y >= canvas.y - 1 && box.x + box.width <= canvas.x + canvas.width + 1 && box.y + box.height <= canvas.y + canvas.height + 1
   }
   await expect.poll(async () => (await Promise.all(names.map(inside))).every(Boolean), { timeout: 10_000 }).toBe(true)
+})
+
+test('two gym rooms each keep their own water coolers for finished agents', async () => {
+  test.setTimeout(90_000)
+  const [lab, bench] = ['lab', 'bench'].map((name) => gitRepo(join(scratch, 'gyms', name)))
+  const config = JSON.stringify({ rooms: [{ name: 'Lab gym', folders: [lab], look: 'gym' }, { name: 'Bench gym', folders: [bench], look: 'gym' }] })
+  const { page, start, problems } = await launch(config)
+  await start(lab!, 'Sweep', false)
+  await start(bench!, 'Bench', false)
+  for (const name of ['Lab gym', 'Bench gym']) await expect(sign(page, name)).toHaveAttribute('aria-label', /1 done/)
+  await page.waitForTimeout(1500)
+  expect(problems).toEqual([])
 })

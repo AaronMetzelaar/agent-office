@@ -137,7 +137,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const errandVecs = new Map<string, THREE.Vector3>()
   let spotsKey = ''
   let spots = loungeSpots(1, 1)
-  const coolerVecs: THREE.Vector3[] = []
+  const coolerVecs = new Map<DeptId, THREE.Vector3[]>()
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
   const anims: Record<DeptId, RoomAnim> = {}
   const lounge = room()
@@ -158,7 +158,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const scenes = office.depts
   const A = (id: DeptId) => anims[id]!
   const S = (id: DeptId) => scenes[id]!
-  const gymRoom = () => depts.find((d) => d.shell === 'gym')?.id
   const same = (a: DeptDef, b: DeptDef) => a.look === b.look && a.accent === b.accent && a.shell === b.shell && a.path === b.path
   let roomsSeen: readonly DeptDef[] | undefined
   function dropSign(id: DeptId) {
@@ -211,11 +210,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const shift = (l: Live, dx: number, dz: number) => l.c.walker.pos.set(l.c.walker.pos.x + dx, 0, l.c.walker.pos.z + dz)
   const settled = (l: Live) => !l.gone && !l.c.walker.path.length
 
-  function placeCoolers() {
-    const gym = gymRoom()
-    if (!gym) return
-    const a = A(gym)
-    coolerVecs.forEach((v, k) => {
+  function placeCoolers(id: DeptId) {
+    const a = anims[id]
+    if (!a) return
+    coolerVecs.get(id)?.forEach((v, k) => {
       const [x, z] = gymCooler(k, a.w, a.rows)
       v.set(a.ox + x, 0, a.oz + z)
     })
@@ -223,14 +221,14 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   function place(id: DeptId, [ox, oz, w, d]: Rect) {
     const a = A(id), sc = S(id), dx = ox - a.ox, dz = oz - a.oz
-    if (dx || dz) for (const l of live.values()) if (settled(l) && ((l.slot?.dept === id && [l.slot.seat, l.slot.stand].includes(l.target.p)) || (id === gymRoom() && coolerVecs.includes(l.target.p)))) shift(l, dx, dz)
+    if (dx || dz) for (const l of live.values()) if (settled(l) && ((l.slot?.dept === id && [l.slot.seat, l.slot.stand].includes(l.target.p)) || !!coolerVecs.get(id)?.includes(l.target.p))) shift(l, dx, dz)
     Object.assign(a, { ox, oz, w, d })
     sc.g.position.set(ox + w / 2, 0, oz + d / 2)
     sc.gi.position.set(-w / 2, 0, -d / 2)
     sc.resize(w, d)
     if (sc.side) sc.side.position.x = w - minWidth(id, sc.tier)
     for (const s of sc.slots) if (s) placeSlot(s, ox, oz)
-    if (id === gymRoom()) placeCoolers()
+    placeCoolers(id)
     signs.get(id)!.obj.position.set(ox + 0.25, 0.62, oz + d)
   }
 
@@ -412,16 +410,22 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function seatCoolers() {
     const kept = new Map(coolers)
     coolers.clear()
-    const atCooler = active().filter((l) => l.spot === 'cooler').map((l) => l.facts.id)
-    for (const id of atCooler) if (kept.has(id) && ![...coolers.values()].includes(kept.get(id)!)) coolers.set(id, kept.get(id)!)
-    for (const id of atCooler) {
-      if (coolers.has(id)) continue
-      let k = 0
-      while ([...coolers.values()].includes(k)) k++
-      coolers.set(id, k)
+    const atCooler = active().filter((l) => l.spot === 'cooler')
+    const rooms = new Set(atCooler.map((l) => l.facts.dept))
+    for (const room of rooms) {
+      const here = atCooler.filter((l) => l.facts.dept === room).map((l) => l.facts.id)
+      const taken = new Set<number>()
+      for (const id of here) if (kept.has(id) && !taken.has(kept.get(id)!)) taken.add(coolers.set(id, kept.get(id)!).get(id)!)
+      for (const id of here) {
+        if (coolers.has(id)) continue
+        let k = 0
+        while (taken.has(k)) k++
+        taken.add(coolers.set(id, k).get(id)!)
+      }
+      const vecs = coolerVecs.get(room) ?? coolerVecs.set(room, []).get(room)!
+      while (vecs.length < Math.max(0, ...taken) + 1) vecs.push(new THREE.Vector3())
+      placeCoolers(room)
     }
-    while (coolerVecs.length < Math.max(0, ...coolers.values()) + 1) coolerVecs.push(new THREE.Vector3())
-    placeCoolers()
   }
 
   function paintDesk(s: Slot, id: string | undefined) {
@@ -475,7 +479,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const p =
       place.anchor === 'queue' ? queueVecs[l.queueIndex]!
       : place.anchor === 'lounge' ? (seatVecs[seating.seats.get(f.id) ?? 0] ?? doorVec)
-      : place.anchor === 'cooler' ? (coolerVecs[coolers.get(f.id) ?? 0] ?? doorVec)
+      : place.anchor === 'cooler' ? (coolerVecs.get(f.dept)?.[coolers.get(f.id) ?? 0] ?? doorVec)
       : !l.slot || place.anchor === 'door' ? doorVec
       : place.anchor === 'stand' ? l.slot.stand
       : l.slot.seat
