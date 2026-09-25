@@ -2,7 +2,7 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { applyRegion, fitOverview, VIEW } from '../../src/renderer/office/camera'
-import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
+import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, signNames, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
 import { anchorsFor, dept, depts, kindOf, layoutFloor, queueSpots, type DeptId } from '../../src/renderer/office/layout'
 import { noSeating, reseat } from '../../src/renderer/office/seating'
 import { placementFor } from '../../src/renderer/office/pose'
@@ -136,5 +136,14 @@ describe('highlighting', () => {
       { key: 'stuck', label: 'stuck', n: 1 },
       { key: 'working', label: 'working', n: 1 },
     ])
+  })
+})
+
+describe('sign names', () => {
+  it('adds the parent folder when two shown rooms share a name, and drops it once one folds', () => {
+    const work = { id: 'r-1', name: 'api', parent: 'work' }
+    const oss = { id: 'r-2', name: 'api', parent: 'oss' }
+    expect(signNames([work, oss, { id: 'mkt', name: 'Marketplace' }])).toEqual(new Map([['r-1', 'api · work'], ['r-2', 'api · oss'], ['mkt', 'Marketplace']]))
+    expect(signNames([work])).toEqual(new Map([['r-1', 'api']]))
   })
 })

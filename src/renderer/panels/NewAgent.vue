@@ -8,7 +8,7 @@ import { leadingTicket, type Ticket } from '../../shared/workflow'
 import { deptOf, depts, kindOf } from '../office/layout'
 import SlashInput from './chat/SlashInput.vue'
 
-const props = defineProps<{ accounts: AccountView[]; desk?: { dept: DeptId; slot: number } }>()
+const props = defineProps<{ accounts: AccountView[]; desk?: { dept: DeptId; slot: number }; version?: number }>()
 const emit = defineEmits<{ close: []; started: [chatId: string, dept: DeptId] }>()
 
 const memoryKey = 'agent-office:new-agent'
@@ -43,11 +43,11 @@ const section = computed<DeptId>({
   get: () => chosen.value || preview.value?.id || '',
   set: (id: DeptId) => (form.section = id),
 })
-const room = computed(() => (chosen.value || !preview.value ? deptOf(section.value) : preview.value))
+const room = computed(() => (props.version, chosen.value || !preview.value ? deptOf(section.value) : preview.value))
 const newRoom = computed(() => (!chosen.value && preview.value?.isNew ? preview.value : undefined))
-const rooms = computed(() => [...depts.map((d) => ({ id: d.id, name: d.name })), ...(newRoom.value ? [{ id: newRoom.value.id, name: `New room: ${newRoom.value.name}` }] : [])])
+const rooms = computed(() => (props.version, [...depts.map((d) => ({ id: d.id, name: d.name })), ...(newRoom.value ? [{ id: newRoom.value.id, name: `New room: ${newRoom.value.name}` }] : [])]))
 const hint = computed(() => accountHint(props.accounts, accountId.value))
-const overflow = computed(() => !!account.value && showsAccountBadge(depts, section.value, account.value.label))
+const overflow = computed(() => (props.version, !!account.value && showsAccountBadge(depts, section.value, account.value.label)))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
 const ticketLine = computed(() => {
   const seen = found.value?.ticket
@@ -80,7 +80,7 @@ watch(
     if (!folder) return void (preview.value = undefined)
     previewing = setTimeout(async () => {
       const found = await window.office.roomFor(folder, id).catch(() => undefined)
-      if (form.folder === folder) preview.value = found
+      if (form.folder === folder && accountId.value === id) preview.value = found
     }, 150)
   },
   { immediate: true },
@@ -132,7 +132,7 @@ onMounted(async () => {
   folders.value = recent
   const wanted = props.desk?.dept
   const homes = wanted ? await Promise.all(recent.map((folder) => window.office.roomFor(folder).catch(() => undefined))) : []
-  form.folder = (wanted && recent.find((_, i) => homes[i]?.id === wanted)) || recent[0] || ''
+  if (!form.folder) form.folder = (wanted && recent.find((_, i) => homes[i]?.id === wanted)) || recent[0] || ''
 })
 </script>
 

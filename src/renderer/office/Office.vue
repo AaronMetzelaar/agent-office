@@ -326,7 +326,7 @@ onUnmounted(() => {
   <p v-if="toast" class="toast" role="status">{{ toast }}</p>
   <aside class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
-    <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
+    <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" :version="tick" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
     <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" :config-errors="configErrors" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
     <button type="button" class="limits" aria-label="Account usage" @click="emit('accounts')">

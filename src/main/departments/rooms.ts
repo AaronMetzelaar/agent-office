@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { mwsRooms, playgroundRoom, repoPath, reviewRoom, type RoomDef } from '../../shared/departments'
+import { mwsRooms, playgroundRoom, repoPath, reviewRoom, tiedRoomIn, type RoomDef } from '../../shared/departments'
 import { palette } from '../../shared/office'
 import type { Db } from '../store/db'
 import type { LoadedConfig } from './config'
@@ -71,7 +71,7 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
 
   const list = (): RoomDef[] => [...(roots.length ? mwsRooms : []), playgroundRoom, reviewRoom, ...config, ...built]
   const byId = (id: string) => list().find((room) => room.id === id)
-  const tiedRoom = (label?: string) => tied.filter((room) => label?.toLowerCase().includes(room.account.toLowerCase())).sort((a, b) => b.account.length - a.account.length)[0]?.id
+  const tiedRoom = (label?: string) => tiedRoomIn(tied, label)
 
   function remember(root: string) {
     if (roots.includes(root)) return

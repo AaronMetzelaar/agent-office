@@ -51,6 +51,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const rules = createRules(db.sql, engine)
   upgradeRooms(db, accounts.list().map((account) => account.label), configDir())
   const loaded = loadConfig(configDir())
+  for (const problem of [...(loaded.unreadable ? [`departments.json can’t be read: ${loaded.unreadable}`] : []), ...loaded.skipped]) console.warn(`[rooms] ${problem}`)
   const rooms = createRooms(db, loaded, () => [...store.views(), ...outside.visitors.views()].flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])))
   const store = createChatStore(engine, db, accounts, rooms, rules.forSession)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))

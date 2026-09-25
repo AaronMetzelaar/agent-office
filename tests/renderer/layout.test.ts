@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
-import { band, bandArea, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
+import { band, bandArea, depts, door, exhaustive, setRooms, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
 import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
+import { legacyRooms, type RoomDef } from '../../src/shared/departments'
 
 const deptIds = depts.map((d) => d.id)
 
@@ -321,5 +322,29 @@ describe('desks', () => {
     const next = reseat(first, at(['c', 'd']), true)
     expect(next.desks.get('c')).toEqual(first.desks.get('c'))
     expect(next.desks.get('d')).toEqual(first.desks.get('a'))
+  })
+})
+
+describe('rooms from the host', () => {
+  const plain = (id: string): RoomDef => ({ id, name: id, subtitle: `~/code/${id}`, accent: 0x3b7bff, look: 'plain' })
+
+  it('packs more rooms than the exhaustive search allows with the greedy packer, fast and without overlaps', () => {
+    const ids = Array.from({ length: exhaustive + 2 }, (_, i) => `r-${i}`)
+    setRooms([...legacyRooms, ...ids.map(plain)])
+    const started = performance.now()
+    const floor = layoutFloor(Object.fromEntries(ids.map((id, i) => [id, 1 + (i % 4)])))
+    const took = performance.now() - started
+    setRooms(legacyRooms)
+    expect(took).toBeLessThan(50)
+    const boxes = ids.map((id) => floor.zones[id]!.box)
+    expect(ids.every((id) => floor.zones[id]!.shown)).toBe(true)
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i]!, boxes[j]!), `${i}/${j}`).toBe(false)
+  })
+
+  it('gives a one-off look to the first room that asks for it, and the plain look to the next', () => {
+    setRooms([...legacyRooms, { ...plain('c-api'), look: 'servers' }, { ...plain('c-reading'), look: 'reading' }])
+    const looks = Object.fromEntries(depts.map((d) => [d.id, d.look]))
+    setRooms(legacyRooms)
+    expect(looks).toMatchObject({ plat: 'servers', 'c-api': 'plain', rev: 'reading', 'c-reading': 'reading', side: 'playground' })
   })
 })
