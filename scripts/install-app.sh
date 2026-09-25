@@ -4,7 +4,7 @@ set -eu
 repo=$(cd "${1:-$(dirname "$0")/..}" && cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
 target="${AGENT_OFFICE_APP:-/Applications/Agent Office.app}"
 ref="${AGENT_OFFICE_REF:-origin/main}"
-window_app="$target/Contents/MacOS/Agent Office\$"
+window_app="$target/Contents/MacOS/Agent Office"
 cache="$HOME/Library/Caches/agent-office"
 log_dir="$HOME/Library/Logs/agent-office"
 log="$log_dir/install-app.log"
@@ -16,6 +16,7 @@ mkdir "$lockdir" 2>/dev/null || { echo "An install is already running. Log: $log
 trap 'if [ -n "$worktree" ]; then git -C "$repo" worktree remove --force "$worktree" >/dev/null 2>&1 || true; rm -rf "$worktree"; fi; rm -rf "$lockdir"' EXIT
 
 exec > "$log" 2>&1
+running() { ps -axo command= | grep -Fxq "$window_app"; }
 step() { echo "$(date '+%H:%M:%S') $1"; }
 fail() {
   step "failed: $1"
@@ -45,11 +46,11 @@ staged="$target.new"
 rm -rf "$staged"
 ditto "$built" "$staged" || fail "copy"
 
-if pgrep -f "$window_app" >/dev/null; then
+if running; then
   step "quitting the window app; agents keep running in the host"
   osascript -e 'tell application "Agent Office" to quit' >/dev/null 2>&1 || true
-  for _ in $(seq 60); do pgrep -f "$window_app" >/dev/null || break; sleep 0.5; done
-  pgrep -f "$window_app" >/dev/null && { rm -rf "$staged"; fail "the window app didn't quit"; }
+  for _ in $(seq 60); do running || break; sleep 0.5; done
+  running && { rm -rf "$staged"; fail "the window app didn't quit"; }
 fi
 
 rm -rf "$cache/Agent Office.previous.app"
