@@ -5,16 +5,16 @@ import type { Decision, PendingRequestView, WindowSource } from '../../shared/pe
 import type { ReviewQueue } from '../../shared/workflow'
 import { finishedPage, pageFinished, type FinishedRow, type Inbox, type WaitingItem } from '../state/inbox'
 import ReviewRequests from './ReviewRequests.vue'
+import { Icon } from '../icons'
 
-const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; removable?: string[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: []; finish: [chatIds: string[], withTrees?: boolean] }>()
+const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: []; finish: [chatIds: string[]] }>()
 
 const now = ref(Date.now())
 const expanded = reactive(new Set<string>())
 const drafts = reactive<Record<string, string>>({})
 const flash = ref('')
 const alertsHint = ref(false)
-const withTrees = ref(false)
 const finishedQuery = ref('')
 const finishedLimit = ref(finishedPage)
 const finishedShown = computed(() => pageFinished(props.finished ?? [], finishedQuery.value, finishedLimit.value))
@@ -155,8 +155,7 @@ onUnmounted(() => {
     <details v-if="inbox.standby.length" class="grp standby">
       <summary>
         Standby<span class="cts">{{ inbox.standby.length }} in the lounge</span>
-        <label class="trees" title="Also remove the worktrees that are safe to remove" @click.stop><input v-model="withTrees" type="checkbox" /> also remove safe worktrees</label>
-        <button type="button" class="btn sm clear" title="Finish every chat in the lounge. Shows what it will do first." @click.prevent.stop="emit('finish', inbox.standby.map((row) => row.id), withTrees)">Clear all done</button>
+        <button type="button" class="btn sm clear" title="Finish every chat in the lounge. Shows what it will do first." @click.prevent.stop="emit('finish', inbox.standby.map((row) => row.id))">Clear all done</button>
       </summary>
       <div v-for="row in inbox.standby" :key="row.id" class="srow">
         <button type="button" class="brow" @click="emit('select', row.id)">
@@ -166,8 +165,7 @@ onUnmounted(() => {
           <span class="bd"><span class="dd" :style="{ background: row.accent }" />{{ row.dept }} · {{ since(row.at) }} ago</span>
         </button>
         <span class="sacts">
-          <button v-if="removable?.includes(row.id)" type="button" class="btn sm" :aria-label="`Done and remove the worktree of ${row.title}`" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [row.id], true)">+ worktree</button>
-          <button type="button" class="btn sm" :aria-label="`Done: finish ${row.title}`" title="Clear the desk and move the chat to Finished" @click="emit('finish', [row.id])">Done</button>
+          <button type="button" class="ib ok" :aria-label="`Done: finish ${row.title}`" title="Done: finish the chat and remove its worktree" @click="emit('finish', [row.id])"><Icon name="done" :size="16" /></button>
         </span>
       </div>
     </details>
@@ -653,17 +651,6 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.standby summary .trees {
-  margin-left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10.5px;
-  font-weight: 400;
-  color: var(--muted);
-  cursor: pointer;
-}
-
 .standby summary .clear {
   margin-left: 8px;
 }
@@ -782,6 +769,10 @@ onUnmounted(() => {
 .ib:hover {
   color: var(--ink);
   background: var(--soft);
+}
+
+.ib.ok:hover {
+  color: #0f7a38;
 }
 
 .ib:focus-visible {

@@ -1,5 +1,6 @@
 import { Lexer, type Token, type Tokens } from 'marked'
-import { computed, defineComponent, h, type VNodeArrayChildren, type VNodeChild } from 'vue'
+import { computed, defineComponent, h, onUnmounted, ref, type VNodeArrayChildren, type VNodeChild } from 'vue'
+import { Icon } from '../../icons'
 
 export function webUrl(href: string): string | undefined {
   const url = URL.parse(href)
@@ -29,6 +30,26 @@ function withFiles(text: string): VNodeChild {
   }
   return parts.length ? [...parts, text.slice(last)] : text
 }
+
+const CodeBlock = defineComponent({
+  props: { text: { type: String, required: true } },
+  setup(props) {
+    const copied = ref(false)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function copy() {
+      await navigator.clipboard.writeText(props.text)
+      copied.value = true
+      clearTimeout(timer)
+      timer = setTimeout(() => (copied.value = false), 1500)
+    }
+    onUnmounted(() => clearTimeout(timer))
+    return () =>
+      h('div', { class: 'code' }, [
+        h('pre', h('code', props.text)),
+        h('button', { type: 'button', class: 'copy', 'aria-label': copied.value ? 'Copied' : 'Copy code', title: copied.value ? 'Copied' : 'Copy', onClick: copy }, h(Icon, { name: copied.value ? 'check' : 'copy' })),
+      ])
+  },
+})
 
 const link = (href: string, children: string | VNodeArrayChildren) => h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, children)
 const aligned = (align: Tokens.TableCell['align']) => (align ? { style: { textAlign: align } } : {})
@@ -84,7 +105,7 @@ function block(token: Token): VNodeChild {
     case 'heading':
       return h(`h${Math.min(6, Math.max(1, token.depth))}`, inline(token.tokens))
     case 'code':
-      return h('pre', h('code', token.text))
+      return h(CodeBlock, { text: token.text })
     case 'blockquote':
       return h('blockquote', token.tokens?.map(block))
     case 'list':

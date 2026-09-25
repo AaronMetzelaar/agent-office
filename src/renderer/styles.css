@@ -213,3 +213,7 @@ code {
   border: 1px solid var(--line);
   border-radius: 5px;
 }
+
+.icon {
+  display: inline-flex;
+}

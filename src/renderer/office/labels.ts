@@ -1,5 +1,6 @@
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import type { ChatState } from '../../shared/chat'
+import { iconSvg } from '../icons'
 import type { DeptId } from './layout'
 
 export type StateKey = 'needs' | 'stuck' | 'working' | 'done' | 'idle'
@@ -118,7 +119,6 @@ export interface Chip {
   sim: HTMLSpanElement
   acts: HTMLSpanElement
   lounge: HTMLButtonElement
-  remove: HTMLButtonElement
   shown?: string
   key: string
   dx: number
@@ -135,7 +135,7 @@ const span = (className: string, parent: HTMLElement) => {
 
 export type ChipActions = 'both' | 'done' | undefined
 
-export type ChipAction = 'lounge' | 'done' | 'done-remove'
+export type ChipAction = 'lounge' | 'done'
 
 export function createChip(on: { click(): void; enter(): void; leave(): void; act(action: ChipAction): void }): Chip {
   const el = document.createElement('div')
@@ -164,15 +164,16 @@ export function createChip(on: { click(): void; enter(): void; leave(): void; ac
   const acts = span('acts', el)
   acts.hidden = true
   const labels: Record<ChipAction, [string, string]> = {
-    lounge: ['Lounge', 'Move to the lounge, keeping its desk'],
-    done: ['Done', 'Finish: clear the desk and move the chat to Finished'],
-    'done-remove': ['Done + worktree', 'Finish and remove its worktree, which is safe to remove'],
+    lounge: ['Lounge', 'Lounge: move it to the lounge, keeping its desk'],
+    done: ['Done', 'Done: finish the chat and remove its worktree'],
   }
-  const [lounge, , remove] = (['lounge', 'done', 'done-remove'] as const).map((action) => {
+  const [lounge] = (['lounge', 'done'] as const).map((action) => {
     const button = document.createElement('button')
     button.type = 'button'
     button.className = action
-    ;[button.textContent, button.title] = labels[action]
+    button.innerHTML = iconSvg(action, 13)
+    button.setAttribute('aria-label', labels[action][0])
+    button.title = labels[action][1]
     button.addEventListener('click', (event) => {
       event.stopPropagation()
       on.act(action)
@@ -183,7 +184,7 @@ export function createChip(on: { click(): void; enter(): void; leave(): void; ac
   const obj = new CSS2DObject(el)
   obj.center.set(0.5, 1)
   obj.visible = false
-  return { el, obj, title, caption, dot, bubble, number, extra, badge, sim, acts, lounge: lounge!, remove: remove!, key: '', dx: 0, lift: 0, mini: false }
+  return { el, obj, title, caption, dot, bubble, number, extra, badge, sim, acts, lounge: lounge!, key: '', dx: 0, lift: 0, mini: false }
 }
 
 export function createDeskChip(label: string, click: () => void): CSS2DObject {
@@ -240,13 +241,11 @@ export function renderChip(chip: Chip, v: ChipView) {
   return true
 }
 
-export function setChipActions(chip: Chip, acts: ChipActions, removable: boolean) {
-  const key = `${acts}|${removable}`
-  if (chip.shown === key) return
-  chip.shown = key
+export function setChipActions(chip: Chip, acts: ChipActions) {
+  if (chip.shown === acts) return
+  chip.shown = acts
   chip.acts.hidden = !acts
   chip.lounge.hidden = acts !== 'both'
-  chip.remove.hidden = !removable
 }
 
 export function setChipPlacement(chip: Chip, p: Placed) {

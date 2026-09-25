@@ -258,7 +258,7 @@ watch(
 .md ul,
 .md ol,
 .md blockquote,
-.md pre,
+.md .code,
 .md .tbl {
   margin: 0 0 0.7em;
 }
@@ -317,6 +317,44 @@ watch(
   padding: 9px 11px;
   overflow: auto;
   white-space: pre;
+}
+
+.md .code {
+  position: relative;
+}
+
+.md .code pre {
+  margin: 0;
+}
+
+.md .copy {
+  all: unset;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--soft);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.md .code:hover .copy,
+.md .copy:focus-visible {
+  opacity: 1;
+}
+
+.md .copy:hover {
+  color: var(--ink);
+  background: #fff;
+}
+
+.md .copy:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
 .md pre code {

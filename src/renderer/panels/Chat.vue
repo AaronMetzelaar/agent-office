@@ -20,9 +20,10 @@ import Simulator from './chat/Simulator.vue'
 import SubagentStrip from './chat/SubagentStrip.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
+import { Icon } from '../icons'
 
-const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean; removable?: boolean }>()
-const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; saw: []; finish: [chatIds: string[], withTrees?: boolean] }>()
+const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingItem[]; canSwitch?: boolean }>()
+const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; saw: []; finish: [chatIds: string[]] }>()
 
 const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
 const flash = ref('')
@@ -168,14 +169,13 @@ onUnmounted(() => {
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <div class="hact">
-        <button v-if="chat?.sessionId" type="button" class="btn sm" title="Resumes this session in a terminal, on its own account. The office chat is untouched." @click="openInTerminal">Open in terminal</button>
-        <button v-if="chat?.visitor === 'desktop'" type="button" class="btn sm" title="Focuses the right Claude desktop window. It can't jump to this exact chat yet." @click="openInDesktop">Open in Claude desktop</button>
+        <button v-if="chat?.sessionId" type="button" class="ib" aria-label="Open in terminal" title="Open in terminal. Resumes this session on its own account; the office chat is untouched." @click="openInTerminal"><Icon name="terminal" :size="16" /></button>
+        <button v-if="chat?.visitor === 'desktop'" type="button" class="ib" aria-label="Open in Claude desktop" title="Open in Claude desktop. Focuses the right window; it can't jump to this exact chat yet." @click="openInDesktop"><Icon name="desktop" :size="16" /></button>
         <template v-if="chat && chat.finished === undefined && !chat.archived">
-          <button v-if="canRest(chat.state)" type="button" class="btn sm" title="Move to the lounge, keeping its desk" @click="emit('lounge', chat.id)">Lounge</button>
-          <button type="button" class="btn sm" title="Finish: clear the desk and move the chat to Finished" @click="emit('finish', [chat.id])">Done</button>
-          <button v-if="removable" type="button" class="btn sm" title="Finish and remove its worktree, which is safe to remove" @click="emit('finish', [chat.id], true)">Done + worktree</button>
+          <button v-if="canRest(chat.state)" type="button" class="ib" aria-label="Lounge" title="Lounge: move it to the lounge, keeping its desk" @click="emit('lounge', chat.id)"><Icon name="lounge" :size="16" /></button>
+          <button type="button" class="ib ok" aria-label="Done" title="Done: finish the chat and remove its worktree" @click="emit('finish', [chat.id])"><Icon name="done" :size="16" /></button>
         </template>
-        <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)">×</button>
+        <button type="button" class="ib" aria-label="Back to inbox" title="Back to inbox (Esc)" @click="emit('select', undefined)"><Icon name="close" :size="16" /></button>
       </div>
     </div>
     <div v-if="chat?.visitor" class="visit" role="status">

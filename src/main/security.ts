@@ -59,7 +59,7 @@ export function registerBundleScheme(): void {
 
 export function secureSession(devServerUrl: string | undefined, rendererDir: string): void {
   const csp = contentSecurityPolicy(devServerUrl)
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => callback(permission === 'clipboard-sanitized-write'))
   if (devServerUrl) {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
       callback({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [csp] } })

@@ -6,7 +6,7 @@ import { ago } from '../../shared/chat'
 import type { DeptId } from '../../shared/departments'
 import type { SearchHit } from '../../shared/history'
 import { gb, plural, type Finished, type HousekeepingView } from '../../shared/housekeeping'
-import { usageLine, type AccountView, type Navigate } from '../../shared/ipc'
+import type { AccountView, Navigate } from '../../shared/ipc'
 import type { ReviewQueue } from '../../shared/workflow'
 import Chat from '../panels/Chat.vue'
 import Housekeeping from '../panels/Housekeeping.vue'
@@ -17,6 +17,7 @@ import { keyAction } from '../state/keys'
 import { hasNewArtifact } from '../state/artifacts'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
 import { createCamera, type View } from './camera'
+import { isWarning, tightest } from '../../shared/guardrails'
 import { stateKey, type ChipAction, type StateKey } from './labels'
 import { createWorld, type AgentEntry, type World, type WorldUi } from './world'
 
@@ -52,7 +53,6 @@ const loose = shallowRef<AgentEntry>()
 const shownAgent = computed(() => ui.selected ?? loose.value)
 const openChat = computed(() => (tick.value, shownAgent.value ? projection.chats.get(shownAgent.value.id) : undefined))
 const finished = computed(() => finishedOf(chatList.value, props.accounts))
-const removable = (chatId: string) => !!house.value?.removable.includes(chatId)
 const leaving = new Set<string>()
 let pendingSelect: string | undefined
 let pendingView: View = 'fly'
@@ -128,7 +128,7 @@ function toLounge(chatId: string) {
   if (projection.chats.get(chatId)?.state === 'done') void window.office.markRead(chatId)
 }
 
-async function finish(chatIds: string[], withTrees = false) {
+async function finish(chatIds: string[]) {
   const { finishChat, finishChats } = props.source
   if (!chatIds.length || !finishChat || !finishChats) return
   world.value?.finishing(chatIds, true)
@@ -140,12 +140,12 @@ async function finish(chatIds: string[], withTrees = false) {
     push()
   }
   if (chatIds.length === 1) {
-    const result: Finished | undefined = await finishChat(chatIds[0]!, withTrees).catch((error: unknown) => ({ error: String(error) }))
+    const result: Finished | undefined = await finishChat(chatIds[0]!, true).catch((error: unknown) => ({ error: String(error) }))
     if (!result || (result.error && !result.kept)) restore(chatIds)
     if (result?.error) say(result.error)
     return
   }
-  const result = await finishChats(chatIds, withTrees).catch(() => undefined)
+  const result = await finishChats(chatIds, true).catch(() => undefined)
   const done = new Set(result?.finished ?? [])
   restore(chatIds.filter((id) => !done.has(id)))
   if (result?.skipped.length) say(`Kept ${plural(result.skipped.length, 'chat')}: ${result.skipped.map((skip) => skip.reason).join('; ')}`)
@@ -153,7 +153,7 @@ async function finish(chatIds: string[], withTrees = false) {
 
 function act(action: ChipAction, chatId: string) {
   if (action === 'lounge') toLounge(chatId)
-  else void finish([chatId], action === 'done-remove')
+  else void finish([chatId])
 }
 
 function demoFinish() {
@@ -162,6 +162,23 @@ function demoFinish() {
 }
 
 const usable = computed(() => props.accounts.filter((account) => account.health.status !== 'needs-login'))
+const headroom = computed(() => {
+  const now = (tick.value, Date.now())
+  return props.accounts.map((account) => {
+    const window = tightest(account.health.headroom, now)
+    const kind = window?.window === 'sevenDay' ? 'week' : '5h'
+    const resets = window?.resetsAt ? ago(window.resetsAt - now) : ''
+    return {
+      id: account.id,
+      label: account.label,
+      used: window ? Math.round(window.utilization) : undefined,
+      resets: resets && `${kind === 'week' ? 'week · ' : ''}${resets}`,
+      warn: isWarning(window),
+      title: window ? `${account.label}: ${Math.round(window.utilization)}% of the ${kind === 'week' ? 'weekly' : '5-hour'} limit used${resets ? `, resets in ${resets}` : ''}` : `${account.label}: no usage yet`,
+    }
+  })
+})
+
 async function continueElsewhere(chatId: string) {
   const other = usable.value.find((account) => account.id !== projection.chats.get(chatId)?.accountId)
   const result = other && (await window.office.continueOnAccount(chatId, other.id))
@@ -205,7 +222,7 @@ const Scene = defineComponent({
     const { scene, renderer, advance } = useTres()
     const { onBeforeRender, render } = useLoop()
     const gl = renderer as WebGLRenderer
-    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }), onAction: act, removable })
+    const w = createWorld({ scene: scene.value, renderer: gl, camera, labelsEl: labelsEl.value!, region, ui, reduce, onNewDesk: (dept, slot) => openNew({ dept, slot }), onAction: act })
     world.value = w
     if (probeEnabled) {
       const probe = w.probe
@@ -358,6 +375,11 @@ onUnmounted(() => {
       <span class="rg"><i :style="{ width: house ? `${Math.min(100, (house.bytes / house.totalMemory) * 100).toFixed(1)}%` : '0%' }" /></span>
       <span class="rl">RAM</span><b>{{ house ? gb(house.bytes) : '–' }}</b> · <b>{{ worktreeCount }}</b><span class="rl">{{ worktreeCount === 1 ? 'worktree' : 'worktrees' }}</span>
     </button>
+    <button type="button" :class="['tbtn', 'res', { hot: headroom.some((h) => h.warn) }]" :title="headroom.map((h) => h.title).join('\n')" aria-label="Account headroom. Open Accounts" @click="emit('accounts')">
+      <template v-for="(h, index) in headroom" :key="h.id">
+        <template v-if="index"> · </template><span class="rl">{{ h.label }}</span><span class="rg"><i :style="{ width: `${Math.min(100, h.used ?? 0)}%` }" /></span><b>{{ h.used === undefined ? '–' : `${h.used}%` }}</b><span v-if="h.resets" class="rl">{{ h.resets }}</span>
+      </template>
+    </button>
     <button v-if="demoMode" type="button" class="tbtn" title="Demo: finish two resting agents at once" @click="demoFinish">Demo Done ×2</button>
     <slot />
   </header>
@@ -365,13 +387,8 @@ onUnmounted(() => {
   <aside class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
-    <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
-    <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
-    <button type="button" class="limits" aria-label="Account usage" @click="emit('accounts')">
-      <span v-for="account in accounts" :key="account.id" :class="{ hot: account.health.status === 'needs-login' || Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0) >= 80 }">
-        <b>{{ account.label }}</b> {{ usageLine(account) }}
-      </span>
-    </button>
+    <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
+    <Inbox v-else :inbox="inbox" :finished="finished" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Search">
@@ -419,8 +436,8 @@ onUnmounted(() => {
 .chip .acts button {
   all: unset;
   cursor: pointer;
-  padding: 1px 6px;
-  font: 500 10px/15px var(--mono);
+  display: inline-flex;
+  padding: 2px 4px;
   color: var(--ink2);
   background: var(--soft);
   border: 1px solid var(--line);
@@ -964,29 +981,6 @@ kbd {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.limits {
-  all: unset;
-  flex: none;
-  cursor: pointer;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px 14px;
-  padding: 8px 14px;
-  border-top: 1px solid var(--line);
-  font: 11px var(--mono);
-  color: var(--muted);
-}
-
-.limits b {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.limits .hot {
-  color: var(--needs-ink);
 }
 
 .av {
