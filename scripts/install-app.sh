@@ -57,5 +57,8 @@ fi
 rm -rf "$cache/Agent Office.previous.app"
 [ -d "$target" ] && mv "$target" "$cache/Agent Office.previous.app"
 mv "$staged" "$target"
+lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$lsregister" -u "$cache/Agent Office.previous.app" >/dev/null 2>&1 || true
+"$lsregister" -f "$target" >/dev/null 2>&1 || true
 step "installed $(git -C "$repo" rev-parse --short "$commit"); opening"
 open "$target"
