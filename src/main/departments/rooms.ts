@@ -135,7 +135,9 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
       return room ?? (inside(path, cwd) ? resolve(chatCwd) : undefined)
     },
     revalidate(chat: { cwd: string; department?: string; review?: boolean }, label?: string): string | undefined {
-      const kept = chat.department && (byId(chat.department) || (loaded.unreadable && chat.department.startsWith('c-')))
+      const room = chat.department ? byId(chat.department) : undefined
+      const stale = !!room?.root && !!longest(realpath(room.root), configEntries)
+      const kept = chat.department && ((room && !stale) || (loaded.unreadable && chat.department.startsWith('c-')))
       return kept ? undefined : resolve(chat.cwd, label, { review: chat.review })
     },
   }

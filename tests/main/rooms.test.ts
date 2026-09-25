@@ -257,6 +257,17 @@ describe('revalidating stored chats', { timeout: 60_000 }, () => {
     expect(ids(rooms)).toEqual(['side', 'rev', 'c-api'])
   })
 
+  it('moves chats out of a built room once a config room covers its repo, and leaves other built rooms alone', () => {
+    const shop = gitRepo(join(dir, 'shop'))
+    const blog = gitRepo(join(dir, 'blog'))
+    const first = open()
+    const [shopRoom, blogRoom] = [first.resolve(shop, 'main', { build: true }), first.resolve(blog, 'main', { build: true })]
+    const rooms = open(loaded({ rooms: [{ id: 'c-shop', name: 'Shop', folders: [shop] }] }))
+    expect(rooms.revalidate({ cwd: shop, department: shopRoom }, 'main')).toBe('c-shop')
+    expect(rooms.revalidate({ cwd: shop, department: blogRoom }, 'main')).toBeUndefined()
+    expect(rooms.resolve(join(shop, 'src'), 'main', { build: true })).toBe('c-shop')
+  })
+
   it('keeps chats on config room ids while the config is unreadable', () => {
     const notes = folder(join(dir, 'notes'))
     const rooms = open(loaded({}, 'Unexpected token } in JSON'))
