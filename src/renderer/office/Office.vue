@@ -28,6 +28,7 @@ const probeEnabled = import.meta.env.DEV || !!import.meta.env.RENDERER_VITE_OFFI
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 const labelsEl = ref<HTMLElement>()
 const barEl = ref<HTMLElement>()
+const inboxEl = ref<HTMLElement>()
 const paletteInput = ref<HTMLInputElement>()
 const camera = createCamera()
 const ui = reactive<WorldUi>({ counts: [], queue: [], agents: [] })
@@ -210,11 +211,10 @@ const offProjection = projection.subscribe(push)
 watch(() => props.accounts, push)
 const captions = setInterval(push, 60_000)
 
-const drawerWidth = () => (innerWidth <= 900 ? 0 : Math.round(Math.min(430, Math.max(360, innerWidth * 0.28))))
 function region() {
   const bottom = barEl.value?.getBoundingClientRect().bottom ?? 56
-  const dw = drawerWidth()
-  return { x0: 12, y0: bottom + 8, x1: innerWidth - (dw ? dw + 24 : 12), y1: innerHeight - 12 }
+  const drawer = inboxEl.value?.getBoundingClientRect()
+  return { x0: 12, y0: bottom + 8, x1: drawer?.width ? drawer.left - 12 : innerWidth - 12, y1: innerHeight - 12 }
 }
 
 const Scene = defineComponent({
@@ -394,7 +394,7 @@ onUnmounted(() => {
     <slot />
   </header>
   <p v-if="toast" class="toast" role="status">{{ toast }}</p>
-  <aside class="inbox" aria-label="Inbox">
+  <aside ref="inboxEl" class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
