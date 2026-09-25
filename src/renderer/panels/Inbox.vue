@@ -2,11 +2,12 @@
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ago } from '../../shared/chat'
 import type { Decision, PendingRequestView, WindowSource } from '../../shared/permissions'
+import type { ConfigErrors } from '../../shared/chat'
 import type { ReviewQueue } from '../../shared/workflow'
 import type { FinishedRow, Inbox, WaitingItem } from '../state/inbox'
 import ReviewRequests from './ReviewRequests.vue'
 
-const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; removable?: string[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue }>()
+const props = defineProps<{ inbox: Inbox; finished?: FinishedRow[]; removable?: string[]; canSwitch?: boolean; cleanup?: number; reviews?: ReviewQueue; configErrors?: ConfigErrors }>()
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; new: []; continue: [chatId: string]; house: []; finish: [chatIds: string[], withTrees?: boolean] }>()
 
 const now = ref(Date.now())
@@ -72,6 +73,12 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div v-if="configErrors?.unreadable || configErrors?.skipped.length" class="cfg" role="alert">
+    <p v-if="configErrors.unreadable">departments.json can’t be read: {{ configErrors.unreadable }}. New repos go to the playground until it’s fixed.</p>
+    <ul v-if="configErrors.skipped.length">
+      <li v-for="line in configErrors.skipped" :key="line">{{ line }}.</li>
+    </ul>
+  </div>
   <div class="ih">
     <div>
       <h2><i :class="{ clear: !inbox.waiting.length }" />Waiting for you · {{ inbox.waiting.length }}</h2>
@@ -184,6 +191,25 @@ onUnmounted(() => {
 </template>
 
 <style>
+.inbox .cfg {
+  margin: 12px 16px 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--needs-bg, #fff7ed);
+  color: var(--needs-ink, #8a4b06);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.inbox .cfg p,
+.inbox .cfg ul {
+  margin: 0;
+}
+
+.inbox .cfg ul {
+  padding-left: 16px;
+}
+
 .inbox .ih {
   padding: 16px 16px 13px;
   border-bottom: 1px solid var(--line);

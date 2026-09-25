@@ -33,6 +33,7 @@ const tick = ref(0)
 const colours = new Map<string, number>()
 const palette = reactive({ open: false, query: '' })
 const inbox = shallowRef(emptyInbox)
+const configErrors = shallowRef(projection.configErrors)
 const mode = ref<'inbox' | 'new' | 'house'>('inbox')
 const house = shallowRef<HousekeepingView>()
 const reviews = shallowRef<ReviewQueue>()
@@ -71,6 +72,7 @@ function push() {
   const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours).filter((a) => !leaving.has(a.id))
   for (const a of agents) colours.set(a.id, a.colour)
   inbox.value = buildInbox(projection.chats, agents, projection.logins, w.sentAway())
+  configErrors.value = projection.configErrors
   w.sync(agents, projection.logins)
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
@@ -326,7 +328,7 @@ onUnmounted(() => {
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" :removable="removable(shownAgent.id)" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" />
-    <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
+    <Inbox v-else :inbox="inbox" :finished="finished" :removable="house?.removable ?? []" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" :config-errors="configErrors" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
     <button type="button" class="limits" aria-label="Account usage" @click="emit('accounts')">
       <span v-for="account in accounts" :key="account.id" :class="{ hot: account.health.status === 'needs-login' || Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0) >= 80 }">
         <b>{{ account.label }}</b> {{ usageLine(account) }}
