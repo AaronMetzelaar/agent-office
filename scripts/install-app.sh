@@ -68,7 +68,7 @@ swap() {
   "$lsregister" -u "$cache/Agent Office.previous.app" >/dev/null 2>&1 || true
   "$lsregister" -f "$target" >/dev/null 2>&1 || true
   step "installed; opening"
-  open "$target"
+  open -n "$target"
 }
 
 case "$only" in
