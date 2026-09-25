@@ -39,6 +39,7 @@ const pose: Record<PoseName, Joints> = {
   relax: { legs: 0, a0: 0.05, a1: -2.6, z0: -0.28, z1: 0.55, head: -0.2, lean: -0.06, eye: 0.7, tilt: 0 },
   run: { legs: 0, a0: -0.7, a1: -0.7, z0: -0.12, z1: 0.12, head: -0.04, lean: 0.14, eye: 1, tilt: 0 },
   wait: { legs: 0, a0: -0.42, a1: -0.42, z0: -0.1, z1: 0.1, head: -0.1, lean: -0.03, eye: 1, tilt: 0 },
+  smoke: { legs: 0, a0: 0.3, a1: -0.95, z0: -0.72, z1: -0.3, head: -0.06, lean: -0.05, eye: 0.8, tilt: 0.06 },
 }
 const jointKeys = Object.keys(pose.stand) as (keyof Joints)[]
 
@@ -49,6 +50,13 @@ export interface Anim extends Joints {
   turn: number
   gx: number
   gy: number
+}
+
+export interface Cig {
+  stick: THREE.Group
+  tip: THREE.MeshStandardMaterial
+  puffs: { m: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>; age: number; from: THREE.Vector3 }[]
+  breath: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>
 }
 
 export interface Mini {
@@ -67,6 +75,7 @@ export interface Character {
   disc: THREE.Mesh
   proxy: THREE.Mesh
   minis: Mini[]
+  cig?: Cig
   chipAt: THREE.Vector3
   ph: number
   nextBlink: number
@@ -170,6 +179,27 @@ export function createKit(scene: THREE.Scene) {
   const discM = new THREE.MeshBasicMaterial({ map: discTex, transparent: true, depthWrite: false, color: 0x1b2130 })
   const proxyGeo = new THREE.CylinderGeometry(0.36, 0.36, 1.3, 8).translate(0, 0.62, 0)
   const proxyM = new THREE.MeshBasicMaterial()
+  const puffGeo = new THREE.SphereGeometry(0.05, 10, 8)
+  const paperGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.17, 8)
+  const emberGeo = new THREE.CylinderGeometry(0.021, 0.021, 0.025, 8)
+  const puffM = () => new THREE.MeshBasicMaterial({ color: 0xaeb5bf, transparent: true, opacity: 0, depthWrite: false })
+
+  function cig(c: Character): Cig {
+    const stick = new THREE.Group()
+    stick.position.set(0.03, -0.21, 0.03)
+    stick.rotation.set(0, -0.5, -Math.PI / 2)
+    const paper = new THREE.Mesh(paperGeo, memo('cig', () => new THREE.MeshStandardMaterial({ color: 0xf6f3ee, roughness: 0.8 })))
+    paper.position.y = 0.06
+    const tip = new THREE.MeshStandardMaterial({ color: 0x3a2a22, emissive: 0xff5a1f, emissiveIntensity: 0.6 })
+    const ember = new THREE.Mesh(emberGeo, tip)
+    ember.position.y = 0.155
+    stick.add(paper, ember)
+    c.body.arms[1]!.add(stick)
+    const puffs = Array.from({ length: 5 }, (_, j) => ({ m: new THREE.Mesh(puffGeo, puffM()), age: j / 5, from: new THREE.Vector3() }))
+    const breath = new THREE.Mesh(puffGeo, puffM())
+    scene.add(breath, ...puffs.map((p) => p.m))
+    return { stick, tip, puffs, breath }
+  }
 
   function part(g: THREE.BufferGeometry, m: THREE.Material, p: THREE.Object3D) {
     const o = new THREE.Mesh(g, m)
@@ -257,13 +287,20 @@ export function createKit(scene: THREE.Scene) {
   function dispose(c: Character) {
     scene.remove(c.body.g, c.ring, c.disc)
     c.minis.forEach((m) => scene.remove(m.b.g))
+    if (c.cig) {
+      for (const m of [c.cig.breath, ...c.cig.puffs.map((p) => p.m)]) {
+        scene.remove(m)
+        m.material.dispose()
+      }
+      c.cig.tip.dispose()
+    }
     c.body.m.dispose()
     c.body.tex.dispose()
     ;(c.body.eyes[0]!.material as THREE.Material).dispose()
     c.ring.material.dispose()
   }
 
-  return { create, settle, tint, dispose, blob, colourMini: (color: number) => lighten(color, 0.4).getHex() }
+  return { create, settle, tint, dispose, blob, cig, colourMini: (color: number) => lighten(color, 0.4).getHex() }
 }
 
 export interface Frame {
@@ -337,23 +374,28 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   b.legs[1]!.rotation.x = a.legs - lo
   const typ = name === 'type' ? Math.sin(t * 15 + c.ph) * 0.12 * am * (Math.sin(t * 0.9 + c.ph) > -0.4 ? 1 : 0) : 0
   const rub = name === 'relax' ? Math.sin(t * 3.2) * 0.18 * am : 0
+  const puffAt = (t + c.ph * 1.7) % 6.5
+  const drag = name === 'smoke' && puffAt < 1.6 ? Math.sin((puffAt / 1.6) * Math.PI) : 0
   b.arms[0]!.rotation.x = a.a0 + ao + typ
-  b.arms[1]!.rotation.x = a.a1 - ao - typ + rub
+  b.arms[1]!.rotation.x = a.a1 - ao - typ + rub - drag * 1.5
   b.arms[0]!.rotation.z = a.z0
-  b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0)
+  b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0) - drag * 0.35
   b.hips.rotation.set(a.lean, name === 'lean' ? Math.sin(t * 0.8 + c.ph) * 0.06 * am : 0, roll)
   b.hips.position.y = 0.17 + (name === 'wave' ? Math.abs(Math.sin(t * 4.5)) * 0.06 * am : 0)
   const br = name === 'sleep' ? Math.sin(t * 1.3 + c.ph) * 0.035 * am : Math.sin(t * 2.1 + c.ph) * (name === 'lounge' ? 0.026 : 0.018) * am
   b.body.scale.set(1 - br * 0.5, 1 + br, 1 - br * 0.5)
   const look = f.looking && !walking && name !== 'sleep' ? clamp(wrap(f.faceCamera(w.pos) - w.face), -0.55, 0.55) * 0.75 : 0
   spring(a, 'turn', look, sdt, 6)
-  b.hp.rotation.set(a.head + (name === 'lounge' ? Math.sin(t * 0.5 + c.ph) * 0.04 * am : 0) + (name === 'type' ? Math.sin(t * 1.7 + c.ph) * 0.03 * am : 0), a.turn, a.tilt)
+  const exhale = name === 'smoke' && puffAt > 1.6 && puffAt < 3.4 ? (puffAt - 1.6) / 1.8 : -1
+  b.hp.rotation.set(a.head + (name === 'lounge' ? Math.sin(t * 0.5 + c.ph) * 0.04 * am : 0) + (name === 'type' ? Math.sin(t * 1.7 + c.ph) * 0.03 * am : 0) + drag * 0.08 - (exhale >= 0 ? Math.sin(exhale * Math.PI) * 0.14 : 0), a.turn, a.tilt)
+  if (name === 'smoke' && !c.cig) c.cig = kit.cig(c)
+  if (c.cig) smoke(c, name === 'smoke' && !f.gone, drag, exhale, dt, am)
   if (t >= c.nextBlink) {
     c.blinkAt = t
     c.nextBlink = t + (Math.random() < 0.15 ? 0.3 : 2 + Math.random() * 4)
   }
   const bu = (t - c.blinkAt) / 0.15
-  const ey = 1.22 * a.eye * (bu < 1 ? 1 - Math.sin(bu * Math.PI) * 0.92 : 1)
+  const ey = 1.22 * a.eye * (1 - drag * 0.45) * (bu < 1 ? 1 - Math.sin(bu * Math.PI) * 0.92 : 1)
   b.eyes[0]!.scale.y = b.eyes[1]!.scale.y = ey
   if (t > c.gazeAt) {
     c.gazeAt = t + 1.2 + Math.random() * 2.6
@@ -395,4 +437,34 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
     m.b.eyes[0]!.scale.y = m.b.eyes[1]!.scale.y = 1.22 * (u < 1 ? 1 - Math.sin(u * Math.PI) * 0.92 : 1)
   })
   return moved
+}
+
+const tipAt = new THREE.Vector3()
+const mouthAt = new THREE.Vector3()
+
+function smoke(c: Character, on: boolean, drag: number, exhale: number, dt: number, am: number) {
+  const k = c.cig!
+  k.stick.visible = on
+  k.tip.emissiveIntensity = 0.6 + drag * 2.4
+  k.breath.visible = on && exhale >= 0
+  for (const p of k.puffs) p.m.visible = on
+  if (!on) return
+  k.stick.children[1]!.getWorldPosition(tipAt)
+  for (const p of k.puffs) {
+    p.age += dt / 2.6
+    if (p.age >= 1) {
+      p.age -= 1
+      p.from.copy(tipAt)
+    }
+    const u = p.age
+    p.m.position.set(p.from.x + Math.sin(u * 5 + p.from.x * 9) * 0.05 * am, p.from.y + u * 0.9, p.from.z)
+    p.m.scale.setScalar(0.4 + u * 2)
+    p.m.material.opacity = p.from.lengthSq() ? 0.55 * Math.sin(u * Math.PI) : 0
+  }
+  if (exhale < 0) return
+  c.body.hp.localToWorld(mouthAt.set(0, 0.17, 0.34))
+  const fwd = c.walker.face
+  k.breath.position.set(mouthAt.x + Math.sin(fwd) * exhale * 0.35, mouthAt.y + exhale * 0.3, mouthAt.z + Math.cos(fwd) * exhale * 0.35)
+  k.breath.scale.setScalar(0.8 + exhale * 3.2)
+  k.breath.material.opacity = 0.65 * Math.sin(exhale * Math.PI) * (1 - exhale * 0.4)
 }

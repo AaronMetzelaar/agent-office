@@ -126,6 +126,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const live = new Map<string, Live>()
   const claims = new Map<string, number>()
   const sent = new Set<string>()
+  const smoking = new Set<string>()
   const finishing = new Set<string>()
   const ghosts = new Map<string, Desk>()
   const deskChips = new Map<string, CSS2DObject>()
@@ -135,6 +136,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const seatVecs: THREE.Vector3[] = []
   const coolerVecs: THREE.Vector3[] = []
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
+  const smokeVecs: THREE.Vector3[] = []
+  const smokeVec = (k: number) => (smokeVecs[k] ??= new THREE.Vector3(door[0] + 1.1 + k * 0.75, 0, ZF + 0.42))
   const anims = Object.fromEntries(depts.map((d) => [d.id, room()])) as Record<DeptId, RoomAnim>
   const lounge = room()
   let floor: Floor = layoutFloor({})
@@ -305,10 +308,13 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
     for (const l of act) {
       if (!canRest(l.facts.state)) sent.delete(l.facts.id)
+      const was = l.spot
       l.spot = spotFor(l.facts, l.spot, focus.selected === l.facts.id, sent.has(l.facts.id))
+      if (l.spot !== 'lounge' || l.facts.parked) smoking.delete(l.facts.id)
+      else if (was !== 'lounge' && rnd() < 0.1) smoking.add(l.facts.id)
     }
     const sitting = act.filter((l) => l.spot === 'lounge' && settled(l) && l.target.p === seatVecs[seating.seats.get(l.facts.id) ?? -1])
-    const sitters = act.map((l) => ({ id: l.facts.id, dept: l.facts.dept, spot: l.spot!, parked: l.facts.parked, recent: l.facts.quietMs < day }))
+    const sitters = act.map((l) => ({ id: l.facts.id, dept: l.facts.dept, spot: smoking.has(l.facts.id) ? ('smoke' as const) : l.spot!, parked: l.facts.parked, recent: l.facts.quietMs < day }))
     const next = reseat(seating, [...sitters, ...[...ghosts].map(([id, d]) => ({ id, dept: d.dept, spot: 'gone' as const, parked: false, recent: false }))], canFold(), claims)
     seating = next
     pendingLayout = next.pending
@@ -387,10 +393,11 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function targetOf(l: Live): Target {
     const f = l.facts
     if (l.gone) return { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, subs: 0 }
-    const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length })
+    const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length, smoking: smoking.has(f.id) })
     const p =
       place.anchor === 'queue' ? queueVecs[l.queueIndex]!
       : place.anchor === 'lounge' ? (seatVecs[seating.seats.get(f.id) ?? 0] ?? doorVec)
+      : place.anchor === 'smoke' ? smokeVec([...smoking].indexOf(f.id))
       : place.anchor === 'cooler' ? (coolerVecs[coolers.get(f.id) ?? 0] ?? doorVec)
       : !l.slot || place.anchor === 'door' ? doorVec
       : place.anchor === 'stand' ? l.slot.stand
@@ -420,6 +427,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     l.bye = finishing.delete(id)
     l.wait = (l.bye ? 1.1 : 0) + i * 0.18
     sent.delete(id)
+    smoking.delete(id)
     const desk = seating.desks.get(id)
     if (l.bye && desk) {
       ghosts.set(id, desk)
@@ -456,7 +464,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       if (id === 'lounge') {
         const here = act.filter((l) => l.spot === 'lounge')
         const dozing = here.filter((l) => l.facts.parked).length
-        const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing }, { key: 'idle', label: 'dozing', n: dozing }].filter((c) => c.n > 0)
+        const out = here.filter((l) => smoking.has(l.facts.id)).length
+        const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing - out }, { key: 'idle', label: 'dozing', n: dozing }, { key: 'idle', label: 'outside for a smoke', n: out }].filter((c) => c.n > 0)
         renderSign(sign, 'Lounge', counts, 'Empty', on, dim)
       } else renderSign(sign, dept[id].name, countsFor(act.filter((l) => l.facts.dept === id && l.spot !== 'lounge').map((l) => l.facts)), 'No agents', on, dim)
       sign.w = sign.el.offsetWidth || sign.w
