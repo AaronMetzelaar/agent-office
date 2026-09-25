@@ -13,7 +13,7 @@ import Housekeeping from '../panels/Housekeeping.vue'
 import Inbox from '../panels/Inbox.vue'
 import NewAgent from '../panels/NewAgent.vue'
 import { buildInbox, emptyInbox, finishedOf } from '../state/inbox'
-import { keyAction } from '../state/keys'
+import { cycleAgent, keyAction } from '../state/keys'
 import { hasNewArtifact } from '../state/artifacts'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
 import { createCamera, type View } from './camera'
@@ -309,6 +309,11 @@ function onKey(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     return void (palette.open ? (palette.open = false) : openPalette())
+  }
+  if (event.ctrlKey && event.key === 'Tab') {
+    event.preventDefault()
+    const next = cycleAgent(ui.agents.map((a) => a.id), shownAgent.value?.id, event.shiftKey)
+    return void (next && select(next))
   }
   const typing = !!(event.target as HTMLElement).closest?.('input,textarea,select')
   if (event.key === 'Escape') {

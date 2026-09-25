@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { keyAction, type KeyContext } from '../../src/renderer/state/keys'
+import { cycleAgent, keyAction, type KeyContext } from '../../src/renderer/state/keys'
 
 const card = (id: string, extra: Partial<NonNullable<KeyContext['card']>> = {}) => ({ id, tool: 'Bash', dangerous: false, alwaysAllow: true, ...extra })
 const queue: KeyContext['queue'] = [{ chatId: 'crashed', requests: [] }, { chatId: 'a', requests: [card('ra')] }, { chatId: 'b', requests: [card('rb')] }, { requests: [] }]
@@ -38,5 +38,18 @@ describe('keys', () => {
     expect(keyAction('k', { open: 'crashed', queue })).toBeUndefined()
     expect(keyAction('j', { open: 'somewhere-else', queue })).toEqual({ kind: 'open', chatId: 'crashed' })
     expect(keyAction('x', { queue })).toBeUndefined()
+  })
+})
+
+describe('cycleAgent', () => {
+  it('ctrl+tab walks every agent, wraps at both ends, and starts from an edge when none is open', () => {
+    const ids = ['a', 'b', 'c']
+    expect(cycleAgent(ids, undefined, false)).toBe('a')
+    expect(cycleAgent(ids, undefined, true)).toBe('c')
+    expect(cycleAgent(ids, 'a', false)).toBe('b')
+    expect(cycleAgent(ids, 'c', false)).toBe('a')
+    expect(cycleAgent(ids, 'a', true)).toBe('c')
+    expect(cycleAgent(ids, 'gone', false)).toBe('a')
+    expect(cycleAgent([], 'a', false)).toBeUndefined()
   })
 })

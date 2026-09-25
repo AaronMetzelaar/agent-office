@@ -30,3 +30,10 @@ export function keyAction(key: string, { open, queue, card }: KeyContext): KeyAc
   const next = at < 0 ? (step > 0 ? 0 : chats.length - 1) : Math.min(chats.length - 1, Math.max(0, at + step))
   return next === at ? undefined : { kind: 'open', chatId: chats[next]! }
 }
+
+export function cycleAgent(ids: readonly string[], open: string | undefined, back: boolean): string | undefined {
+  if (!ids.length) return undefined
+  const at = open ? ids.indexOf(open) : -1
+  if (at < 0) return back ? ids.at(-1) : ids[0]
+  return ids[(at + (back ? -1 : 1) + ids.length) % ids.length]
+}
