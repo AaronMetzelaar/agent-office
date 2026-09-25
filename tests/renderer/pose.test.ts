@@ -17,7 +17,6 @@ describe('state to pose', () => {
     expect(at('starting')).toEqual(['seat', 'type'])
     expect(at('done')).toEqual(['seat', 'lean'])
     expect(at('idle')).toEqual(['lounge', 'lounge'])
-    expect(at('idle', { smoking: true })).toEqual(['smoke', 'smoke'])
   })
 
   it('maps the gym column of the R5 table', () => {

@@ -4,7 +4,7 @@ import type { Spot } from './standby'
 export interface Sitter {
   id: string
   dept: DeptId
-  spot: Spot | 'smoke' | 'gone'
+  spot: Spot | 'gone'
   parked: boolean
   recent: boolean
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { canvasTex, lighten } from './props'
-import { activityAt, type Activity } from './lounge'
+import { activityAt, type Activity, type Errand } from './lounge'
 import { stepWalker, type Walker } from './nav'
 import type { PoseName } from './pose'
 
@@ -29,7 +29,7 @@ interface Joints {
   tilt: number
 }
 
-const pose: Record<PoseName, Joints> = {
+export const pose: Record<PoseName, Joints> = {
   stand: { legs: 0, a0: 0.05, a1: 0.05, z0: -0.22, z1: 0.22, head: 0, lean: 0, eye: 1, tilt: 0 },
   sleep: { legs: -1.45, a0: -0.3, a1: -0.3, z0: -0.08, z1: 0.08, head: -0.2, lean: -0.18, eye: 0.05, tilt: 0.26 },
   type: { legs: -1.5, a0: -1.25, a1: -1.25, z0: 0.3, z1: -0.3, head: 0.08, lean: 0.07, eye: 1, tilt: 0 },
@@ -43,11 +43,23 @@ const pose: Record<PoseName, Joints> = {
   smoke: { legs: 0, a0: 0.3, a1: -0.95, z0: -0.72, z1: -0.3, head: -0.06, lean: -0.05, eye: 0.8, tilt: 0.06 },
 }
 export const seated: Record<Activity, Joints> = {
-  read: { legs: -1.4, a0: -1.05, a1: -1.05, z0: 0.3, z1: -0.3, head: 0.2, lean: -0.1, eye: 0.72, tilt: 0 },
-  sip: { legs: -1.4, a0: -0.35, a1: -1.85, z0: -0.32, z1: -0.5, head: -0.06, lean: -0.14, eye: 0.8, tilt: 0.04 },
-  phone: { legs: -1.4, a0: -0.85, a1: -0.85, z0: 0.22, z1: -0.22, head: 0.32, lean: -0.08, eye: 0.8, tilt: 0 },
+  read: { legs: -1.4, a0: -1.25, a1: -1.25, z0: 0.1, z1: -0.1, head: 0.2, lean: -0.1, eye: 0.72, tilt: 0 },
+  sip: { legs: -1.4, a0: -0.35, a1: -1.8, z0: -0.32, z1: -0.5, head: -0.06, lean: -0.14, eye: 0.8, tilt: 0.04 },
+  phone: { legs: -1.4, a0: -0.95, a1: -0.95, z0: 0.1, z1: -0.1, head: 0.32, lean: -0.08, eye: 0.8, tilt: 0 },
   gaze: { legs: -1.4, a0: -0.3, a1: -0.3, z0: -0.34, z1: 0.34, head: -0.36, lean: -0.2, eye: 0.95, tilt: -0.08 },
 }
+
+export type StandingErrand = Exclude<Errand, 'smoke'>
+
+export const standing: Record<StandingErrand, Joints> = {
+  coffee: { legs: 0, a0: 0.05, a1: -1.25, z0: -0.22, z1: -0.1, head: 0.15, lean: 0.04, eye: 0.9, tilt: 0 },
+  browse: { legs: 0, a0: 0.05, a1: -1.25, z0: -0.22, z1: -0.1, head: 0.28, lean: 0.1, eye: 0.85, tilt: 0.05 },
+  water: { legs: 0, a0: 0.05, a1: -0.9, z0: -0.22, z1: 0.2, head: 0.3, lean: 0.16, eye: 0.85, tilt: 0 },
+  stretch: { legs: 0, a0: -2.8, a1: -2.8, z0: -0.55, z1: 0.55, head: -0.3, lean: -0.08, eye: 0.55, tilt: 0 },
+  visit: { legs: 0, a0: 0.05, a1: -0.55, z0: -0.25, z1: 0.35, head: -0.05, lean: 0.02, eye: 1.05, tilt: 0.04 },
+}
+
+export const errandProp: Partial<Record<StandingErrand, HandProp>> = { coffee: 'sip', browse: 'read' }
 
 export const dozes: readonly Joints[] = [
   pose.sleep,
@@ -56,6 +68,28 @@ export const dozes: readonly Joints[] = [
 ]
 
 const jointKeys = Object.keys(pose.stand) as (keyof Joints)[]
+
+export const rig = {
+  hips: 0.17,
+  body: -0.07,
+  profile: [[0, 0], [0.15, 0.008], [0.24, 0.05], [0.285, 0.14], [0.278, 0.25], [0.235, 0.345], [0.16, 0.42], [0.07, 0.455], [0, 0.46]] as const,
+  shoulder: [0.27, 0.3] as const,
+  neck: 0.36,
+  head: 0.27,
+  headR: 0.34,
+  headScale: [1.04, 0.96, 1] as const,
+}
+
+export type HandProp = 'read' | 'phone' | 'sip'
+export const handProps: Record<HandProp, { size: readonly [number, number, number]; at: readonly [number, number, number]; rx: number }> = {
+  read: { size: [0.2, 0.15, 0.035], at: [0, -0.26, 0.06], rx: 1.05 },
+  phone: { size: [0.075, 0.13, 0.015], at: [0, -0.23, 0.06], rx: 0.85 },
+  sip: { size: [0.08, 0.08, 0.08], at: [0.04, -0.2, 0], rx: 1.85 },
+}
+
+export const dragReach = { x: 1.2, z: 0.1 }
+
+export const cigAt = { at: [0.03, -0.21, 0.03] as const, rot: [0, -0.5, -Math.PI / 2] as const, paper: 0.17, from: 0.06, ember: 0.155 }
 
 export interface Anim extends Joints {
   v: Record<string, number>
@@ -117,6 +151,7 @@ export interface Target {
   folder: boolean
   subs: number
   doze?: number
+  errand?: Errand
   miniCentre?: THREE.Vector3
 }
 
@@ -152,12 +187,12 @@ export function createKit(scene: THREE.Scene) {
     t.anisotropy = 4
     return t
   })()
-  const profile = new THREE.SplineCurve([[0, 0], [0.15, 0.008], [0.24, 0.05], [0.285, 0.14], [0.278, 0.25], [0.235, 0.345], [0.16, 0.42], [0.07, 0.455], [0, 0.46]].map(([a, b]) => new THREE.Vector2(a, b)))
+  const profile = new THREE.SplineCurve(rig.profile.map(([a, b]) => new THREE.Vector2(a, b)))
     .getPoints(24)
     .map((p) => new THREE.Vector2(Math.max(0, p.x), p.y))
   const geo = {
     body: new THREE.LatheGeometry(profile, 32),
-    head: new THREE.SphereGeometry(0.34, 36, 26),
+    head: new THREE.SphereGeometry(rig.headR, 36, 26),
     eye: new THREE.SphereGeometry(0.1, 24, 16),
     blush: new THREE.SphereGeometry(0.05, 16, 10),
     arm: mergeGeometries([new THREE.CapsuleGeometry(0.05, 0.1, 4, 12).translate(0, -0.08, 0), new THREE.SphereGeometry(0.062, 16, 12).translate(0, -0.17, 0)]),
@@ -200,19 +235,19 @@ export function createKit(scene: THREE.Scene) {
   const proxyGeo = new THREE.CylinderGeometry(0.36, 0.36, 1.3, 8).translate(0, 0.62, 0)
   const proxyM = new THREE.MeshBasicMaterial()
   const puffGeo = new THREE.SphereGeometry(0.05, 10, 8)
-  const paperGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.17, 8)
+  const paperGeo = new THREE.CylinderGeometry(0.02, 0.02, cigAt.paper, 8)
   const emberGeo = new THREE.CylinderGeometry(0.021, 0.021, 0.025, 8)
   const puffM = () => new THREE.MeshBasicMaterial({ color: 0xaeb5bf, transparent: true, opacity: 0, depthWrite: false })
 
   function cig(c: Character): Cig {
     const stick = new THREE.Group()
-    stick.position.set(0.03, -0.21, 0.03)
-    stick.rotation.set(0, -0.5, -Math.PI / 2)
+    stick.position.set(...cigAt.at)
+    stick.rotation.set(...cigAt.rot)
     const paper = new THREE.Mesh(paperGeo, memo('cig', () => new THREE.MeshStandardMaterial({ color: 0xf6f3ee, roughness: 0.8 })))
-    paper.position.y = 0.06
+    paper.position.y = cigAt.from
     const tip = new THREE.MeshStandardMaterial({ color: 0x3a2a22, emissive: 0xff5a1f, emissiveIntensity: 0.6 })
     const ember = new THREE.Mesh(emberGeo, tip)
-    ember.position.y = 0.155
+    ember.position.y = cigAt.ember
     stick.add(paper, ember)
     c.body.arms[1]!.add(stick)
     const puffs = Array.from({ length: 5 }, (_, j) => ({ m: new THREE.Mesh(puffGeo, puffM()), age: j / 5, from: new THREE.Vector3() }))
@@ -237,7 +272,7 @@ export function createKit(scene: THREE.Scene) {
     const g = new THREE.Group()
     scene.add(g)
     const hips = new THREE.Group()
-    hips.position.y = 0.17
+    hips.position.y = rig.hips
     g.add(hips)
     const legs = [-1, 1].map((s) => {
       const p = new THREE.Group()
@@ -247,13 +282,13 @@ export function createKit(scene: THREE.Scene) {
       return p
     })
     const body = part(geo.body, m, hips)
-    body.position.y = -0.07
+    body.position.y = rig.body
     const hp = new THREE.Group()
-    hp.position.y = 0.36
+    hp.position.y = rig.neck
     hips.add(hp)
     const head = part(geo.head, m, hp)
-    head.position.y = 0.27
-    head.scale.set(1.04, 0.96, 1)
+    head.position.y = rig.head
+    head.scale.set(...rig.headScale)
     const tex = small ? eyeTex : eyeTex.clone()
     const em = small ? memo('me', () => new THREE.MeshStandardMaterial({ map: eyeTex, roughness: 0.45 })) : new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45 })
     const eyes = [-1, 1].map((s) => {
@@ -273,7 +308,7 @@ export function createKit(scene: THREE.Scene) {
     }
     const arms = [-1, 1].map((s) => {
       const p = new THREE.Group()
-      p.position.set(s * 0.27, 0.3, 0)
+      p.position.set(s * rig.shoulder[0], rig.shoulder[1], 0)
       part(geo.arm, m, p)
       hips.add(p)
       return p
@@ -306,28 +341,22 @@ export function createKit(scene: THREE.Scene) {
   }
 
   const heldGeo = {
-    read: new THREE.BoxGeometry(0.2, 0.15, 0.035),
-    phone: new THREE.BoxGeometry(0.075, 0.13, 0.015),
-    sip: new THREE.CylinderGeometry(0.04, 0.035, 0.08, 12),
+    read: new THREE.BoxGeometry(...handProps.read.size),
+    phone: new THREE.BoxGeometry(...handProps.phone.size),
+    sip: new THREE.CylinderGeometry(handProps.sip.size[0] / 2, handProps.sip.size[0] * 0.44, handProps.sip.size[1], 12),
   }
   const heldM = {
     read: new THREE.MeshStandardMaterial({ color: 0x9a7b62, roughness: 0.85 }),
     phone: new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.5 }),
     sip: new THREE.MeshStandardMaterial({ color: 0xf1ede6, roughness: 0.6 }),
   }
-  const heldAt: Record<'read' | 'phone' | 'sip', [number, number, number, number]> = {
-    read: [-0.12, -0.2, 0.06, 1.05],
-    phone: [-0.1, -0.2, 0.05, 0.85],
-    sip: [-0.02, -0.21, 0.02, 1.85],
-  }
 
   function hold(c: Character, act: Activity | undefined) {
     for (const [k, o] of Object.entries(c.props ?? {})) o.visible = k === act
     if (!act || act === 'gaze' || c.props?.[act]) return
-    const [x, y, z, rx] = heldAt[act]
     const o = new THREE.Mesh(heldGeo[act], heldM[act])
-    o.position.set(x, y, z)
-    o.rotation.x = rx
+    o.position.set(...handProps[act].at)
+    o.rotation.x = handProps[act].rx
     o.castShadow = true
     c.body.arms[1]!.add(o)
     ;(c.props ??= {})[act] = o
@@ -382,10 +411,12 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   const walking = stepWalker(w, T.p, dt, f.route, !rising)
   if (!w.path.length) w.face += wrap((T.face ?? f.faceCamera(w.pos)) - w.face) * (1 - Math.exp(-dt * 6))
   const name: PoseName = walking || rising ? 'stand' : T.pose
-  const sat = name === 'lounge' && !T.folder && !w.path.length && w.pos.distanceTo(T.p) < 0.1
-  const act = sat ? activityAt(t, c.ph) : undefined
-  const J = act ? seated[act] : name === 'sleep' ? (dozes[T.doze ?? 0] ?? pose.sleep) : pose[name]
-  if (act || c.props) kit.hold(c, act)
+  const there = !T.folder && !w.path.length && w.pos.distanceTo(T.p) < 0.1
+  const act = there && name === 'lounge' ? activityAt(t, c.ph) : undefined
+  const job = there && name === 'stand' && T.errand && T.errand !== 'smoke' ? T.errand : undefined
+  const J = act ? seated[act] : job ? standing[job] : name === 'sleep' ? (dozes[T.doze ?? 0] ?? pose.sleep) : pose[name]
+  const prop = act ?? (job && errandProp[job])
+  if (prop || c.props) kit.hold(c, prop)
   const sdt = Math.min(dt, 0.033)
   spring(a, 'y', walking || rising ? 0 : T.y, sdt, 13)
   for (const k of jointKeys) spring(a, k, J[k], sdt, 9.5)
@@ -439,9 +470,10 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   const puffAt = (t + c.ph * 1.7) % 6.5
   const drag = name === 'smoke' && puffAt < 1.6 ? Math.sin((puffAt / 1.6) * Math.PI) : 0
   b.arms[0]!.rotation.x = a.a0 + ao + typ
-  b.arms[1]!.rotation.x = a.a1 - ao - typ + rub - drag * 1.5
+  const talk = job === 'visit' ? Math.sin(t * 3.1 + c.ph) * 0.22 * am : 0
+  b.arms[1]!.rotation.x = a.a1 - ao - typ + rub - drag * dragReach.x + talk
   b.arms[0]!.rotation.z = a.z0
-  b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0) - drag * 0.35
+  b.arms[1]!.rotation.z = a.z1 + (name === 'wave' ? Math.sin(t * 9) * 0.35 * am : 0) - drag * dragReach.z
   c.held += ((T.folder && !f.gone && name !== 'sleep' && name !== 'smoke' ? 1 : 0) - c.held) * Math.min(1, dt * 6)
   c.folder.visible = c.held > 0.02
   if (c.folder.visible) {

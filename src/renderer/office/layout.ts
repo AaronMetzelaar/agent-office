@@ -44,7 +44,7 @@ export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
 export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }
 export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, relax: 1.5, front: 0.5 }
 export const yardGrid = { cw: 2.7, cd: 2.5, left: 0.4, right: 0.4, back: 1.6, front: 0.8, side: 1.6 }
-export const loungeGrid = { pitchX: 1, pair: 0.5, pitchZ: 1.15, left: 0.6, right: 1.1, back: 0.85, front: 0.6 }
+export const loungeGrid = { pitchX: 1.2, pair: 0.7, pitchZ: 1.7, left: 0.9, right: 1.6, back: 1.45, front: 0.9 }
 
 const colX = (c: number) => loungeGrid.left + loungeGrid.pitchX * (c + 0.5) + loungeGrid.pair * Math.floor(c / 2)
 const colsWidth = (cols: number) => cols * loungeGrid.pitchX + loungeGrid.pair * Math.floor((cols - 1) / 2)
@@ -151,19 +151,46 @@ export interface Decor {
 
 export const coffeeFootprint = { dx0: -0.72, dx1: -0.18, z0: 0.43, z1: 1.57 }
 
+const loungeCols = (seats: number, rows: number) => Math.max(1, Math.ceil(seats / rows))
+const rowZ = (r: number) => loungeGrid.back + loungeGrid.pitchZ * r
+
+export const chairFootprint = { hx: 0.36, z0: -0.43, z1: 0.19 }
+
 export function loungeDecor(seats: number, rows: number): Decor[] {
   const g = loungeGrid
-  const cols = Math.max(1, Math.ceil(seats / rows))
-  const rowZ = (r: number) => g.back + g.pitchZ * r
+  const cols = loungeCols(seats, rows)
   const out: Decor[] = [
-    { kind: 'plant', x: g.left / 2, z: rowZ(0) - (rows === 1 ? 0.3 : 0), w: 0.4, d: 0.4, v: 0 },
-    { kind: 'lamp', x: g.left / 2, z: rowZ(rows - 1) + (rows === 1 ? 0.3 : 0), w: 0.3, d: 0.3, v: 0 },
+    { kind: 'lamp', x: g.left / 2, z: 0.35, w: 0.3, d: 0.3, v: 0 },
+    { kind: 'plant', x: g.left / 2, z: rowZ(rows - 1) + 0.2, w: 0.4, d: 0.4, v: 0 },
   ]
   for (let c = 0; c < cols; c += 2) out.push({ kind: 'shelf', x: (colX(c) + colX(c + 1)) / 2, z: 0.2, w: 1.5, d: 0.28, v: c / 2 })
   for (let c = 1; c + 1 < cols; c += 2)
-    for (let r = 0; r < rows; r++) out.push({ kind: 'table', x: (colX(c) + colX(c + 1)) / 2, z: rowZ(r), w: 0.36, d: 0.36, v: (c * 3 + r) % 3 })
+    for (let r = 0; r < rows; r++) out.push({ kind: 'table', x: (colX(c) + colX(c + 1)) / 2, z: rowZ(r), w: 0.4, d: 0.4, v: (c * 3 + r) % 3 })
   return out
 }
+
+export type SpotKind = 'coffee' | 'browse' | 'water'
+
+export interface StandSpot {
+  x: number
+  z: number
+  face: number
+}
+
+export function loungeSpots(seats: number, rows: number): Record<SpotKind, StandSpot[]> {
+  const w = loungeGrid.left + colsWidth(loungeCols(seats, rows)) + loungeGrid.right
+  const decor = loungeDecor(seats, rows)
+  const shelves = decor.filter((d) => d.kind === 'shelf')
+  const plant = decor.find((d) => d.kind === 'plant')!
+  return {
+    coffee: [0.75, 1.25].map((z) => ({ x: w - 1.1, z, face: Math.PI / 2 })),
+    browse: shelves.flatMap((d) => [-0.4, 0.4].map((dx) => ({ x: d.x + dx, z: 0.75, face: Math.PI }))),
+    water: [{ x: plant.x + 0.1, z: plant.z + 0.65, face: Math.PI }],
+  }
+}
+
+export const standBy = ([x, z]: readonly [number, number]): StandSpot => ({ x, z: z + 0.72, face: 0 })
+export const visitSpot = ([x, z]: readonly [number, number]): StandSpot => ({ x, z: z + 0.8, face: Math.PI })
 
 export interface Bounds {
   x0: number

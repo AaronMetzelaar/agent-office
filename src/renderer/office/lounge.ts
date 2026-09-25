@@ -40,3 +40,16 @@ export function activityAt(t: number, phase: number): Activity {
   const span = Math.floor(t / holdSeconds + (phase / (Math.PI * 2)) * activities.length)
   return activities[((span % activities.length) + activities.length) % activities.length]!
 }
+
+export const errands = ['coffee', 'browse', 'water', 'stretch', 'smoke', 'visit'] as const
+export type Errand = (typeof errands)[number]
+
+export const errandEvery = 75
+export const errandFor = 22
+
+export function errandAt(t: number, phase: number): { errand: Errand; round: number } | undefined {
+  const u = t / errandEvery + phase / (Math.PI * 2)
+  const round = Math.floor(u)
+  if ((u - round) * errandEvery >= errandFor) return undefined
+  return { errand: errands[hashOf(`${round}:${phase.toFixed(4)}`) % errands.length]!, round }
+}

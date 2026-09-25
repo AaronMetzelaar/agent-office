@@ -30,7 +30,12 @@ This change gives the room mixed seating and decor and gives resting agents some
 - R10. Motion stays slow and small. No Lounge motion is as noticeable as the door queue's "needs you" signal at overview zoom.
 - R11. An agent holds an activity for tens of seconds before switching. Agents run out of phase with each other, so the room never changes all at once.
 - R12. Parked agents keep dozing (eyes closed, dimmed, no cycling). Closed eyes belong only to parked agents. Each parked agent takes one of a few dozing postures based on its chat, so sleepers aren't identical.
-- R13. Activities never move an agent off its seat. Walking still happens only when its spot changes. A prop disappears when its agent parks or starts walking.
+- R13. A prop disappears when its agent parks, walks or switches activity, and no held prop ever pokes into the agent's body or head.
+
+**Errands** (added 2026-09-25 after the first version shipped)
+- R14. The Lounge gives each seat room to breathe: roughly a stride between pairs of seats and a walking aisle between rows. It grows with its occupants like the other rooms do.
+- R15. Every minute or so, an awake agent gets up for a short errand and then walks back to its own seat. The errands are making a coffee at the coffee corner, browsing the bookshelf, watering the plant, standing up to stretch, smoking in front of its seat, and visiting another seated agent for a chat. Agents are out of step with each other, so only some are up at any moment.
+- R16. Smoking happens inside the Lounge as one of these errands. It replaces the earlier rule that sent one in ten Lounge-goers outside the front door to smoke.
 
 ## Success Criteria
 - At the overview zoom, the Lounge no longer reads as rows of identical chairs.
@@ -41,8 +46,7 @@ This change gives the room mixed seating and decor and gives resting agents some
 
 ## Scope Boundaries
 - No change to seat assignment, growth or re-pack rules, and no seating pods or conversation circles.
-- No idle walking: no coffee runs and no stretching breaks.
-- No agent-to-agent interaction (turning to chat, speech puffs).
+- Visits are one-sided: the visitor stands and gestures, and the seated agent carries on. No speech puffs.
 - Activities are cosmetic. They carry no chat state beyond the existing parked-dozes rule.
 - Multi-seat furniture (sofas) is out, because it breaks one seat per occupant.
 

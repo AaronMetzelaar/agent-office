@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dozes, seated } from '../../src/renderer/office/characters'
-import { activities, activityAt, dozeFor, fabrics, holdSeconds, lookFor, maxTurn, seatTypes } from '../../src/renderer/office/lounge'
+import { activities, activityAt, dozeFor, errandAt, errandEvery, errandFor, errands, fabrics, holdSeconds, lookFor, maxTurn, seatTypes } from '../../src/renderer/office/lounge'
 
 const ids = Array.from({ length: 400 }, (_, i) => `chat-${i}-${(i * 7919).toString(36)}`)
 
@@ -61,5 +61,34 @@ describe('lounge poses', () => {
 
   it('offers three distinct dozing postures', () => {
     expect(new Set(dozes.map((d) => JSON.stringify(d))).size).toBe(3)
+  })
+})
+
+describe('lounge errands', () => {
+  it('sends an agent on an errand for a stretch of every round and keeps it seated otherwise', () => {
+    let away = 0, samples = 0
+    for (let t = 0; t < errandEvery * 20; t += 0.5, samples++) if (errandAt(t, 1.3)) away++
+    expect(away / samples).toBeCloseTo(errandFor / errandEvery, 1)
+  })
+
+  it('keeps one errand for its whole outing', () => {
+    for (let t = 0; t < errandEvery * 10; t += 0.25) {
+      const now = errandAt(t, 2.2), next = errandAt(t + 0.25, 2.2)
+      if (now && next && now.round === next.round) expect(next.errand).toBe(now.errand)
+    }
+  })
+
+  it('uses every errand, smoking included, across rounds and agents', () => {
+    const seen = new Set<string>()
+    for (let k = 0; k < 40; k++) for (const phase of [0.4, 2.1, 3.7, 5.2]) {
+      const e = errandAt(k * errandEvery + 1 - (phase / (Math.PI * 2)) * errandEvery, phase)
+      if (e) seen.add(e.errand)
+    }
+    expect(seen).toEqual(new Set(errands))
+  })
+
+  it('keeps agents with spread phases from all leaving at once', () => {
+    const phases = [0.3, 1.4, 2.6, 3.9, 5.1]
+    for (let t = 0; t < errandEvery * 4; t += 0.5) expect(phases.filter((p) => errandAt(t, p)).length).toBeLessThan(phases.length)
   })
 })

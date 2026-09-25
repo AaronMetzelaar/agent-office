@@ -10,9 +10,9 @@ import { createRig, VIEW, type Region, type View } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { createGuard } from './guard'
 import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, stateKey, type Chip, type ChipAction, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
-import { dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, ZF, type Bounds, type Box, type DeptId, type Floor, type YardSide } from './layout'
+import { dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, loungeSpots, minWidth, standBy, visitSpot, queueSpots, ZF, type Bounds, type Box, type DeptId, type Floor, type StandSpot, type YardSide } from './layout'
 import { createIntray } from './intray'
-import { dozeFor, lookFor, type SeatLook } from './lounge'
+import { dozeFor, errandAt, lookFor, type SeatLook } from './lounge'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { createMovers } from './movers'
@@ -127,7 +127,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const live = new Map<string, Live>()
   const claims = new Map<string, number>()
   const sent = new Set<string>()
-  const smoking = new Set<string>()
   const finishing = new Set<string>()
   const ghosts = new Map<string, Desk>()
   const deskChips = new Map<string, CSS2DObject>()
@@ -136,10 +135,11 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const seatVecs: THREE.Vector3[] = []
   const seatLooks: SeatLook[] = []
+  const errandVecs = new Map<string, THREE.Vector3>()
+  let spotsKey = ''
+  let spots = loungeSpots(1, 1)
   const coolerVecs: THREE.Vector3[] = []
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
-  const smokeVecs: THREE.Vector3[] = []
-  const smokeVec = (k: number) => (smokeVecs[k] ??= new THREE.Vector3(door[0] + 1.1 + k * 0.75, 0, ZF + 0.42))
   const anims = Object.fromEntries(depts.map((d) => [d.id, room()])) as Record<DeptId, RoomAnim>
   const lounge = room()
   let floor: Floor = layoutFloor({})
@@ -216,6 +216,38 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     for (const [id, i] of seating.seats) seatLooks[i] = lookFor(id)
     for (let i = 0; i < n; i++) seatLooks[i] ??= lookFor(`seat:${i}`)
     return seatLooks.slice(0, n)
+  }
+
+  function errandOf(l: Live): Target | undefined {
+    if (l.gone || l.target.pose !== 'lounge') return undefined
+    const seat = seating.seats.get(l.facts.id)
+    const out = errandAt(t, l.c.ph)
+    if (seat === undefined || !out) return undefined
+    const rows = lounge.rows, n = floor.lounge.seats
+    if (spotsKey !== `${n}x${rows}`) {
+      spotsKey = `${n}x${rows}`
+      spots = loungeSpots(n, rows)
+    }
+    let errand = out.errand
+    let key = `stand:${seat}`
+    let at: StandSpot = standBy(loungeSeat(seat, rows))
+    if (errand === 'visit') {
+      const hosts = [...seating.seats].filter(([id]) => {
+        const o = live.get(id)
+        return id !== l.facts.id && !!o && o.target.pose === 'lounge' && !errandAt(t, o.c.ph)
+      })
+      const host = hosts[out.round % Math.max(1, hosts.length)]
+      if (host) [key, at] = [`visit:${host[1]}`, visitSpot(loungeSeat(host[1], rows))]
+      else errand = 'stretch'
+    } else if (errand === 'coffee' || errand === 'browse' || errand === 'water') {
+      const list = spots[errand]
+      if (list.length) [key, at] = [`${errand}:${seat % list.length}`, list[seat % list.length]!]
+      else errand = 'stretch'
+    }
+    let v = errandVecs.get(key)
+    if (!v) errandVecs.set(key, (v = new THREE.Vector3()))
+    v.set(lounge.ox + at.x, 0, lounge.oz + at.z)
+    return { ...l.target, p: v, face: at.face, pose: errand === 'smoke' ? 'smoke' : 'stand', y: 0, home: false, errand }
   }
 
   function offsetOf(owner: string): readonly [number, number] | undefined {
@@ -318,13 +350,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const act = active().sort((a, b) => a.facts.createdAt - b.facts.createdAt)
     for (const l of act) {
       if (!canRest(l.facts.state)) sent.delete(l.facts.id)
-      const was = l.spot
       l.spot = spotFor(l.facts, l.spot, focus.selected === l.facts.id, sent.has(l.facts.id))
-      if (l.spot !== 'lounge' || l.facts.parked) smoking.delete(l.facts.id)
-      else if (was !== 'lounge' && rnd() < 0.1) smoking.add(l.facts.id)
     }
-    const sitting = act.filter((l) => l.spot === 'lounge' && settled(l) && l.target.p === seatVecs[seating.seats.get(l.facts.id) ?? -1])
-    const sitters = act.map((l) => ({ id: l.facts.id, dept: l.facts.dept, spot: smoking.has(l.facts.id) ? ('smoke' as const) : l.spot!, parked: l.facts.parked, recent: l.facts.quietMs < day }))
+    const sitting = act.filter((l) => l.spot === 'lounge' && settled(l) && l.target.p === seatVecs[seating.seats.get(l.facts.id) ?? -1] && l.c.walker.pos.distanceTo(l.target.p) < 0.2)
+    const sitters = act.map((l) => ({ id: l.facts.id, dept: l.facts.dept, spot: l.spot!, parked: l.facts.parked, recent: l.facts.quietMs < day }))
     const next = reseat(seating, [...sitters, ...[...ghosts].map(([id, d]) => ({ id, dept: d.dept, spot: 'gone' as const, parked: false, recent: false }))], canFold(), claims)
     seating = next
     pendingLayout = next.pending
@@ -406,11 +435,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   function targetOf(l: Live): Target {
     const f = l.facts
     if (l.gone) return { p: doorVec, face: null, pose: 'stand', y: 0, home: false, homeKind: 'none', parked: false, needs: false, folder: false, subs: 0 }
-    const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length, smoking: smoking.has(f.id) })
+    const place = placementFor({ state: f.state, kind: kindOf(f.dept), spot: l.spot ?? 'desk', parked: f.parked, queueIndex: l.queueIndex, spots: queueVecs.length })
     const p =
       place.anchor === 'queue' ? queueVecs[l.queueIndex]!
       : place.anchor === 'lounge' ? (seatVecs[seating.seats.get(f.id) ?? 0] ?? doorVec)
-      : place.anchor === 'smoke' ? smokeVec([...smoking].indexOf(f.id))
       : place.anchor === 'cooler' ? (coolerVecs[coolers.get(f.id) ?? 0] ?? doorVec)
       : !l.slot || place.anchor === 'door' ? doorVec
       : place.anchor === 'stand' ? l.slot.stand
@@ -441,7 +469,6 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     l.bye = finishing.delete(id)
     l.wait = (l.bye ? 1.1 : 0) + i * 0.18
     sent.delete(id)
-    smoking.delete(id)
     const desk = seating.desks.get(id)
     if (l.bye && desk) {
       ghosts.set(id, desk)
@@ -478,8 +505,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       if (id === 'lounge') {
         const here = act.filter((l) => l.spot === 'lounge')
         const dozing = here.filter((l) => l.facts.parked).length
-        const out = here.filter((l) => smoking.has(l.facts.id)).length
-        const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing - out }, { key: 'idle', label: 'dozing', n: dozing }, { key: 'idle', label: 'outside for a smoke', n: out }].filter((c) => c.n > 0)
+        const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing }, { key: 'idle', label: 'dozing', n: dozing }].filter((c) => c.n > 0)
         renderSign(sign, 'Lounge', counts, 'Empty', on, dim)
       } else renderSign(sign, dept[id].name, countsFor(act.filter((l) => l.facts.dept === id && l.spot !== 'lounge').map((l) => l.facts)), 'No agents', on, dim)
       sign.w = sign.el.offsetWidth || sign.w
@@ -813,7 +839,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       moved =
         guard.run(`agent ${l.facts.id}`, false, () => {
           if (l.slot?.belt && l.target.home && l.target.pose === 'run' && !l.c.walker.path.length) l.slot.belt.offset.y -= dt * 1.9
-          let target = l.target
+          let target = errandOf(l) ?? l.target
           if (l.gone && l.wait > 0) {
             l.wait -= dt
             target = { ...l.target, p: l.c.walker.pos, ...(l.bye ? { pose: 'wave' as const, face: null } : {}) }

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { anchorsFor, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
+import { anchorsFor, chairFootprint, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
 import { lookKey, type SeatLook } from './lounge'
 import type { Nav } from './nav'
 
@@ -1523,6 +1523,10 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         const s0 = seed
         seed = 4242
         build(decor, () => {
+          for (let i = 0; i < looks.length; i++) {
+            const [x, z] = loungeSeat(i, rows)
+            nav.block(x - chairFootprint.hx, z + chairFootprint.z0, x + chairFootprint.hx, z + chairFootprint.z1, 0.05, 'lounge', 'lounge:decor')
+          }
           for (const d of loungeDecor(looks.length, rows)) {
             if (d.kind === 'table') sideTable(d.x, d.z, d.v)
             else if (d.kind === 'shelf') lowShelf(d.x, d.z, d.w, d.v)

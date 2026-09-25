@@ -3,7 +3,7 @@ import type { SlotKind } from './layout'
 import type { Spot } from './standby'
 
 export type PoseName = 'stand' | 'sleep' | 'type' | 'lean' | 'sit' | 'lounge' | 'wave' | 'relax' | 'run' | 'wait' | 'smoke'
-export type Anchor = 'queue' | 'seat' | 'stand' | 'lounge' | 'cooler' | 'door' | 'smoke'
+export type Anchor = 'queue' | 'seat' | 'stand' | 'lounge' | 'cooler' | 'door'
 
 export interface Placement {
   anchor: Anchor
@@ -19,15 +19,13 @@ export interface PlacementInput {
   parked: boolean
   queueIndex: number
   spots: number
-  smoking?: boolean
 }
 
 const busy = (state: ChatState) => state === 'working' || state === 'starting'
 
-export function placementFor({ state, kind, spot, parked, queueIndex, spots, smoking }: PlacementInput): Placement {
+export function placementFor({ state, kind, spot, parked, queueIndex, spots }: PlacementInput): Placement {
   const queued = queueIndex >= 0
   if (queued && queueIndex < spots) return { anchor: 'queue', pose: queueIndex === 0 && state === 'needs-you' ? 'wave' : 'wait', y: 0, faceCamera: true }
-  if (spot === 'lounge' && smoking) return { anchor: 'smoke', pose: 'smoke', y: 0, faceCamera: true }
   if (spot === 'lounge') return { anchor: 'lounge', pose: parked ? 'sleep' : 'lounge', y: 0.36, faceCamera: false }
   if (queued) return { anchor: 'stand', pose: state === 'needs-you' ? 'wave' : 'wait', y: 0, faceCamera: true }
   if (spot === 'cooler') return { anchor: 'cooler', pose: 'relax', y: 0, faceCamera: true }

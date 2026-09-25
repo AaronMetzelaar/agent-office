@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { Vector3 } from 'three'
 import { createNav } from '../../src/renderer/office/nav'
-import { band, bandArea, coffeeFootprint, loungeDecor, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
+import { band, bandArea, chairFootprint, coffeeFootprint, loungeDecor, loungeSpots, standBy, visitSpot, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
 import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
@@ -136,8 +136,8 @@ describe('packing Aaron’s floor', () => {
 
   it('fits the building within about 1.2× the area its sections and fixed parts need', () => {
     const { floor } = fixture
-    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.25)
-    expect(area(floor.bounds)).toBeLessThan(280)
+    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.3)
+    expect(area(floor.bounds)).toBeLessThan(330)
   })
 
   it('leaves no empty floor bigger than a walkway', () => {
@@ -154,8 +154,8 @@ describe('packing Aaron’s floor', () => {
     const yard = floor.zones.side.box
     expect(overlap(yard, [floor.bounds.x0, floor.bounds.z0, floor.bounds.x1, floor.bounds.z1])).toBe(false)
     const dx = Math.max(yard[0] - door[0], 0, door[0] - yard[2]), dz = Math.max(yard[1] - door[1], 0, door[1] - yard[3])
-    expect(Math.hypot(dx, dz)).toBeLessThan(1)
-    expect(fitSize(floor.frame)).toBeLessThanOrEqual(fitSize(floor.bounds) * 1.05)
+    expect(Math.hypot(dx, dz)).toBeLessThan(2)
+    expect(fitSize(floor.frame)).toBeLessThanOrEqual(fitSize(floor.bounds) * 1.12)
   })
 })
 
@@ -324,13 +324,25 @@ describe('desks', () => {
   })
 })
 
-describe('Lounge decor', () => {
+describe('Lounge decor and errands', () => {
   const bandDepth = ZF - band.z0
   const shapes = Array.from({ length: 24 }, (_, i) => i + 1).flatMap((n) => [bandDepth, 5.9, 8.5].map((depth) => ({ n, rows: loungeRowsIn(depth), shape: loungeShape(n, depth) })))
   const hits = (a: { x: number; z: number; w: number; d: number }, x0: number, z0: number, x1: number, z1: number) => a.x + a.w / 2 > x0 && a.x - a.w / 2 < x1 && a.z + a.d / 2 > z0 && a.z - a.d / 2 < z1
+  const seatsOf = (n: number, rows: number) => Array.from({ length: n }, (_, i) => loungeSeat(i, rows))
 
-  it('keeps three rows beside the glass office', () => {
-    expect(loungeRowsIn(bandDepth)).toBe(3)
+  function navFor(n: number, rows: number, w: number, d: number) {
+    const nav = createNav()
+    for (const t of loungeDecor(n, rows)) nav.block(t.x - t.w / 2, t.z - t.d / 2, t.x + t.w / 2, t.z + t.d / 2, 0.1)
+    for (const [x, z] of seatsOf(n, rows)) nav.block(x - chairFootprint.hx, z + chairFootprint.z0, x + chairFootprint.hx, z + chairFootprint.z1, 0.05)
+    nav.block(w + coffeeFootprint.dx0, coffeeFootprint.z0, w + coffeeFootprint.dx1, coffeeFootprint.z1, 0.12)
+    nav.rebuild({ x0: 0, z0: 0, x1: w, z1: d + 1 }, () => undefined)
+    return nav
+  }
+
+  it('leaves a walking aisle between rows of seats', () => {
+    const rows = loungeRowsIn(8.5)
+    const [, back] = loungeSeat(0, rows), [, front] = loungeSeat(1, rows)
+    expect(Math.abs(back - front) - (chairFootprint.z1 - chairFootprint.z0)).toBeGreaterThanOrEqual(0.9)
   })
 
   it('furnishes a one-seat Lounge', () => {
@@ -347,13 +359,12 @@ describe('Lounge decor', () => {
 
   it('keeps decor inside the room, off the seats and out of the coffee corner', () => {
     for (const { n, rows, shape } of shapes) {
-      const seats = Array.from({ length: n }, (_, i) => loungeSeat(i, rows))
       for (const d of loungeDecor(n, rows)) {
         expect(d.x - d.w / 2).toBeGreaterThanOrEqual(0)
         expect(d.x + d.w / 2).toBeLessThanOrEqual(shape.w)
         expect(d.z - d.d / 2).toBeGreaterThanOrEqual(0)
         expect(d.z + d.d / 2).toBeLessThanOrEqual(shape.d)
-        for (const [x, z] of seats) expect(hits(d, x - 0.36, z - 0.43, x + 0.36, z + 0.19)).toBe(false)
+        for (const [x, z] of seatsOf(n, rows)) expect(hits(d, x - chairFootprint.hx, z + chairFootprint.z0, x + chairFootprint.hx, z + chairFootprint.z1)).toBe(false)
         expect(hits(d, shape.w + coffeeFootprint.dx0, coffeeFootprint.z0, shape.w + coffeeFootprint.dx1, coffeeFootprint.z1)).toBe(false)
       }
     }
@@ -369,19 +380,31 @@ describe('Lounge decor', () => {
     }
   })
 
-  it('leaves every seat reachable from the front of the Lounge', () => {
+  it('lets an agent walk from the front of the Lounge to every seat and every errand spot', () => {
     for (const { n, rows, shape } of shapes) {
-      const nav = createNav()
-      for (const d of loungeDecor(n, rows)) nav.block(d.x - d.w / 2, d.z - d.d / 2, d.x + d.w / 2, d.z + d.d / 2, 0.1)
-      nav.block(shape.w + coffeeFootprint.dx0, coffeeFootprint.z0, shape.w + coffeeFootprint.dx1, coffeeFootprint.z1, 0.12)
-      nav.rebuild({ x0: 0, z0: 0, x1: shape.w, z1: shape.d + 1 }, () => undefined)
-      for (let i = 0; i < n; i++) {
-        const [x, z] = loungeSeat(i, rows)
-        expect(nav.blocked(x, z)).toBe(false)
-        const path = nav.route(new Vector3(x, 0, shape.d + 0.8), new Vector3(x, 0, z))
-        expect(path.length).toBeGreaterThan(1)
+      const nav = navFor(n, rows, shape.w, shape.d)
+      const entry = new Vector3(shape.w / 2, 0, shape.d + 0.8)
+      const spots = [...Object.values(loungeSpots(n, rows)).flat(), ...seatsOf(n, rows).flatMap((s) => [standBy(s), visitSpot(s)])]
+      for (const s of spots) {
+        expect(s.x, `${n} seats`).toBeGreaterThan(0.2)
+        expect(s.x).toBeLessThan(shape.w - 0.2)
+        expect(s.z).toBeGreaterThan(0.2)
+        expect(s.z).toBeLessThan(shape.d + 0.4)
+        expect(nav.blocked(s.x, s.z), `${n} seats, spot ${s.x.toFixed(2)},${s.z.toFixed(2)}`).toBe(false)
+        expect(nav.route(entry, new Vector3(s.x, 0, s.z)).length).toBeGreaterThan(1)
+      }
+      for (const [x, z] of seatsOf(n, rows)) {
+        const path = nav.route(entry, new Vector3(x, 0, z))
         for (const p of path.slice(0, -1)) expect(nav.blocked(p.x, p.z)).toBe(false)
       }
     }
+  })
+
+  it('offers two coffee spots, two browsing spots per shelf and a plant to water', () => {
+    const rows = loungeRowsIn(bandDepth)
+    const spots = loungeSpots(8, rows)
+    expect(spots.coffee).toHaveLength(2)
+    expect(spots.browse).toHaveLength(2 * loungeDecor(8, rows).filter((d) => d.kind === 'shelf').length)
+    expect(spots.water).toHaveLength(1)
   })
 })
