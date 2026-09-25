@@ -79,7 +79,8 @@ export const usedPercent = (account: AccountLike) => Math.max(account.health.hea
 
 export function defaultAccount(accounts: readonly AccountLike[], dept?: DeptId): string | undefined {
   const open = accounts.filter(usable)
-  return (open.find((account) => isResearch(account) === (dept === 'gym')) ?? open[0])?.id
+  const pick = (list: AccountLike[]) => list.find((account) => isResearch(account) === (dept === 'gym')) ?? list[0]
+  return (pick(open.filter((account) => usedPercent(account) < 100)) ?? pick(open))?.id
 }
 
 export function accountHint(accounts: readonly AccountLike[], chosenId: string, dept: DeptId): { accountId: string; text: string } | undefined {

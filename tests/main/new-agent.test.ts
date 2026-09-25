@@ -21,6 +21,9 @@ describe('account defaults and headroom', () => {
     expect(defaultAccount([main, research], 'gym')).toBe('r')
     expect(defaultAccount([main], 'gym')).toBe('m')
     expect(defaultAccount([account('m', 'main', 0, 0, 'needs-login'), research], 'mkt')).toBe('r')
+    expect(defaultAccount([account('m', 'main', 100), research], 'mkt')).toBe('r')
+    expect(defaultAccount([account('m', 'main', 0, 100), research], 'mkt')).toBe('r')
+    expect(defaultAccount([account('m', 'main', 100), account('r', 'research', 100)], 'mkt')).toBe('m')
   })
 
   it('suggests research for monorepo work when main is low on headroom in either window', () => {

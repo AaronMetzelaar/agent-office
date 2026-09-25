@@ -50,7 +50,15 @@ async function start(): Promise<void> {
   const win = createWindow()
   const dataDir = app.getPath('userData')
   let status: HostStatus = { connected: inlineHost, updateReady: false }
-  let changed = () => {}
+  let report = () => {}
+  let shown = false
+  const changed = () => {
+    report()
+    const { visible } = uiState(win)
+    if (visible === shown) return
+    shown = visible
+    send(win, 'windowVisibility', { visible })
+  }
   const setStatus = (next: HostStatus) => {
     status = next
     send(win, 'hostStatus', status)
@@ -58,13 +66,11 @@ async function start(): Promise<void> {
   const show = (to?: Navigate) => {
     reveal(win)
     changed()
-    send(win, 'windowVisibility', { visible: true })
     if (to) send(win, 'navigate', to)
   }
   const hide = () => {
     win.hide()
     changed()
-    send(win, 'windowVisibility', { visible: false })
   }
   const confirm = async (message: string, detail: string, action = 'Move') => (await dialog.showMessageBox(win, { type: 'question', buttons: [action, 'Cancel'], defaultId: 1, cancelId: 1, message, detail })).response === 0
   let quitFromTray = () => app.quit()
@@ -72,8 +78,9 @@ async function start(): Promise<void> {
   let core: Core | undefined
   if (inlineHost) confirmQuitWhileBusy(app, () => core?.busy() ?? false, () => confirmQuit(win), () => core?.shutdown())
   hideOnClose(app, win, hide)
-  win.on('focus', () => changed())
-  win.on('blur', () => changed())
+  for (const event of ['focus', 'blur', 'show', 'hide', 'minimize', 'restore'] as const) win.on(event as 'focus', changed)
+  app.on('did-become-active', changed)
+  app.on('did-resign-active', changed)
   win.once('ready-to-show', () => {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
@@ -107,7 +114,7 @@ async function start(): Promise<void> {
 
   if (prepared) {
     const ui = localUi({ win, confirm, show, strip: strip.update })
-    changed = ui.changed
+    report = ui.changed
     core = createCore(dataDir, windowHub(win, appUrl), ui, prepared)
     agentsBusy = async () => core?.busy() ?? false
     ui.changed()
@@ -143,7 +150,7 @@ async function start(): Promise<void> {
       event: onEvent,
       call: (name, args) => (name === 'confirm' ? confirm(String(args[0]), String(args[1]), typeof args[2] === 'string' ? args[2] : undefined) : undefined),
     })
-    changed = () => void host.call('uiState', [uiState(win)]).catch(() => {})
+    report = () => void host.call('uiState', [uiState(win)]).catch(() => {})
     for (const name of forwarded) {
       guard(name, win, appUrl, (...args: unknown[]) => {
         if (name === 'setOpenChat') openChat = args
