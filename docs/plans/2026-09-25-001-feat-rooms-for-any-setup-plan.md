@@ -527,7 +527,7 @@ flowchart TB
 **Verification:**
 - There are no `isResearch`, `'gym'`, `deptNames` or `defaultRules` references left in `src/main`, and the host tests pass in both inline and split mode.
 
-- [ ] **Unit 5: Accounts without research assumptions**
+- [x] **Unit 5: Accounts without research assumptions**
 
 **Goal:** Account defaults, hints, badges and copy that work for any set of accounts.
 
@@ -560,7 +560,7 @@ flowchart TB
 **Verification:**
 - There are no `isResearch` references anywhere in `src`.
 
-- [ ] **Unit 6: Skills from the config**
+- [x] **Unit 6: Skills from the config**
 
 **Goal:** Ship-it, Fix CI, Answer comments and the review queue take their commands from the config.
 
@@ -593,7 +593,7 @@ flowchart TB
 **Verification:**
 - The workflow tests pass with and without a config. `/mws-` only appears in tests and in the upgrade's legacy config.
 
-- [ ] **Unit 7: Renderer pure layer**
+- [x] **Unit 7: Renderer pure layer**
 
 **Goal:** Make layout, seating, labels, inbox and projection work over a room list passed in, instead of module constants.
 
@@ -639,7 +639,7 @@ flowchart TB
 **Verification:**
 - There are no module-load room constants left in `layout.ts`, and the renderer unit tests pass, including the legacy parity cases.
 
-- [ ] **Unit 8: Renderer scene and panels**
+- [x] **Unit 8: Renderer scene and panels**
 
 **Goal:** Build, show and dispose rooms at runtime, with the plain look and reusable hand-built looks. Update the New agent form, the inbox config errors and demo mode.
 
