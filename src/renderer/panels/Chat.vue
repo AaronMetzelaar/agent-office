@@ -18,6 +18,7 @@ import RequestCard from './chat/RequestCard.vue'
 import ShipIt from './chat/ShipIt.vue'
 import Simulator from './chat/Simulator.vue'
 import SubagentStrip from './chat/SubagentStrip.vue'
+import Terminal from './chat/Terminal.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
 import { Icon } from '../icons'
@@ -28,6 +29,7 @@ const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; c
 const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
 const flash = ref('')
 const preview = ref<string>()
+const terminal = ref<{ title: string; buffer: string }>()
 const moving = ref(false)
 const naming = ref<string>()
 const nameInput = ref<HTMLInputElement>()
@@ -52,11 +54,22 @@ function say(message: string) {
   flashTimer = setTimeout(() => (flash.value = ''), 4000)
 }
 
-function showFile(event: MouseEvent) {
-  const file = (event.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file
-  if (!file) return
+function onClick(event: MouseEvent) {
+  const target = event.target as Element
+  const file = target.closest<HTMLElement>('[data-file]')?.dataset.file
+  const command = target.closest<HTMLElement>('[data-run]')?.dataset.run
+  if (file) preview.value = file
+  else if (command) void run(command)
+  else return
   event.preventDefault()
-  preview.value = file
+}
+
+async function run(command: string) {
+  if (!props.chat) return
+  const result = await window.office.runInTerminal(props.chat.id, command)
+  if ('error' in result) return say(result.error)
+  const title = command.trim().split('\n')[0]!
+  terminal.value = { title, buffer: terminal.value ? '' : result.buffer }
 }
 
 function step(delta: number) {
@@ -129,6 +142,7 @@ watch(
     flash.value = ''
     naming.value = undefined
     preview.value = undefined
+    terminal.value = undefined
     void window.office.setOpenChat(chatId)
   },
   { immediate: true },
@@ -154,7 +168,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="chatp" @click="showFile">
+  <div class="chatp" @click="onClick">
+    <Terminal v-if="terminal && chat" :key="chat.id" :chat-id="chat.id" :title="terminal.title" :buffer="terminal.buffer" @close="terminal = undefined" />
     <Preview v-if="preview && chat" :chat-id="chat.id" :path="preview" @close="preview = undefined" />
     <nav v-if="waiting.length" class="qstrip" aria-label="Waiting chats">
       <button type="button" class="ib" aria-label="Previous waiting chat" :disabled="at <= 0" @click="step(-1)">‹</button>

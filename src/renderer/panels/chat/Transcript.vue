@@ -327,11 +327,22 @@ watch(
   margin: 0;
 }
 
-.md .copy {
-  all: unset;
+.md .cacts {
   position: absolute;
   top: 5px;
   right: 5px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.md .code:hover .cacts,
+.md .cacts:focus-within {
+  opacity: 1;
+}
+
+.md .cacts button {
+  all: unset;
   display: grid;
   place-items: center;
   width: 24px;
@@ -340,20 +351,14 @@ watch(
   color: var(--muted);
   background: var(--soft);
   cursor: pointer;
-  opacity: 0;
 }
 
-.md .code:hover .copy,
-.md .copy:focus-visible {
-  opacity: 1;
-}
-
-.md .copy:hover {
+.md .cacts button:hover {
   color: var(--ink);
   background: #fff;
 }
 
-.md .copy:focus-visible {
+.md .cacts button:focus-visible {
   outline: 2px solid var(--accent);
 }
 

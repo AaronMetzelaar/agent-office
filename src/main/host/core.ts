@@ -9,6 +9,7 @@ import { wireCommands } from '../commands'
 import { createPlacement, loadRules, watchRules } from '../departments/classifier'
 import { createJev } from '../departments/jev'
 import { wireHandoff } from '../handoff'
+import { wireTerminal } from '../terminal'
 import { createSearch, wireHistory } from '../history'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
@@ -102,6 +103,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
   wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
+  const terminals = wireTerminal(hub, { chat: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if ((name === 'quietHoursStart' || name === 'quietHoursEnd') && typeof value === 'string') db.saveSetting(name, value)
@@ -169,6 +171,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
       phone.stop()
       void outside.stop()
       store.shutdown()
+      terminals.close()
     },
   }
 }

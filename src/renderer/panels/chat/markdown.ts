@@ -31,8 +31,14 @@ function withFiles(text: string): VNodeChild {
   return parts.length ? [...parts, text.slice(last)] : text
 }
 
+const shells = new Set(['', 'sh', 'bash', 'zsh', 'shell', 'console', 'terminal'])
+
+export const runnable = (lang: string | undefined) => shells.has((lang ?? '').trim().toLowerCase())
+
+export const commandOf = (text: string) => text.replace(/^\$ /gm, '')
+
 const CodeBlock = defineComponent({
-  props: { text: { type: String, required: true } },
+  props: { text: { type: String, required: true }, lang: { type: String, default: '' } },
   setup(props) {
     const copied = ref(false)
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -46,7 +52,10 @@ const CodeBlock = defineComponent({
     return () =>
       h('div', { class: 'code' }, [
         h('pre', h('code', props.text)),
-        h('button', { type: 'button', class: 'copy', 'aria-label': copied.value ? 'Copied' : 'Copy code', title: copied.value ? 'Copied' : 'Copy', onClick: copy }, h(Icon, { name: copied.value ? 'check' : 'copy' })),
+        h('span', { class: 'cacts' }, [
+          runnable(props.lang) ? h('button', { type: 'button', 'aria-label': 'Run in terminal', title: 'Run in a terminal next to the chat', 'data-run': commandOf(props.text) }, h(Icon, { name: 'play' })) : null,
+          h('button', { type: 'button', 'aria-label': copied.value ? 'Copied' : 'Copy code', title: copied.value ? 'Copied' : 'Copy', onClick: copy }, h(Icon, { name: copied.value ? 'check' : 'copy' })),
+        ]),
       ])
   },
 })
@@ -105,7 +114,7 @@ function block(token: Token): VNodeChild {
     case 'heading':
       return h(`h${Math.min(6, Math.max(1, token.depth))}`, inline(token.tokens))
     case 'code':
-      return h(CodeBlock, { text: token.text })
+      return h(CodeBlock, { text: token.text, lang: token.lang })
     case 'blockquote':
       return h('blockquote', token.tokens?.map(block))
     case 'list':

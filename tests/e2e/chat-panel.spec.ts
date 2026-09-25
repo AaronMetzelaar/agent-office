@@ -101,6 +101,21 @@ test('attach an image, send it, then click a path in the reply to preview it', a
   await expect(drawer().getByRole('heading', { name: 'Tidy the bid flow' })).toBeVisible()
 })
 
+test('run a shell code block from the reply in a terminal next to the chat', async () => {
+  await app.evaluate((_electron, { id, text }) => {
+    const globals = globalThis as unknown as MainGlobals
+    globals.fakeEngine.emit(id, { type: 'assistant', uuid: 'e2e-run', session_id: 'fake', parent_tool_use_id: null, message: { content: [{ type: 'text', text }] } })
+  }, { id: chatId, text: 'Try this:\n\n```sh\necho "from $(basename $PWD)"\n```' })
+  const block = drawer().locator('.md .code').last()
+  await block.hover()
+  await block.getByRole('button', { name: 'Run in terminal' }).click()
+  const terminal = page.getByRole('region', { name: 'Terminal' })
+  await expect(terminal).toContainText('echo "from $(basename $PWD)"')
+  await expect(terminal.locator('.xterm-rows')).toContainText(`from ${folder.split('/').pop()}`)
+  await terminal.getByRole('button', { name: 'Close terminal' }).click()
+  await expect(terminal).toHaveCount(0)
+})
+
 test('change effort; it applies from the next turn', async () => {
   await drawer().getByRole('radio', { name: 'High', exact: true }).click()
   await expect.poll(async () => (await snapshotChat())?.effort).toBe('high')

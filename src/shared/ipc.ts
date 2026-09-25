@@ -136,6 +136,11 @@ export interface Commands {
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
   archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
   openInTerminal(chatId: string): Promise<{ error?: string } | undefined>
+  runInTerminal(chatId: string, command: string): { buffer: string } | { error: string }
+  terminalBuffer(chatId: string): string | undefined
+  terminalInput(chatId: string, data: string): void
+  terminalResize(chatId: string, cols: number, rows: number): void
+  closeTerminal(chatId: string): void
   openInDesktop(chatId: string): Promise<{ error?: string } | undefined>
   getHostStatus(): HostStatus
   getAppUpdate(): AppUpdate
@@ -156,6 +161,8 @@ export interface Events {
   reviewRequests: ReviewQueue
   hostStatus: HostStatus
   appUpdate: AppUpdate
+  terminalData: { chatId: string; data: string }
+  terminalExit: { chatId: string }
 }
 
 export type OfficeApi = {
@@ -170,4 +177,6 @@ export type OfficeApi = {
   onReviewRequests(listener: (payload: Events['reviewRequests']) => void): () => void
   onHostStatus(listener: (payload: Events['hostStatus']) => void): () => void
   onAppUpdate(listener: (payload: Events['appUpdate']) => void): () => void
+  onTerminalData(listener: (payload: Events['terminalData']) => void): () => void
+  onTerminalExit(listener: (payload: Events['terminalExit']) => void): () => void
 }

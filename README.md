@@ -80,6 +80,8 @@ A chat moves through Starting, Working, Needs you, Done, Idle and Stuck. Stuck c
 
 Stopping the host while a chat is mid-turn asks first, then interrupts its turn. After the host restarts, or crashes, chats that were mid-turn come back as Stuck (interrupted) and never resume by themselves. Resume continues the same session, which the office only does for sessions it started. A restored chat's earlier turns are replayed from its transcript.
 
+Code blocks in a reply have a copy button. Shell blocks (`sh`, `bash`, `zsh`, `console` or no language) also have Run, which types the command into a login shell in the chat's folder, shown in a terminal next to the chat. Each chat keeps one shell in the agent host, so hiding the terminal leaves it running and the next Run reuses it. Close ends it. Done removes the chat's worktree; one with uncommitted changes asks first.
+
 ### Headroom
 
 When an account's tightest rate-limit window (5-hour or weekly) passes 80%, or Claude reports a warning, its usage line under the inbox turns amber and one quiet notification goes out.

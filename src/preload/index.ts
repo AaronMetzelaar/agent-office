@@ -72,6 +72,11 @@ const office: OfficeApi = {
   moveIntoOffice: (chatId) => ipcRenderer.invoke('moveIntoOffice', chatId),
   archiveVisitor: (chatId) => ipcRenderer.invoke('archiveVisitor', chatId),
   openInTerminal: (chatId) => ipcRenderer.invoke('openInTerminal', chatId),
+  runInTerminal: (chatId, command) => ipcRenderer.invoke('runInTerminal', chatId, command),
+  terminalBuffer: (chatId) => ipcRenderer.invoke('terminalBuffer', chatId),
+  terminalInput: (chatId, data) => ipcRenderer.invoke('terminalInput', chatId, data),
+  terminalResize: (chatId, cols, rows) => ipcRenderer.invoke('terminalResize', chatId, cols, rows),
+  closeTerminal: (chatId) => ipcRenderer.invoke('closeTerminal', chatId),
   openInDesktop: (chatId) => ipcRenderer.invoke('openInDesktop', chatId),
   getHostStatus: () => ipcRenderer.invoke('getHostStatus'),
   getAppUpdate: () => ipcRenderer.invoke('getAppUpdate'),
@@ -89,6 +94,8 @@ const office: OfficeApi = {
   onReviewRequests: (listener) => subscribe('reviewRequests', listener),
   onHostStatus: (listener) => subscribe('hostStatus', listener),
   onAppUpdate: (listener) => subscribe('appUpdate', listener),
+  onTerminalData: (listener) => subscribe('terminalData', listener),
+  onTerminalExit: (listener) => subscribe('terminalExit', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)
