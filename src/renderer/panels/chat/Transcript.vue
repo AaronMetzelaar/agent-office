@@ -163,6 +163,24 @@ watch(
   scrollbar-width: thin;
 }
 
+.fp {
+  all: unset;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.fp:hover {
+  text-decoration-style: solid;
+}
+
+.fp:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
 .ts .older {
   align-self: center;
 }

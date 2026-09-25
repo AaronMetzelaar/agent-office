@@ -40,6 +40,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   getReview: true,
   getCiLog: true,
   openInEditor: true,
+  previewFile: true,
   getHousekeeping: true,
   stopProcesses: true,
   archiveChat: true,

@@ -1,11 +1,11 @@
 import type { CommandList, CommandTarget } from './commands'
-import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
+import type { Attachment, ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { Limits } from './guardrails'
 import type { SearchHit } from './history'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
-import type { CiLog, Editor, Review } from './review'
+import type { CiLog, Editor, FilePreview, Review } from './review'
 import type { ReviewQueue, ShipIt, TicketLookup } from './workflow'
 
 export interface AppInfo {
@@ -91,7 +91,7 @@ export interface Commands {
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): Promise<StartChatResult>
   continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined
   departmentRules(): DeptRule[]
-  sendMessage(chatId: string, text: string): Refusal | undefined
+  sendMessage(chatId: string, text: string, attachments?: Attachment[]): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
   stopTask(chatId: string, id: string): Promise<void>
   rewindFiles(chatId: string, messageId: string, dryRun: boolean): Promise<RewindPreview>
@@ -118,6 +118,7 @@ export interface Commands {
   getReview(chatId: string): Promise<Review>
   getCiLog(chatId: string, checkId: string): Promise<CiLog>
   openInEditor(chatId: string, path: string, line?: number): Promise<{ error: string } | undefined>
+  previewFile(chatId: string, path: string): Promise<FilePreview>
   getHousekeeping(fresh?: boolean): Promise<HousekeepingView>
   stopProcesses(chatId: string): Promise<StopReport>
   archiveChat(chatId: string): Promise<StopReport>
@@ -165,6 +166,7 @@ export interface Events {
 export type OfficeApi = {
   [K in keyof Commands]: (...args: Parameters<Commands[K]>) => Promise<Awaited<ReturnType<Commands[K]>>>
 } & {
+  pathForFile(file: File): string
   onWindowVisibility(listener: (payload: Events['windowVisibility']) => void): () => void
   onAccountsChanged(listener: (payload: Events['accountsChanged']) => void): () => void
   onChatPatches(listener: (payload: Events['chatPatches']) => void): () => void

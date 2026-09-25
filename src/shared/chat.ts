@@ -30,6 +30,11 @@ export interface Usage {
   costUsd: number
 }
 
+export const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const
+export type ImageType = (typeof imageTypes)[number]
+export const maxImageBytes = 5 * 1024 * 1024
+export type Attachment = { kind: 'image'; name: string; mediaType: ImageType; data: string } | { kind: 'file'; name: string; path: string }
+
 export type ChatRow =
   | { kind: 'user'; id: string; text: string }
   | { kind: 'text'; id: string; text: string; parentToolUseId?: string }

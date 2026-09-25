@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -6,6 +6,7 @@ import type { ChatView } from '../../src/shared/chat'
 
 interface MainGlobals {
   store: { view(id: string): ChatView | undefined }
+  fakeEngine: { sent: { text: string; images?: unknown[] }[]; emit(chatId: string, message: unknown): void }
 }
 
 const root = resolve(__dirname, '../..')
@@ -73,6 +74,31 @@ test('send, then stop the turn', async () => {
   await drawer().getByRole('button', { name: 'Stop' }).click()
   await expect.poll(async () => (await snapshotChat())?.state).not.toBe('working')
   await expect(drawer().getByRole('button', { name: 'Stop' })).toHaveCount(0)
+})
+
+test('attach an image, send it, then click a path in the reply to preview it', async () => {
+  const png = join(folder, 'dot.png')
+  writeFileSync(png, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'))
+  await drawer().locator('.comp input[type=file]').setInputFiles(png)
+  await expect(drawer().locator('.comp .atts li')).toHaveText(/dot\.png/)
+  await drawer().getByLabel('Message').fill('What is this?')
+  await drawer().getByLabel('Message').press('Enter')
+  await expect(drawer().locator('.comp .atts')).toHaveCount(0)
+  const last = await app.evaluate(() => (globalThis as unknown as MainGlobals).fakeEngine.sent.at(-1))
+  expect(last?.text).toBe('What is this?\n\nAttached:\n- [image: dot.png]')
+  expect(last?.images).toHaveLength(1)
+  await expect.poll(async () => (await snapshotChat())?.state).not.toBe('working')
+
+  await app.evaluate((_electron, { id, text }) => {
+    const globals = globalThis as unknown as MainGlobals
+    globals.fakeEngine.emit(id, { type: 'assistant', uuid: 'e2e-preview', session_id: 'fake', parent_tool_use_id: null, message: { content: [{ type: 'text', text }] } })
+  }, { id: chatId, text: `Saved it to ${png}.` })
+  await drawer().getByRole('button', { name: png }).click()
+  const preview = page.getByRole('region', { name: 'File preview' })
+  await expect(preview.locator('img')).toHaveAttribute('src', /^data:image\/png;base64,/)
+  await page.keyboard.press('Escape')
+  await expect(preview).toHaveCount(0)
+  await expect(drawer().getByRole('heading', { name: 'Tidy the bid flow' })).toBeVisible()
 })
 
 test('change effort; it applies from the next turn', async () => {

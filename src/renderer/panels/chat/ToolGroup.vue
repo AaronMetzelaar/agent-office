@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import type { ChatRow } from '../../../shared/chat'
 import { doing, notice } from './groups'
-import { diffStats, plainLabel, resultSummary, toolDetail, toolTarget } from './rows'
+import { diffStats, plainLabel, resultSummary, toolDetail, toolFile, toolTarget } from './rows'
 
 const props = defineProps<{ rows: ChatRow[]; summary: string; live?: boolean }>()
 
@@ -23,7 +23,8 @@ const now = computed(() => (props.live ? doing(props.rows) : undefined))
         <details v-if="row.kind === 'tool'" :class="['tr', { err: row.result?.isError, wait: !row.result }]">
           <summary>
             <b>{{ row.name }}</b>
-            <span class="tt">{{ toolTarget(row) }}</span>
+            <button v-if="toolFile(row)" type="button" class="tt fp" :data-file="toolFile(row)" :title="`Show ${toolFile(row)}`">{{ toolTarget(row) }}</button>
+            <span v-else class="tt">{{ toolTarget(row) }}</span>
             <span v-if="diffStats(row)" class="ds"><i class="add">+{{ diffStats(row)!.added }}</i> <i class="del">−{{ diffStats(row)!.removed }}</i></span>
             <span class="rs">{{ resultSummary(row) }}</span>
           </summary>

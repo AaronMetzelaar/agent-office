@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { createPatchSync } from '../../src/main/store/ipc-sync'
-import { markdown } from '../../src/renderer/panels/chat/markdown'
+import { localFile, markdown } from '../../src/renderer/panels/chat/markdown'
 import { entries, resultSummary } from '../../src/renderer/panels/chat/rows'
 import Transcript from '../../src/renderer/panels/chat/Transcript.vue'
 import { createProjection } from '../../src/renderer/state/projection'
@@ -181,6 +181,19 @@ describe('untrusted content', () => {
     expect(html).toContain('&lt;div onclick=&quot;x()&quot;&gt;raw&lt;/div&gt;')
     expect(html).not.toMatch(/href="(?:mailto|file):/)
     expect(html).not.toMatch(/<div onclick/)
+  })
+
+  it('turns file paths into preview buttons', async () => {
+    expect(localFile('src/main/index.ts:42')).toBe('src/main/index.ts')
+    expect(localFile('shot.png')).toBe('shot.png')
+    expect(localFile('index.ts')).toBeUndefined()
+    expect(localFile('pnpm test')).toBeUndefined()
+    expect(localFile('file:///etc/passwd')).toBeUndefined()
+    const html = await renderToString(createSSRApp({ render: () => h('div', markdown('Saved to /tmp/shot.png. See `src/a.ts:3` and ![after](./after.png), not 1/2.5 or https://x.dev/a.png')) }))
+    expect(html).toContain('data-file="/tmp/shot.png"')
+    expect(html).toContain('data-file="src/a.ts"')
+    expect(html).toContain('data-file="./after.png"')
+    expect(html.match(/data-file/g)).toHaveLength(3)
   })
 
   it('summarises results briefly', () => {

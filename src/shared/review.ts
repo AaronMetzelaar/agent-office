@@ -64,6 +64,8 @@ export interface Review extends GitStatus {
 
 export type CiLog = { log: string } | { error: string }
 
+export type FilePreview = { path: string } & ({ image: string } | { text: string } | { error: string })
+
 export const editors = { code: 'VS Code', cursor: 'Cursor', windsurf: 'Windsurf', zed: 'Zed', subl: 'Sublime Text' } as const
 export type Editor = keyof typeof editors
 export const isEditor = (value: unknown): value is Editor => typeof value === 'string' && Object.hasOwn(editors, value)

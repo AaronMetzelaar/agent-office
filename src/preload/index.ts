@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import type { Events, OfficeApi } from '../shared/ipc'
 
 function subscribe<K extends keyof Events>(name: K, listener: (payload: Events[K]) => void): () => void {
@@ -23,7 +23,8 @@ const office: OfficeApi = {
   startChat: (accountId, cwd, prompt, model, effort, options) => ipcRenderer.invoke('startChat', accountId, cwd, prompt, model, effort, options),
   continueOnAccount: (chatId, accountId) => ipcRenderer.invoke('continueOnAccount', chatId, accountId),
   departmentRules: () => ipcRenderer.invoke('departmentRules'),
-  sendMessage: (chatId, text) => ipcRenderer.invoke('sendMessage', chatId, text),
+  sendMessage: (chatId, text, attachments) => ipcRenderer.invoke('sendMessage', chatId, text, attachments),
+  pathForFile: (file) => webUtils.getPathForFile(file),
   interruptChat: (chatId) => ipcRenderer.invoke('interruptChat', chatId),
   stopTask: (chatId, id) => ipcRenderer.invoke('stopTask', chatId, id),
   rewindFiles: (chatId, messageId, dryRun) => ipcRenderer.invoke('rewindFiles', chatId, messageId, dryRun),
@@ -49,6 +50,7 @@ const office: OfficeApi = {
   openArtifact: (path, url) => ipcRenderer.invoke('openArtifact', path, url),
   getReview: (chatId) => ipcRenderer.invoke('getReview', chatId),
   getCiLog: (chatId, checkId) => ipcRenderer.invoke('getCiLog', chatId, checkId),
+  previewFile: (chatId, path) => ipcRenderer.invoke('previewFile', chatId, path),
   openInEditor: (chatId, path, line) => ipcRenderer.invoke('openInEditor', chatId, path, line),
   getHousekeeping: (fresh) => ipcRenderer.invoke('getHousekeeping', fresh),
   stopProcesses: (chatId) => ipcRenderer.invoke('stopProcesses', chatId),

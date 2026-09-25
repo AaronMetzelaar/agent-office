@@ -8,6 +8,7 @@ import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule,
 import { limitHit, limitsOf } from '../../shared/guardrails'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
+import { withAttachments, type ImageBlock } from '../sessions/attachments'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
@@ -36,7 +37,7 @@ interface Chat {
   restoring?: Promise<void>
   turns?: number
   costBase?: number
-  held?: { text: string; messageId: string; fork: boolean }[]
+  held?: { text: string; messageId: string; fork: boolean; images: ImageBlock[] }[]
 }
 
 export type ChatStore = ReturnType<typeof createChatStore>
@@ -336,38 +337,38 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork || view.forkPending ? { forkSession: true } : {}) })
   }
 
-  function run(chat: Chat, text: string, messageId: string, fork = false) {
+  function run(chat: Chat, text: string, messageId: string, fork = false, images: ImageBlock[] = []) {
     const view = chat.view
     try {
       ensureEngine(chat, fork)
-      engine.send(view.id, text, messageId)
+      engine.send(view.id, text, messageId, images)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
     }
   }
 
-  function go(chat: Chat, text: string, messageId: string, fields: Partial<ChatFields> = {}, fork = false) {
+  function go(chat: Chat, text: string, messageId: string, fields: Partial<ChatFields> = {}, fork = false, images: ImageBlock[] = []) {
     const view = chat.view
     chat.turns = 0
     chat.costBase = view.usage.costUsd
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck' || view.halt) transition(chat, 'working', { unread: false, stuck: undefined, halt: undefined, activity: 'Thinking', partial: '', ...fields })
-    run(chat, text, messageId, fork)
+    run(chat, text, messageId, fork, images)
   }
 
-  function hold(chat: Chat, text: string, messageId: string, fork = false) {
-    ;(chat.held ??= []).push({ text, messageId, fork })
+  function hold(chat: Chat, text: string, messageId: string, fork = false, images: ImageBlock[] = []) {
+    ;(chat.held ??= []).push({ text, messageId, fork, images })
     set(chat, { paused: true })
     if (chat.view.state === 'starting') transition(chat, 'idle', { activity: '' })
   }
 
-  function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
+  function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false, images: ImageBlock[] = []) {
     const view = chat.view
     const messageId = randomUUID()
     addRow(chat, { kind: 'user', id: messageId, text })
     if (view.suggestion) set(chat, { suggestion: undefined })
     if (view.parked || view.finished || view.archived) set(chat, { parked: false, finished: undefined, archived: false })
-    if (paused) hold(chat, text, messageId, fork)
-    else go(chat, text, messageId, fields, fork)
+    if (paused) hold(chat, text, messageId, fork, images)
+    else go(chat, text, messageId, fields, fork, images)
   }
 
   const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
@@ -490,7 +491,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         } else if (!on && view.paused) {
           const held = chat.held?.splice(0) ?? []
           set(chat, { paused: undefined })
-          for (const { text, messageId, fork } of held) go(chat, text, messageId, {}, fork)
+          for (const { text, messageId, fork, images } of held) go(chat, text, messageId, {}, fork, images)
           if (!held.length && view.state === 'idle' && view.finished === undefined && !view.archived) send(chat, resumePrompt)
         }
       }
@@ -573,11 +574,12 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       return { chatId: chat.view.id }
     },
 
-    sendMessage(chatId: unknown, text: unknown): Refusal | undefined {
+    sendMessage(chatId: unknown, text: unknown, attachments?: unknown): Refusal | undefined {
       const chat = find(chatId)
-      if (!chat || typeof text !== 'string' || !text.trim()) return undefined
+      const message = typeof text === 'string' ? withAttachments(text, attachments) : undefined
+      if (!chat || !message?.text.trim()) return undefined
       if (accounts.needsLogin(chat.view.accountId)) return needsLogin
-      send(chat, text)
+      send(chat, message.text, {}, false, message.images)
       return undefined
     },
 

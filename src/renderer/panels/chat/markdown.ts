@@ -6,6 +6,30 @@ export function webUrl(href: string): string | undefined {
   return url && (url.protocol === 'https:' || url.protocol === 'http:') ? url.href : undefined
 }
 
+const segment = String.raw`[\w@+-][\w.@+-]*`
+const fileName = String.raw`[\w@+-][\w.@+-]*\.[A-Za-z0-9]{1,10}(?::\d+){0,2}`
+const inPath = new RegExp(String.raw`^(?:~/|\.{1,2}/|/)?(?:${segment}/)*${fileName}$`)
+const bareAbsolute = new RegExp(String.raw`(?<![\w/.~])(?:~/|/)(?:${segment}/)*${fileName}`, 'g')
+const imageName = /\.(?:png|jpe?g|gif|webp|svg)$/i
+const withoutLine = (path: string) => path.replace(/(?::\d+){1,2}$/, '')
+
+export function localFile(text: string): string | undefined {
+  const path = text.trim()
+  return inPath.test(path) && (path.includes('/') || imageName.test(withoutLine(path))) ? withoutLine(path) : undefined
+}
+
+export const fileButton = (path: string, children: VNodeChild) => h('button', { type: 'button', class: 'fp', 'data-file': path, title: `Show ${path}` }, [children])
+
+function withFiles(text: string): VNodeChild {
+  const parts: VNodeChild[] = []
+  let last = 0
+  for (const match of text.matchAll(bareAbsolute)) {
+    parts.push(text.slice(last, match.index), fileButton(withoutLine(match[0]), match[0]))
+    last = match.index + match[0].length
+  }
+  return parts.length ? [...parts, text.slice(last)] : text
+}
+
 const link = (href: string, children: string | VNodeArrayChildren) => h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, children)
 const aligned = (align: Tokens.TableCell['align']) => (align ? { style: { textAlign: align } } : {})
 
@@ -18,20 +42,24 @@ function inline(tokens: Token[] = []): VNodeChild[] {
         return h('em', inline(token.tokens))
       case 'del':
         return h('del', inline(token.tokens))
-      case 'codespan':
-        return h('code', token.text)
+      case 'codespan': {
+        const file = localFile(token.text)
+        return file ? fileButton(file, h('code', token.text)) : h('code', token.text)
+      }
       case 'br':
         return h('br')
       case 'link': {
         const href = webUrl(token.href)
-        return href ? link(href, inline(token.tokens)) : inline(token.tokens)
+        const file = href ? undefined : localFile(token.href)
+        return href ? link(href, inline(token.tokens)) : file ? fileButton(file, inline(token.tokens)) : inline(token.tokens)
       }
       case 'image': {
         const href = webUrl(token.href)
-        return href ? link(href, `Image: ${token.text || href}`) : token.text
+        const file = href ? undefined : localFile(token.href)
+        return href ? link(href, `Image: ${token.text || href}`) : file ? fileButton(file, `Image: ${token.text || file}`) : token.text
       }
       case 'text':
-        return token.tokens ? inline(token.tokens) : token.text
+        return token.tokens ? inline(token.tokens) : withFiles(token.text)
       default:
         return token.raw
     }

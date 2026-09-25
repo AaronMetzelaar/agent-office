@@ -12,6 +12,7 @@ import { answeredElsewhere } from './chat/cards'
 import { latestArtifacts } from './chat/rows'
 import Composer from './chat/Composer.vue'
 import PlanCard from './chat/PlanCard.vue'
+import Preview from './chat/Preview.vue'
 import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
 import ShipIt from './chat/ShipIt.vue'
@@ -25,6 +26,7 @@ const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; c
 
 const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
 const flash = ref('')
+const preview = ref<string>()
 const moving = ref(false)
 const naming = ref<string>()
 const nameInput = ref<HTMLInputElement>()
@@ -47,6 +49,13 @@ function say(message: string) {
   flash.value = message
   clearTimeout(flashTimer)
   flashTimer = setTimeout(() => (flash.value = ''), 4000)
+}
+
+function showFile(event: MouseEvent) {
+  const file = (event.target as Element).closest<HTMLElement>('[data-file]')?.dataset.file
+  if (!file) return
+  event.preventDefault()
+  preview.value = file
 }
 
 function step(delta: number) {
@@ -123,6 +132,7 @@ watch(
     tab.value = props.chat && usingSimulator(props.chat) ? 'simulator' : props.chat && hasNewArtifact(props.chat) ? 'artifacts' : 'chat'
     flash.value = ''
     naming.value = undefined
+    preview.value = undefined
     void window.office.setOpenChat(chatId)
   },
   { immediate: true },
@@ -148,7 +158,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="chatp">
+  <div class="chatp" @click="showFile">
+    <Preview v-if="preview && chat" :chat-id="chat.id" :path="preview" @close="preview = undefined" />
     <nav v-if="waiting.length" class="qstrip" aria-label="Waiting chats">
       <button type="button" class="ib" aria-label="Previous waiting chat" :disabled="at <= 0" @click="step(-1)">‹</button>
       <span>{{ at >= 0 ? `Waiting for you · ${at + 1} of ${waiting.length}` : `Waiting for you · ${waiting.length}` }}</span>

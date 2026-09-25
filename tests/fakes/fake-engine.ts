@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import type { CanUseTool, PermissionResult, SDKMessage, SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { run, type Run } from '../../src/main/review/git'
+import type { ImageBlock } from '../../src/main/sessions/attachments'
 import type { ChatCanUseTool, Engine, EngineEvents, SessionPermissions, StartOptions } from '../../src/main/sessions/manager'
 
 const message = (fields: Record<string, unknown>) => ({ uuid: randomUUID(), session_id: 'fake', ...fields }) as unknown as SDKMessage
@@ -64,7 +65,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const events = new EventEmitter<EngineEvents>()
   const live = new Map<string, FakeSession>()
   const starts: { chatId: string; options: StartOptions }[] = []
-  const sent: { chatId: string; text: string }[] = []
+  const sent: { chatId: string; text: string; images?: ImageBlock[] }[] = []
   const sentIds: string[] = []
   const calls: string[] = []
   const topics: (string | undefined)[] = []
@@ -134,9 +135,9 @@ export function createFakeEngine({ auto = false } = {}) {
       table.set(pid + 1, { ppid: pid, kb: 300_000, args: 'node /fake/node_modules/.bin/vite --port 5173' })
       live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false, permissions: options.permissions, pid })
     },
-    send(chatId, text, id) {
+    send(chatId, text, id, images) {
       if (!live.has(chatId)) throw new Error('This chat has no running session')
-      sent.push({ chatId, text })
+      sent.push({ chatId, text, ...(images?.length ? { images } : {}) })
       sentIds.push(id)
       if (auto) void play(chatId, text)
     },

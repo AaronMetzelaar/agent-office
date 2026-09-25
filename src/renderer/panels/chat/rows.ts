@@ -47,6 +47,13 @@ export function diffStats(row: Pick<ToolRow, 'name' | 'input'>): { added: number
   }
 }
 
+const fileTools = new Set(['Edit', 'MultiEdit', 'Write', 'Read', 'NotebookEdit'])
+
+export function toolFile(row: Pick<ToolRow, 'name' | 'input'>): string | undefined {
+  const input = (row.input ?? {}) as Record<string, unknown>
+  return (fileTools.has(row.name) && text(input.file_path ?? input.notebook_path)) || undefined
+}
+
 export function toolTarget(row: Pick<ToolRow, 'name' | 'input'>): string {
   const input = (row.input ?? {}) as Record<string, unknown>
   switch (row.name) {

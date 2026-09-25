@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import type { CanUseTool, PermissionMode, Query, RewindFilesResult, SDKMessage, SDKUserMessage, SlashCommand, SpawnOptions } from '@anthropic-ai/claude-agent-sdk'
 import type { ContextUsage, Effort } from '../../shared/chat'
+import type { ImageBlock } from './attachments'
 
 export const outsideAsar = (path: string) => path.replace(/\bapp\.asar(?=[/\\])/, 'app.asar.unpacked')
 
@@ -29,7 +30,7 @@ export type EngineEvents = { message: [chatId: string, message: SDKMessage]; end
 export interface Engine {
   events: EventEmitter<EngineEvents>
   start(chatId: string, options: StartOptions): void
-  send(chatId: string, text: string, id: string): void
+  send(chatId: string, text: string, id: string, images?: ImageBlock[]): void
   interrupt(chatId: string): Promise<void>
   stop(chatId: string): void
   setModel(chatId: string, model: string): Promise<void>
@@ -82,8 +83,9 @@ function inputQueue() {
   }
   return {
     messages: messages(),
-    push(text: string, id: string) {
-      pending.push({ type: 'user', uuid: id as SDKUserMessage['uuid'], message: { role: 'user', content: text }, parent_tool_use_id: null })
+    push(text: string, id: string, images: ImageBlock[] = []) {
+      const content = images.length ? [...images, { type: 'text' as const, text }] : text
+      pending.push({ type: 'user', uuid: id as SDKUserMessage['uuid'], message: { role: 'user', content }, parent_tool_use_id: null })
       wake()
     },
     end() {
@@ -174,10 +176,10 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
       sessions.set(chatId, session)
       void consume(chatId, session, token)
     },
-    send(chatId, text, id) {
+    send(chatId, text, id, images) {
       const session = sessions.get(chatId)
       if (!session) throw new Error('This chat has no running session')
-      session.input.push(text, id)
+      session.input.push(text, id, images)
     },
     async interrupt(chatId) {
       await (await live(chatId)).interrupt()

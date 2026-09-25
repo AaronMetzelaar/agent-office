@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gitStatus, parsePatch, unpushedCommits } from '../../src/main/review/git'
-import { editorArgs, editorTarget, loadReview } from '../../src/main/review'
+import { editorArgs, editorTarget, loadReview, previewFile } from '../../src/main/review'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
@@ -140,5 +140,18 @@ describe('open in editor', () => {
     expect(await editorTarget(repo, '/etc/passwd', 1)).toHaveProperty('error')
     expect(editorArgs('code', '/r/a.ts', 12)).toEqual(['--goto', '/r/a.ts:12'])
     expect(editorArgs('zed', '/r/a.ts')).toEqual(['/r/a.ts'])
+  })
+})
+
+describe('preview file', () => {
+  it('shows images as data urls, text as text, and refuses binaries and missing files', async () => {
+    write('shot.png', 'png')
+    write('notes.md', '# hi')
+    writeFileSync(join(repo, 'blob.bin'), Buffer.from([1, 0, 2]))
+    expect(await previewFile(repo, 'shot.png')).toEqual({ path: join(repo, 'shot.png'), image: `data:image/png;base64,${Buffer.from('png').toString('base64')}` })
+    expect(await previewFile(repo, join(repo, 'notes.md'))).toEqual({ path: join(repo, 'notes.md'), text: '# hi' })
+    expect(await previewFile(repo, 'blob.bin')).toMatchObject({ error: expect.stringContaining('isn’t text') })
+    expect(await previewFile(repo, 'gone.txt')).toMatchObject({ error: 'That file isn’t there anymore.' })
+    expect(await previewFile(repo, '.')).toMatchObject({ error: 'That file isn’t there anymore.' })
   })
 })
