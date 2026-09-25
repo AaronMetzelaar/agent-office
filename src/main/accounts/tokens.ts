@@ -7,9 +7,14 @@ export interface Account {
   id: string
   label: string
   createdAt: number
+  claudeLogin?: true
 }
 
 export type Vault = ReturnType<typeof openVault>
+
+function withLogin({ claudeLogin: _, ...account }: Account, token: string | null): Account {
+  return token === null ? { ...account, claudeLogin: true } : account
+}
 
 export function openVault(dir: string) {
   const index = join(dir, 'accounts.json')
@@ -43,21 +48,30 @@ export function openVault(dir: string) {
     list,
     find,
     findByLabel: (label: string) => list().find((account) => account.label.toLowerCase() === label.toLowerCase()),
-    add(label: string, token: string): Account {
-      const account = { id: randomUUID(), label, createdAt: Date.now() }
-      write(accountSecret(account.id), token)
+    add(label: string, token: string | null): Account {
+      const account = withLogin({ id: randomUUID(), label, createdAt: Date.now() }, token)
+      if (token !== null) write(accountSecret(account.id), token)
       save([...list(), account])
       return account
     },
-    replaceToken(id: string, token: string): void {
-      if (find(id)) write(accountSecret(id), token)
+    replaceToken(id: string, token: string | null): Account | undefined {
+      const account = find(id)
+      if (!account) return undefined
+      if (token === null) erase(accountSecret(id))
+      else write(accountSecret(id), token)
+      const replaced = withLogin(account, token)
+      save(list().map((other) => (other.id === id ? replaced : other)))
+      return replaced
     },
     remove(id: string): void {
       if (!find(id)) return
       save(list().filter((account) => account.id !== id))
       erase(accountSecret(id))
     },
-    token: (id: string) => (find(id) ? read(accountSecret(id)) : undefined),
+    token(id: string): string | null | undefined {
+      const account = find(id)
+      return account?.claudeLogin ? null : account && read(accountSecret(id))
+    },
     linearKey: () => read('linear'),
     setLinearKey: (key: string) => write('linear', key),
     clearLinearKey: () => erase('linear'),

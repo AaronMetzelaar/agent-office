@@ -8,7 +8,7 @@ import { errorReason } from '../sessions/normalize'
 import type { Account, Vault } from './tokens'
 
 export type Check = { status: 'ok'; headroom: Headroom } | { status: 'needs-login' }
-export type Validator = (token: string) => Promise<Check>
+export type Validator = (token: string | null) => Promise<Check>
 
 const validationTimeoutMs = 90_000
 
@@ -70,7 +70,7 @@ export const validateWithSdk: Validator = async (token) => {
   }
 }
 
-export const validateWithHeaders: Validator = async (token) => {
+export const validateWithHeaders = async (token: string): Promise<Check> => {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -83,7 +83,7 @@ export const validateWithHeaders: Validator = async (token) => {
   throw new Error(`Claude answered ${response.status}`)
 }
 
-export const validate: Validator = (token) => validateWithHeaders(token).catch(() => validateWithSdk(token))
+export const validate: Validator = (token) => (token === null ? validateWithSdk(null) : validateWithHeaders(token).catch(() => validateWithSdk(token)))
 
 function headroomFromHeaders(headers: Headers): Headroom {
   const window = (name: string): UsageWindow | undefined => {
@@ -127,11 +127,13 @@ function headroomFromUsage(limits: { five_hour?: UsageLimit; seven_day?: UsageLi
 }
 
 export const fakeValidator: Validator = async (token) =>
-  token.includes('fake-ok')
+  token === null || token.includes('fake-ok')
     ? { status: 'ok', headroom: { fiveHour: { utilization: 42, resetsAt: Date.now() + 2 * 3600_000 }, sevenDay: { utilization: 81, resetsAt: Date.now() + 3 * 86400_000 } } }
     : { status: 'needs-login' }
 
-const redact = (text: string, secret: string) => text.split(secret).join('[token]')
+const claudeLoginMissing = 'Claude Code isn’t signed in on this Mac. Run claude in Terminal, sign in with /login, then try again.'
+
+const redact = (text: string, secret: string | null) => (secret === null ? text : text.split(secret).join('[token]'))
 
 export function createAccounts(vault: Vault, validate: Validator, saved?: HealthStore) {
   const health = saved?.loadHealth() ?? new Map<string, AccountHealth>()
@@ -146,6 +148,7 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
     id: account.id,
     label: account.label,
     createdAt: account.createdAt,
+    ...(account.claudeLogin && { claudeLogin: true }),
     health: health.get(account.id) ?? { status: 'unknown' },
   })
   const list = () => vault.list().map(view)
@@ -171,17 +174,16 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
     list,
 
     async add(label: unknown, token: unknown): Promise<AddAccountResult> {
-      if (typeof label !== 'string' || typeof token !== 'string') return { error: 'Enter a label and a token.' }
+      if (typeof label !== 'string' || (token !== null && typeof token !== 'string')) return { error: 'Enter a label and a token.' }
       const name = label.trim()
-      const secret = token.trim()
+      const secret = token === null ? null : token.trim()
       if (!name || name.length > 32) return { error: 'Give the account a label of up to 32 characters.' }
-      if (!secret || secret.length > 4096 || /\s/.test(secret)) return { error: 'That doesn’t look like a token. Paste the whole line that claude setup-token printed.' }
+      if (secret !== null && (!secret || secret.length > 4096 || /\s/.test(secret))) return { error: 'That doesn’t look like a token. Paste the whole line that claude setup-token printed.' }
       try {
         const check = await validate(secret)
-        if (check.status === 'needs-login') return { error: 'Claude rejected this token (401). Run claude setup-token again and paste the new token.' }
+        if (check.status === 'needs-login') return { error: secret === null ? claudeLoginMissing : 'Claude rejected this token (401). Run claude setup-token again and paste the new token.' }
         const existing = vault.findByLabel(name)
-        if (existing) vault.replaceToken(existing.id, secret)
-        const account = existing ?? vault.add(name, secret)
+        const account = (existing && vault.replaceToken(existing.id, secret)) ?? vault.add(name, secret)
         setHealth(account, healthFrom(check))
         return { account: view(account) }
       } catch (error) {
@@ -203,7 +205,7 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
       const account = typeof id === 'string' ? vault.find(id) : undefined
       if (!account) return
       const token = vault.token(account.id)
-      if (!token) return setHealth(account, { status: 'needs-login', lastCheckedAt: Date.now() })
+      if (token === undefined) return setHealth(account, { status: 'needs-login', lastCheckedAt: Date.now() })
       const previous = health.get(account.id)
       const next = await validate(token).then(healthFrom, () => ({ ...previous, status: 'unknown' as const, lastCheckedAt: Date.now() }))
       if (vault.find(account.id)) setHealth(account, next)

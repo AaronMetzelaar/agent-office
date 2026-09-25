@@ -26,7 +26,7 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
 }))
 
 const token = 'sk-ant-oat01-SECRET-abc123'
-const tokens: Record<string, string> = { main: token }
+const tokens: Record<string, string | null> = { main: token, claudeCode: null }
 
 afterEach(() => {
   sdk.options = undefined
@@ -64,6 +64,19 @@ describe('session manager', () => {
     expect(sdk.options?.env).not.toHaveProperty('ANTHROPIC_API_KEY')
     expect(sdk.options?.env).not.toHaveProperty('CLAUDE_CONFIG_DIR')
     expect(sdk.options?.env).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT')
+    expect(sdk.options?.extraArgs).toBeUndefined()
+  })
+
+  it('starts an account on the Claude Code login without any token, with Claude in Chrome on', async () => {
+    vi.stubEnv('CLAUDE_CODE_OAUTH_TOKEN', 'sk-ant-oat01-inherited')
+    const { engine, seen } = manager()
+    sdk.messages = [{ type: 'system', subtype: 'init' }]
+
+    engine.start('c1', { accountId: 'claudeCode', cwd: tmpdir() })
+    await vi.waitFor(() => expect(seen).toHaveLength(1))
+
+    expect(sdk.options?.env).not.toHaveProperty('CLAUDE_CODE_OAUTH_TOKEN')
+    expect(sdk.options?.extraArgs).toEqual({ chrome: null })
   })
 
   it('feeds sent text into the prompt stream and routes controls to the live query', async () => {

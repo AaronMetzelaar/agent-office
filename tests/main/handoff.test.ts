@@ -39,6 +39,14 @@ describe('handoffScript', () => {
   })
 })
 
+describe('handoffScript on the Claude Code login', () => {
+  it('drops any inherited token so claude uses its own login', () => {
+    const script = handoffScript({ cwd: '/tmp', token: null, sessionId: 'sess-123' })
+    expect(script).toContain('unset CLAUDE_CODE_OAUTH_TOKEN')
+    expect(script).not.toContain('export CLAUDE_CODE_OAUTH_TOKEN')
+  })
+})
+
 describe('appleScriptQuote', () => {
   it('escapes double quotes and backslashes', () => {
     expect(appleScriptQuote('bash \'/tmp/a "b".sh\'')).toBe('"bash \'/tmp/a \\"b\\".sh\'"')

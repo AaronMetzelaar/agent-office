@@ -94,7 +94,9 @@ onUnmounted(() => removeEventListener('keydown', onKey))
           <span class="pill" :class="account.health.status">{{ statusText[account.health.status] }}</span>
           <span v-if="account.health.lastCheckedAt" class="meta checked">checked {{ time.format(account.health.lastCheckedAt) }}</span>
         </div>
-        <p v-if="account.health.status === 'needs-login'" class="meta warn">Claude rejected this account’s token. Run <code>claude setup-token</code> and paste the new token.</p>
+        <p v-if="account.claudeLogin" class="meta">Uses Claude Code’s login, so its chats can use Claude in Chrome.</p>
+        <p v-if="account.health.status === 'needs-login' && account.claudeLogin" class="meta warn">Claude Code isn’t signed in. Run <code>claude</code> in Terminal and sign in with <code>/login</code>.</p>
+        <p v-else-if="account.health.status === 'needs-login'" class="meta warn">Claude rejected this account’s token. Run <code>claude setup-token</code> and paste the new token.</p>
         <div v-for="{ name, usage, format } in usageWindows(account.health.headroom)" :key="name" class="usage">
           <div class="usage-row" :class="{ hot: usage.utilization >= 80 }">
             <span>{{ name }} <b>{{ Math.round(usage.utilization) }}%</b></span>
@@ -115,6 +117,7 @@ onUnmounted(() => removeEventListener('keydown', onKey))
       <section class="section">
         <h3 class="sec">{{ relogin ? `New token for ${relogin}` : 'Add an account' }}</h3>
         <p class="meta">Run <code>claude setup-token</code> in Terminal, signed in to the account. The token lasts one year.</p>
+        <p class="meta">Claude in Chrome needs Claude Code’s own login instead of a token. For the account Claude Code is signed in to in Terminal, choose Use Claude Code login.</p>
         <AddAccount :key="formKey" :taken="labels" :label="relogin" @added="added" />
       </section>
 

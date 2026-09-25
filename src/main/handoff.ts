@@ -22,12 +22,12 @@ export function shQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
-export function handoffScript({ cwd, token, sessionId }: { cwd: string; token: string; sessionId: string }): string {
+export function handoffScript({ cwd, token, sessionId }: { cwd: string; token: string | null; sessionId: string }): string {
   return [
     '#!/bin/bash',
     'rm -f -- "$0"',
     `cd -- ${shQuote(cwd)} || exit 1`,
-    `export CLAUDE_CODE_OAUTH_TOKEN=${shQuote(token)}`,
+    token === null ? 'unset CLAUDE_CODE_OAUTH_TOKEN' : `export CLAUDE_CODE_OAUTH_TOKEN=${shQuote(token)}`,
     `exec claude --resume ${shQuote(sessionId)} --fork-session`,
     '',
   ].join('\n')
@@ -75,7 +75,7 @@ export function wireHandoff(hub: Hub, { store, visitors, vault, accounts }: Hand
     if (!chat) return { error: 'That chat isn’t open any more.' }
     if (!chat.sessionId) return { error: 'This chat hasn’t started a session yet.' }
     const token = vault.token(chat.accountId)
-    if (!token) return { error: 'No token is stored for this chat’s account.' }
+    if (token === undefined) return { error: 'No token is stored for this chat’s account.' }
     const path = join(tmpdir(), `agent-office-handoff-${randomUUID()}.sh`)
     writeFileSync(path, handoffScript({ cwd: chat.cwd, token, sessionId: chat.sessionId }), { mode: 0o600 })
     const script = terminalAppleScript(pickTerminalApp(), `bash ${shQuote(path)}`)

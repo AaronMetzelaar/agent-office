@@ -59,13 +59,14 @@ interface Session {
   stopped: boolean
 }
 
-export function sessionEnv(token: string): Record<string, string> {
+export function sessionEnv(token: string | null): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) if (value !== undefined) env[key] = value
   delete env.ANTHROPIC_API_KEY
   delete env.CLAUDE_CONFIG_DIR
   delete env.CLAUDE_CODE_ENTRYPOINT
-  env.CLAUDE_CODE_OAUTH_TOKEN = token
+  delete env.CLAUDE_CODE_OAUTH_TOKEN
+  if (token !== null) env.CLAUDE_CODE_OAUTH_TOKEN = token
   return env
 }
 
@@ -95,7 +96,7 @@ function inputQueue() {
   }
 }
 
-export function createSessionManager(tokenFor: (accountId: string) => string | undefined, canUseTool: ChatCanUseTool): Engine {
+export function createSessionManager(tokenFor: (accountId: string) => string | null | undefined, canUseTool: ChatCanUseTool): Engine {
   const events = new EventEmitter<EngineEvents>()
   const sessions = new Map<string, Session>()
   const commands = new Map<string, SlashCommand[]>()
@@ -110,7 +111,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     return session.ready
   }
 
-  async function consume(chatId: string, session: Session, token: string) {
+  async function consume(chatId: string, session: Session, token: string | null) {
     let error: string | undefined
     try {
       const query = await session.ready
@@ -121,7 +122,8 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
         events.emit('message', chatId, message)
       }
     } catch (thrown) {
-      error = (thrown instanceof Error ? thrown.message : String(thrown)).split(token).join('[token]')
+      const message = thrown instanceof Error ? thrown.message : String(thrown)
+      error = token === null ? message : message.split(token).join('[token]')
     }
     if (session.stopped) return
     if (sessions.get(chatId) === session) sessions.delete(chatId)
@@ -142,7 +144,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     start(chatId, options) {
       stop(chatId)
       const token = tokenFor(options.accountId)
-      if (!token) throw new Error('401: no token is stored for this account')
+      if (token === undefined) throw new Error('401: no token is stored for this account')
       const input = inputQueue()
       const spawned: { pid?: number } = {}
       const ready = import('@anthropic-ai/claude-agent-sdk').then(({ query }) =>
@@ -151,6 +153,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
           options: {
             cwd: options.cwd,
             env: sessionEnv(token),
+            extraArgs: token === null ? { chrome: null } : undefined,
             permissionMode: options.permissionMode ?? 'auto',
             model: options.model,
             effort: options.effort,
@@ -212,7 +215,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     commands: (chatId) => commands.get(chatId),
     async topic(accountId, prompt) {
       const token = tokenFor(accountId)
-      if (!token) return undefined
+      if (token === undefined) return undefined
       const { query } = await import('@anthropic-ai/claude-agent-sdk')
       const run = query({ prompt: prompt.slice(0, 4000), options: { model: 'haiku', systemPrompt: topicPrompt, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token), spawnClaudeCodeProcess: spawnClaude } })
       for await (const message of run) if (message.type === 'result') return message.subtype === 'success' && !message.is_error ? topicOf(message.result) : undefined

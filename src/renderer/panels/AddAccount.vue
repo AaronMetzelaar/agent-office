@@ -11,9 +11,9 @@ const busy = ref(false)
 const error = ref('')
 const replaces = computed(() => props.taken.some((name) => name.toLowerCase() === label.value.trim().toLowerCase()))
 
-async function submit() {
+async function submit(useClaudeLogin = false) {
   if (busy.value) return
-  const pasted = token.value
+  const pasted = useClaudeLogin ? null : token.value
   token.value = ''
   error.value = ''
   busy.value = true
@@ -25,7 +25,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="add" @submit.prevent="submit">
+  <form class="add" @submit.prevent="submit()">
     <label class="field">
       <span>Label</span>
       <input v-model="label" list="account-labels" maxlength="32" required autocomplete="off" spellcheck="false" :disabled="busy" />
@@ -38,7 +38,10 @@ async function submit() {
       <input v-model="token" type="password" required autocomplete="off" spellcheck="false" placeholder="sk-ant-oat01-…" :disabled="busy" />
     </label>
     <p v-if="replaces && !busy" class="meta">This replaces the stored token for {{ label.trim() }}.</p>
-    <button class="btn primary" :disabled="busy">{{ busy ? 'Checking token…' : replaces ? 'Replace token' : 'Add account' }}</button>
+    <div class="buttons">
+      <button class="btn primary" :disabled="busy">{{ busy ? 'Checking…' : replaces ? 'Replace token' : 'Add account' }}</button>
+      <button type="button" class="btn" :disabled="busy || !label.trim()" @click="submit(true)">Use Claude Code login</button>
+    </div>
     <p v-if="busy" class="meta progress" role="status">Running a one-line test chat on this account…</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </form>
@@ -50,8 +53,12 @@ async function submit() {
   gap: 12px;
 }
 
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .add .btn {
-  justify-self: start;
   padding: 9px 14px;
 }
 

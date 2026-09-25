@@ -43,6 +43,7 @@ export interface AccountView {
   id: string
   label: string
   createdAt: number
+  claudeLogin?: true
   health: AccountHealth
 }
 
@@ -75,7 +76,7 @@ export interface HostStatus {
 export interface Commands {
   getAppInfo(): AppInfo
   listAccounts(): AccountView[]
-  addAccount(label: string, token: string): Promise<AddAccountResult>
+  addAccount(label: string, token: string | null): Promise<AddAccountResult>
   removeAccount(id: string): void
   revalidateAccount(id: string): Promise<void>
   setLinearKey(key: string): void

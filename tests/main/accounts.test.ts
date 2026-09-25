@@ -84,6 +84,26 @@ describe('accounts', () => {
     expect(vault.token(account.id)).toBe(newToken)
   })
 
+  it('switches an account to the Claude Code login, deleting its token, and back again', async () => {
+    const { vault, accounts } = start(async () => ({ status: 'ok', headroom: {} }))
+    const account = await addMain(accounts)
+
+    expect(await accounts.add('main', null)).toEqual({ account: expect.objectContaining({ id: account.id, claudeLogin: true }) })
+    expect(vault.token(account.id)).toBeNull()
+    expect(filesUnder(join(dir, 'secrets'))).toEqual([])
+
+    await accounts.add('main', goodToken)
+    expect(vault.token(account.id)).toBe(goodToken)
+    expect(accounts.list()[0]).not.toHaveProperty('claudeLogin')
+  })
+
+  it('tells you to sign in to Claude Code when its login is missing', async () => {
+    const { accounts } = start()
+
+    expect(await accounts.add('main', null)).toEqual({ error: expect.stringContaining('/login') })
+    expect(accounts.list()).toEqual([])
+  })
+
   it('removing an account deletes its entry and drops it from the list', async () => {
     const { vault, accounts, changes } = start()
     const account = await addMain(accounts)
