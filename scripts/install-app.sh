@@ -16,7 +16,8 @@ mkdir "$lockdir" 2>/dev/null || { echo "An install is already running. Log: $log
 trap 'if [ -n "$worktree" ]; then git -C "$repo" worktree remove --force "$worktree" >/dev/null 2>&1 || true; rm -rf "$worktree"; fi; rm -rf "$lockdir"' EXIT
 
 exec > "$log" 2>&1
-running() { ps -axo command= | grep -Fxq "$window_app"; }
+window_pids() { ps -axo pid=,command= | awk -v app="$window_app" '{ pid = $1; sub(/^ *[0-9]+ +/, "") } $0 == app { print pid }'; }
+running() { [ -n "$(window_pids)" ]; }
 step() { echo "$(date '+%H:%M:%S') $1"; }
 fail() {
   step "failed: $1"
@@ -42,13 +43,13 @@ built=$(find "$worktree/dist" -maxdepth 2 -name 'Agent Office.app' -type d | hea
 [ -n "$built" ] || fail "no app in dist"
 
 step "installing to $target"
-staged="$target.new"
+staged="$cache/Agent Office.new.app"
 rm -rf "$staged"
 ditto "$built" "$staged" || fail "copy"
 
 if running; then
   step "quitting the window app; agents keep running in the host"
-  osascript -e 'tell application "Agent Office" to quit' >/dev/null 2>&1 || true
+  kill $(window_pids) 2>/dev/null || true
   for _ in $(seq 60); do running || break; sleep 0.5; done
   running && { rm -rf "$staged"; fail "the window app didn't quit"; }
 fi
