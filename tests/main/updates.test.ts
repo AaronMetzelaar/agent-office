@@ -8,10 +8,11 @@ function setup({ commit = 'abc1234', behind = 2, working = false, interrupt = fa
   const exits: ((code: number | null) => void)[] = []
   const seen: AppUpdate[] = []
   const agents = { working }
+  const main = { behind }
   let clock = 0
   const git: Git = async (args) => {
     calls.push(args)
-    if (args[0] === 'rev-list') return `${behind}\n`
+    if (args[0] === 'rev-list') return `${main.behind}\n`
     if (args[0] === 'log') return 'Fix the inbox\nAdd a meter\n'
     return ''
   }
@@ -25,7 +26,7 @@ function setup({ commit = 'abc1234', behind = 2, working = false, interrupt = fa
     exits.at(-1)!(code)
     await vi.waitFor(() => Promise.resolve())
   }
-  return { updater, calls, steps, seen, agents, confirmInterrupt, finish, tick: (ms: number) => (clock += ms) }
+  return { updater, calls, steps, seen, agents, main, confirmInterrupt, finish, tick: (ms: number) => (clock += ms) }
 }
 
 afterEach(() => vi.useRealTimers())
@@ -84,6 +85,17 @@ describe('app updates', () => {
     await now.finish()
     await now.updater.install()
     expect(now.steps).toEqual(['build', 'swap'])
+  })
+
+  it('rebuilds once before installing when main moved since the build, so the new app is current', async () => {
+    const { updater, steps, main, finish } = setup()
+    await updater.check()
+    main.behind = 3
+    await finish()
+    await vi.waitFor(() => expect(steps).toEqual(['build', 'build']))
+    main.behind = 4
+    await finish()
+    await vi.waitFor(() => expect(steps).toEqual(['build', 'build', 'swap']))
   })
 
   it('reports a failed build, and only retries on its own once main moves again', async () => {

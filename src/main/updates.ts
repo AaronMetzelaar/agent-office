@@ -42,6 +42,8 @@ export function createUpdater({ commit, repo, git, launch, busy, confirmInterrup
   let checkedAt = 0
   let failedAt: number | undefined
   let interruptOk = false
+  let stagedBehind = 0
+  let refreshed = false
   let timer: NodeJS.Timeout | undefined
   let idleTimer: NodeJS.Timeout | undefined
   const set = (next: Partial<AppUpdate>) => {
@@ -54,6 +56,7 @@ export function createUpdater({ commit, repo, git, launch, busy, confirmInterrup
   }
 
   function build() {
+    stagedBehind = state.behind
     set({ stage: 'building', error: undefined })
     launch(repo, 'build', (code) => {
       if (code !== 0) return failed('build')
@@ -72,21 +75,31 @@ export function createUpdater({ commit, repo, git, launch, busy, confirmInterrup
       idleTimer.unref?.()
       return
     }
+    if (!refreshed) {
+      refreshed = true
+      await measure().catch(() => {})
+      if (state.stage !== 'waiting') return
+      if (state.behind > stagedBehind) return build()
+    }
     set({ stage: 'installing' })
     launch(repo, 'swap', (code) => {
       if (code !== 0) failed('swap')
     })
   }
 
+  async function measure() {
+    await git(['fetch', '--quiet', 'origin', 'main'])
+    const range = `${commit}..origin/main`
+    const behind = Number((await git(['rev-list', '--count', range])).trim()) || 0
+    const subjects = behind ? (await git(['log', '--format=%s', `-n${shownSubjects}`, range])).split('\n').filter(Boolean) : []
+    set({ behind, subjects })
+  }
+
   async function check() {
     if (!commit || !repo || state.stage === 'building' || state.stage === 'installing') return
     checkedAt = now()
     try {
-      await git(['fetch', '--quiet', 'origin', 'main'])
-      const range = `${commit}..origin/main`
-      const behind = Number((await git(['rev-list', '--count', range])).trim()) || 0
-      const subjects = behind ? (await git(['log', '--format=%s', `-n${shownSubjects}`, range])).split('\n').filter(Boolean) : []
-      set({ behind, subjects })
+      await measure()
     } catch {
       return
     }
