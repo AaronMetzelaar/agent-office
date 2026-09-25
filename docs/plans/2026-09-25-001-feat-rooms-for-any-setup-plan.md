@@ -702,7 +702,7 @@ flowchart TB
 **Verification:**
 - A dev build with a fresh `AGENT_OFFICE_USER_DATA`, `AGENT_OFFICE_CONFIG_DIR` and three git repos shows three rooms with no console errors.
 
-- [ ] **Unit 9: Fixtures, end-to-end checks and README**
+- [x] **Unit 9: Fixtures, end-to-end checks and README**
 
 **Goal:** Make the post-merge real-floor gate prove Aaron's office is unchanged. Add end-to-end checks for fresh installs, MWS colleagues and 10 rooms. Document the config.
 
