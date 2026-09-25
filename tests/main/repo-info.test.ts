@@ -56,6 +56,15 @@ describe('repo info', () => {
     expect(repoInfo(sub)).toBeUndefined()
   })
 
+  it('reads repos, worktrees and the origin from disk, without running git', () => {
+    const repo = mwsMonorepo(join(dir, 'shop'), { readme: '# Shop\n', origin: 'git@github.com:MatchWornShirt/shop.git' })
+    const tree = claudeWorktree(repo, 'fix')
+    vi.stubEnv('PATH', '')
+    expect(repoInfo(join(tree, 'frontend', 'admin'))).toEqual({ root: repo, top: tree })
+    expect(isMwsMonorepo(repo)).toBe(true)
+    vi.unstubAllEnvs()
+  })
+
   it('answers a second call from its cache without running git again', () => {
     const repo = mwsMonorepo(join(dir, 'monorepo'))
     const sub = join(repo, 'frontend', 'admin')
