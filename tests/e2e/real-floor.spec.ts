@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -7,8 +7,9 @@ import type { HookEvent } from '../../src/main/outside/listener'
 import type { VisitorSeed } from '../../src/main/outside/transcripts'
 import { openDb } from '../../src/main/store/db'
 import { emptyUsage, type ChatState, type ChatView } from '../../src/shared/chat'
-import { applyRooms, defaultRules, deptNames, homeDept } from '../../src/shared/departments'
+import { legacyRooms } from '../../src/shared/departments'
 import { spotFor } from '../../src/renderer/office/standby'
+import { mwsMonorepo } from '../fakes/repos'
 import { floors, onFloor, type Floor, type FloorChat } from '../fixtures/floors'
 
 interface MainGlobals {
@@ -18,30 +19,50 @@ interface MainGlobals {
 }
 
 const root = resolve(__dirname, '../..')
-const scratch = mkdtempSync(join(tmpdir(), 'agent-office-floor-'))
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'agent-office-floor-')))
 const template = join(scratch, 'template')
 const accounts: Record<FloorChat['account'], string> = { main: '', research: '', unknown: '' }
 const midTurn = new Set<ChatState>(['starting', 'working', 'needs-you'])
 const requestInput = { command: 'pnpm test', file_path: 'README.md', url: 'https://example.com/docs', plan: '1. Run the tests' }
 
-const env = (userData: string) => ({
+const env = (userData: string, configDir = mkdtempSync(join(scratch, 'config-'))) => ({
   ...process.env,
   AGENT_OFFICE_USER_DATA: userData,
+  AGENT_OFFICE_CONFIG_DIR: configDir,
   AGENT_OFFICE_FAKE_VALIDATOR: '1',
   AGENT_OFFICE_FAKE_ENGINE: '1',
   AGENT_OFFICE_DESKTOP_DIR: mkdtempSync(join(scratch, 'desktop-')),
   CLAUDE_CONFIG_DIR: mkdtempSync(join(scratch, 'claude-')),
 })
 
-function evidenceFor(chat: FloorChat): VisitorSeed['evidence'] {
-  if (chat.department === homeDept(chat.cwd, chat.account === 'research')) return []
-  const rule = defaultRules.find((candidate) => candidate.dept === chat.department)
-  const file = rule ? `/elsewhere/${rule.path}/index.ts` : `${chat.cwd}/index.ts`
+const legacyRules = [
+  { path: 'frontend/marketplace', dept: 'mkt' },
+  { path: 'frontend/admin', dept: 'adm' },
+  { path: 'frontend/mobile', dept: 'mob' },
+  { path: '', dept: 'plat' },
+]
+const legacyHome = (cwd: string, research: boolean) => (research ? 'gym' : (legacyRules.find((rule) => `${cwd}/`.includes(`/monorepo/${rule.path}`.replace(/\/?$/, '/')))?.dept ?? 'side'))
+const nameOf = (id: string, floor?: Floor) => floor?.rooms?.find((room) => room.id === id)?.name ?? legacyRooms.find((room) => room.id === id)?.name ?? id
+const disk = (path: string) => join(scratch, 'fs', path)
+const monorepoOf = (floor: Floor) => floor.chats.map((chat) => /^(.*?\/monorepo)(?:\/|$)/.exec(chat.cwd)?.[1]).find(Boolean)
+
+function lay(floor: Floor): Floor {
+  const mono = monorepoOf(floor)
+  if (mono && !existsSync(disk(mono))) mwsMonorepo(disk(mono))
+  for (const chat of floor.chats) if (!chat.cwd.includes('/.claude/worktrees/') && (!mono || chat.cwd.startsWith(mono))) mkdirSync(disk(chat.cwd), { recursive: true })
+  return { ...floor, chats: floor.chats.map((chat) => ({ ...chat, cwd: disk(chat.cwd) })) }
+}
+
+function evidenceFor(chat: FloorChat, mono: string | undefined): VisitorSeed['evidence'] {
+  if (chat.department === legacyHome(chat.cwd, chat.account === 'research')) return []
+  const rule = legacyRules.find((candidate) => candidate.dept === chat.department)
+  const file = rule && mono ? join(mono, rule.path, 'index.ts') : `${chat.cwd}/index.ts`
   return Array.from({ length: confirmations }, (_, k) => [{ type: 'tool-use', id: `evidence-${k}`, name: 'Edit', input: { file_path: file } }])
 }
 
 function seedOffice(userData: string, floor: Floor, now: number) {
   const db = openDb(join(userData, 'office.db'))
+  db.sql.prepare("delete from settings where key in ('roomsVersion', 'mwsRoots', 'rooms')").run()
   for (const chat of floor.chats.filter((candidate) => candidate.kind === 'office')) {
     db.saveChat({
       id: chat.id,
@@ -67,7 +88,7 @@ function seedOffice(userData: string, floor: Floor, now: number) {
   db.close()
 }
 
-const visitorSeeds = (floor: Floor, now: number): VisitorSeed[] =>
+const visitorSeeds = (floor: Floor, now: number, mono = monorepoOf(floor)): VisitorSeed[] =>
   floor.chats
     .filter((chat) => chat.kind !== 'office')
     .map((chat) => ({
@@ -83,7 +104,7 @@ const visitorSeeds = (floor: Floor, now: number): VisitorSeed[] =>
       ...(chat.state === 'done' ? { endedAt: now - chat.idleMinutes * 60_000 } : {}),
       writtenAt: now - chat.idleMinutes * 60_000,
       archived: !!chat.archived,
-      evidence: evidenceFor(chat),
+      evidence: evidenceFor(chat, mono),
     }))
 
 async function seedLive(app: ElectronApplication, floor: Floor, now: number) {
@@ -158,16 +179,23 @@ test.beforeAll(async () => {
 
 test.afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 
-for (const [name, floor] of Object.entries(floors)) {
-  const onScreen = floor.chats.filter(onFloor)
+const signCounts = (page: Page) =>
+  page.locator('.sign:visible').evaluateAll((signs) =>
+    Object.fromEntries(signs.map((sign) => [sign.querySelector('.sn b')?.textContent ?? sign.querySelector('.sn')?.textContent?.trim() ?? '', [...(sign.getAttribute('aria-label') ?? '').matchAll(/(\d+) \w/g)].reduce((n, match) => n + Number(match[1]), 0)])),
+  )
+
+for (const [name, captured] of Object.entries(floors)) {
+  const onScreen = captured.chats.filter(onFloor)
 
   test(`the ${name} floor (${onScreen.length} agents) renders every agent and section without errors`, async () => {
     test.setTimeout(60_000)
     const userData = join(scratch, name)
     cpSync(template, userData, { recursive: true, filter: (path) => !basename(path).startsWith('Singleton') })
     const now = Date.now()
+    const floor = lay(captured)
+    const configDir = mkdtempSync(join(scratch, 'config-'))
     seedOffice(userData, floor, now)
-    const app = await electron.launch({ args: ['--use-mock-keychain', root], env: env(userData) })
+    const app = await electron.launch({ args: ['--use-mock-keychain', root], env: env(userData, configDir) })
     const problems: string[] = []
     app.process().stdout?.on('data', (chunk: Buffer) => problems.push(...chunk.toString().split('\n').filter((line) => line.includes('[renderer]'))))
     const page = await app.firstWindow()
@@ -178,10 +206,16 @@ for (const [name, floor] of Object.entries(floors)) {
     await seedLive(app, floor, now)
     await expect.poll(() => agentsOnSigns(page)).toBe(onScreen.length)
     const spots = onScreen.map((chat) => ({ dept: chat.department, spot: spotFor({ state: chat.state, parked: !!chat.parked || !!chat.moved, dept: chat.department }, undefined, false) }))
-    applyRooms(floor.rooms ?? [])
-    const sections = [...new Set(spots.filter((agent) => agent.spot === 'desk').map((agent) => deptNames[agent.dept]))]
+    const sections = [...new Set(spots.filter((agent) => agent.spot === 'desk').map((agent) => nameOf(agent.dept, floor)))]
     for (const section of sections) await expect(page.locator('.sign', { hasText: section })).toBeVisible()
     if (spots.some((agent) => agent.spot === 'lounge')) await expect(page.locator('.sign', { hasText: 'Lounge' })).toBeVisible()
+    const perRoom: Record<string, number> = {}
+    for (const agent of spots) {
+      const key = agent.spot === 'lounge' ? 'Lounge' : nameOf(agent.dept, floor)
+      perRoom[key] = (perRoom[key] ?? 0) + 1
+    }
+    await expect.poll(async () => Object.fromEntries(Object.entries(await signCounts(page)).filter(([, n]) => n > 0))).toEqual(perRoom)
+    expect(JSON.parse(readFileSync(join(configDir, 'departments.json'), 'utf8'))).toMatchObject({ playground: ['/'], rooms: [{ name: 'Research gym', account: 'research' }] })
 
     await page.waitForTimeout(1500)
     const spread = await canvasSpread(app, page)

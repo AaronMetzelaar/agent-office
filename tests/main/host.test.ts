@@ -3,7 +3,7 @@ import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChatPatchBatch, ChatSnapshot } from '../../src/shared/chat'
+import type { ChatPatchBatch, ChatSnapshot, RoomsUpdate } from '../../src/shared/chat'
 import { connectHost, type HostClient } from '../../src/main/host/client'
 import { whenIdle } from '../../src/main/host/idle'
 import { hostBuild, hostSecret, socketPath } from '../../src/main/host/identity'
@@ -13,6 +13,7 @@ import { remoteUi } from '../../src/main/host/ui'
 import { wireChats } from '../../src/main/store/ipc-sync'
 import type { Visitors } from '../../src/main/outside/visitors'
 import { openOffice } from '../fakes/office'
+import { gitRepo } from '../fakes/repos'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
@@ -41,7 +42,7 @@ const noVisitors = { snapshot: () => [], has: () => false, open: () => {} } as u
 async function startHost(build = 'build-a') {
   const server = createHostServer(hostSecret(dir), build)
   servers.push(server)
-  const sync = wireChats(server, office.store, noVisitors)
+  const sync = wireChats(server, office.store, noVisitors, office.rooms)
   server.handle('startChat', (prompt: string) => office.start(prompt))
   server.handle('busy', office.store.busy)
   const ui = remoteUi(server)
@@ -52,19 +53,20 @@ async function startHost(build = 'build-a') {
 
 function client(options: { secret?: string; spawn?: () => void } = {}) {
   const batches: ChatPatchBatch[] = []
+  const rooms: RoomsUpdate[] = []
   const welcomes: (Welcome | undefined)[] = []
   const host = connectHost({
     path: socketPath(dir),
     secret: options.secret ?? hostSecret(dir),
     spawn: options.spawn ?? (() => {}),
     status: (welcome) => welcomes.push(welcome),
-    event: (name, payload) => name === 'chatPatches' && batches.push(payload as ChatPatchBatch),
+    event: (name, payload) => (name === 'chatPatches' ? batches.push(payload as ChatPatchBatch) : name === 'rooms' && rooms.push(payload as RoomsUpdate)),
     call: (name) => name === 'confirm',
     maxDelayMs: 20,
     spawnGapMs: 0,
   })
   clients.push(host)
-  return { host, batches, welcomes }
+  return { host, batches, rooms, welcomes }
 }
 
 describe('agent host protocol', () => {
@@ -133,6 +135,15 @@ describe('agent host protocol', () => {
     await second.host.call('uiState', [{ visible: true, focused: true }])
     office.finish(chatId)
     await vi.waitFor(() => expect(second.batches.some((batch) => batch.seq > snapshot.seq && batch.patches.some((patch) => patch.id === chatId && patch.fields?.state === 'done'))).toBe(true))
+  })
+
+  it('pushes the new room list to a connected window when a chat builds a room, with no snapshot reload', async () => {
+    await startHost()
+    const { host, rooms } = client()
+    await host.call('uiState', [{ visible: false, focused: false }])
+    const id = office.start('Fix the cart', 'main', gitRepo(join(dir, 'shop')))
+    await vi.waitFor(() => expect(rooms.at(-1)?.rooms.map((room) => room.id)).toContain(office.chat(id).department))
+    expect(rooms.at(-1)?.rooms.find((room) => room.id === office.chat(id).department)?.name).toBe('shop')
   })
 
   it('reconnects with backoff after the host goes away, spawning a new one', async () => {

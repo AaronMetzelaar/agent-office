@@ -1,5 +1,6 @@
 import type { ChatPatch, ChatPatchBatch, ChatRow, ChatSnapshot, LoginItem } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
+import type { Rooms } from '../departments/rooms'
 import type { Hub } from '../ipc'
 import type { Visitors } from '../outside/visitors'
 import type { ChatStore } from './chats'
@@ -77,10 +78,12 @@ export function createPatchSync(store: Pick<ChatStore, 'events' | 'snapshot'>, p
   }
 }
 
-export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors, onOpen: () => void = () => {}) {
+export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors, rooms: Pick<Rooms, 'events' | 'list' | 'configErrors'>, onOpen: () => void = () => {}) {
   const sync = createPatchSync({ events: store.events, snapshot: () => [...store.snapshot(), ...visitors.snapshot()] }, (batch) => hub.send('chatPatches', batch))
+  const update = () => ({ rooms: rooms.list(), configErrors: rooms.configErrors })
   let openChat: string | undefined
-  hub.handle('getSnapshot', sync.snapshot)
+  rooms.events.on('changed', () => hub.send('rooms', update()))
+  hub.handle('getSnapshot', () => ({ ...sync.snapshot(), ...update() }))
   hub.handle('sendMessage', store.sendMessage)
   hub.handle('interruptChat', store.interruptChat)
   hub.handle('stopTask', store.stopTask)

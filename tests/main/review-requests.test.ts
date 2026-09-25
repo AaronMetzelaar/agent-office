@@ -173,7 +173,7 @@ describe('starting a review', () => {
     const queue = createReviewQueue(gh)
     await queue.poll()
     const request = queue.find(search[0]!.url)!
-    const { cwd, prompt, options } = await reviewStart(request, [other, repo])
+    const { cwd, prompt, options } = await reviewStart(request, [other, repo], '/pr-review-rundown')
     expect({ cwd, prompt, options }).toEqual({ cwd: repo, prompt: '/pr-review-rundown https://github.com/mws/monorepo/pull/7', options: { review: true, title: 'Review #7 Round bids to the nearest euro' } })
     const started = office.store.start('main', cwd, prompt, undefined, undefined, options)
     if (!('chatId' in started)) throw new Error(started.error)
@@ -194,9 +194,10 @@ describe('starting a review', () => {
 
   it('falls back to the home folder when no clone of the repo is known, since the skill reads the PR through gh', async () => {
     const request = { url: 'https://github.com/mws/mobile/pull/9', repo: 'mws/mobile', number: 9, title: 'Deep links for push' }
-    const { cwd, prompt, options } = await reviewStart(request, [dir])
+    const { cwd, prompt, options } = await reviewStart(request, [dir], 'pr-review-rundown')
     expect(cwd).toBe(homedir())
     expect(prompt).toBe('/pr-review-rundown https://github.com/mws/mobile/pull/9')
+    expect((await reviewStart(request, [dir])).prompt).toBe('Review this pull request: https://github.com/mws/mobile/pull/9')
     const started = office.store.start('main', cwd, prompt, undefined, undefined, { ...options, worktree: false, dept: 'mob' })
     if (!('chatId' in started)) throw new Error(started.error)
     expect(office.chat(started.chatId)).toMatchObject({ cwd: homedir(), department: 'rev', review: true })

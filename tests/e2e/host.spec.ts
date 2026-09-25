@@ -2,10 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
+import type { RoomsUpdate } from '../../src/shared/chat'
+import { gitRepo } from '../fakes/repos'
 
 const root = resolve(__dirname, '../..')
 const userData = mkdtempSync(join(tmpdir(), 'agent-office-host-'))
-const env = { ...process.env, AGENT_OFFICE_USER_DATA: userData, AGENT_OFFICE_FAKE_VALIDATOR: '1', AGENT_OFFICE_FAKE_ENGINE: '1', AGENT_OFFICE_INLINE_HOST: '' }
+const env = { ...process.env, AGENT_OFFICE_USER_DATA: userData, AGENT_OFFICE_CONFIG_DIR: join(userData, 'config'), AGENT_OFFICE_FAKE_VALIDATOR: '1', AGENT_OFFICE_FAKE_ENGINE: '1', AGENT_OFFICE_INLINE_HOST: '' }
 const hostPid = () => Number(readFileSync(join(userData, 'host.pid'), 'utf8'))
 const alive = (pid: number) => {
   try {
@@ -59,4 +61,22 @@ test('a working chat keeps running in the agent host while the window app quits 
   expect(after).toMatchObject({ state: 'working', sessionId })
   expect(after?.stuck).toBeUndefined()
   await second.app.close()
+})
+
+test('starting a chat in a new repo pushes its room to the window without a snapshot reload', async () => {
+  test.setTimeout(60_000)
+  const repo = gitRepo(join(userData, 'shop'))
+  const { app, page } = await launch()
+  const update = await page.evaluate(async (cwd) => {
+    const heard = new Promise<RoomsUpdate>((done) => window.office.onRooms(done))
+    const [known] = await window.office.listAccounts()
+    const added = known ? { account: known } : await window.office.addAccount('main', 'sk-ant-oat01-fake-ok')
+    if (!('account' in added)) throw new Error(added.error)
+    const started = await window.office.startChat(added.account.id, cwd, 'Fix the cart')
+    if (!('chatId' in started)) throw new Error(started.error)
+    return { chatId: started.chatId, rooms: (await heard).rooms }
+  }, repo)
+  const department = (await chat(page, update.chatId))?.department
+  expect(update.rooms.find((room) => room.id === department)).toMatchObject({ name: 'shop', look: 'plain' })
+  await app.close()
 })

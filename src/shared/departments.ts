@@ -1,39 +1,61 @@
+export type DeptId = string
 
-export const roomIds = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', ...roomIds, 'gym'] as const
-export type DeptId = (typeof deptIds)[number]
-export type RoomId = (typeof roomIds)[number]
-export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
+export const looks = ['showroom', 'backoffice', 'devices', 'servers', 'reading', 'gym', 'playground', 'plain'] as const
+export type Look = (typeof looks)[number]
 
-export interface Room {
-  id: RoomId
+export interface ConfigRoom {
+  id: string
   name: string
-  about: string
-  folder?: string
+  folders?: string[]
+  account?: string
+  accent?: string
+  look?: Look
 }
 
-export const deptNames: Record<DeptId, string> = {
-  mkt: 'Marketplace',
-  adm: 'Admin',
-  mob: 'Mobile',
-  plat: 'Backend / infra',
-  side: 'Side projects',
-  rev: 'PR reviews',
-  gym: 'Research gym',
-  ...(Object.fromEntries(roomIds.map((id) => [id, 'New room'])) as Record<RoomId, string>),
+export interface ConfigCommands {
+  ship?: string[]
+  fixCi?: string
+  answerComments?: string
+  review?: string
 }
 
-export function applyRooms(rooms: readonly Room[]) {
-  for (const room of rooms) deptNames[room.id] = room.name
+export interface DeptConfig {
+  rooms: ConfigRoom[]
+  playground: string[]
+  commands: ConfigCommands
 }
 
-export const roomRules = (rooms: readonly Room[]): DeptRule[] => rooms.flatMap((room) => (room.folder ? [{ path: room.folder, dept: room.id }] : []))
+export interface RoomDef {
+  id: string
+  name: string
+  subtitle: string
+  accent: number
+  look: Look
+  account?: string
+  about?: string
+  root?: string
+  parent?: string
+  createdAt?: number
+}
 
-export const isResearch = (account: { label: string }) => /research/i.test(account.label)
+export const mwsRooms: readonly RoomDef[] = [
+  { id: 'mkt', name: 'Marketplace', subtitle: 'monorepo/frontend/marketplace', accent: 0x1b34ff, look: 'showroom' },
+  { id: 'adm', name: 'Admin', subtitle: 'monorepo/frontend/admin', accent: 0xdb2777, look: 'backoffice' },
+  { id: 'mob', name: 'Mobile', subtitle: 'monorepo/frontend/mobile', accent: 0x16a34a, look: 'devices' },
+  { id: 'plat', name: 'Backend / infra', subtitle: 'services · api · workers · infra', accent: 0x7c3aed, look: 'servers' },
+]
+export const reviewRoom: RoomDef = { id: 'rev', name: 'PR reviews', subtitle: 'your review requests', accent: 0x854d0e, look: 'reading' }
+export const playgroundRoom: RoomDef = { id: 'side', name: 'Side projects', subtitle: 'folders without a room', accent: 0xea580c, look: 'playground' }
+export const legacyRooms: readonly RoomDef[] = [...mwsRooms, playgroundRoom, reviewRoom, { id: 'gym', name: 'Research gym', subtitle: 'research account', accent: 0x0d9488, look: 'gym', account: 'research' }]
 
-export interface DeptRule {
-  path: string
-  dept: DeptId
+const holds = (label: string, account: string) => label.toLowerCase().includes(account.toLowerCase())
+
+export const tiedRoomIn = (rooms: readonly Pick<RoomDef, 'id' | 'account'>[], label = '') =>
+  rooms.filter((room) => room.account && holds(label, room.account)).sort((a, b) => b.account!.length - a.account!.length)[0]?.id
+
+export function showsAccountBadge(rooms: readonly Pick<RoomDef, 'id' | 'account'>[], roomId: string, label = ''): boolean {
+  const account = rooms.find((room) => room.id === roomId)?.account
+  return account ? !holds(label, account) : !!tiedRoomIn(rooms, label)
 }
 
 export interface StartOptions {
@@ -43,44 +65,7 @@ export interface StartOptions {
   review?: boolean
 }
 
-export const defaultRules: readonly DeptRule[] = [
-  { path: 'monorepo/frontend/marketplace', dept: 'mkt' },
-  { path: 'monorepo/frontend/admin', dept: 'adm' },
-  { path: 'monorepo/frontend/mobile', dept: 'mob' },
-  { path: 'monorepo', dept: 'plat' },
-]
-
-export function validRules(value: unknown): DeptRule[] | undefined {
-  if (!Array.isArray(value)) return undefined
-  const rules = value.filter((rule): rule is DeptRule => typeof rule?.path === 'string' && !!rule.path.replace(/\//g, '') && isDeptId(rule.dept))
-  return rules.length ? rules.map(({ path, dept }) => ({ path, dept })) : undefined
-}
-
 export const repoPath = (path: string) => path.replaceAll('\\', '/').replace(/\/\.claude\/worktrees\/[^/]+/, '').replace(/\/+$/, '')
-
-const segments = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}/`
-
-export function ruleFor(path: string, rules: readonly DeptRule[] = defaultRules): DeptId | undefined {
-  const target = `${repoPath(path)}/`
-  return [...rules].sort((a, b) => b.path.length - a.path.length).find((rule) => target.includes(segments(rule.path)))?.dept
-}
-
-export function homeDept(cwd: string, research: boolean, rules: readonly DeptRule[] = defaultRules): DeptId {
-  return research ? 'gym' : (ruleFor(cwd, rules) ?? 'side')
-}
-
-export function departmentOf(chat: { cwd: string; department?: string }, research: boolean, rules: readonly DeptRule[] = defaultRules): DeptId {
-  return isDeptId(chat.department) ? chat.department : homeDept(chat.cwd, research, rules)
-}
-
-export function evidenceDept(file: string, cwd: string, rules: readonly DeptRule[] = defaultRules): DeptId | undefined {
-  const matched = ruleFor(file, rules)
-  if (matched) return matched
-  const [path, root] = [repoPath(file), repoPath(cwd)]
-  return path === root || path.startsWith(`${root}/`) ? 'side' : undefined
-}
-
-export const showsAccountBadge = (dept: DeptId, research: boolean) => research !== (dept === 'gym')
 
 interface AccountLike {
   id: string
@@ -89,21 +74,19 @@ interface AccountLike {
 }
 
 export const lowHeadroom = 80
-const monorepo = new Set<DeptId>(['mkt', 'adm', 'mob', 'plat'])
 const usable = (account: AccountLike) => account.health.status !== 'needs-login'
 export const usedPercent = (account: AccountLike) => Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0)
 
-export function defaultAccount(accounts: readonly AccountLike[], dept?: DeptId): string | undefined {
+export function defaultAccountFor(accounts: readonly AccountLike[], tiedRoom: (label: string) => string | undefined, room?: string): string | undefined {
   const open = accounts.filter(usable)
-  const pick = (list: AccountLike[]) => list.find((account) => isResearch(account) === (dept === 'gym')) ?? list[0]
+  const pick = (list: AccountLike[]) => list.find((account) => tiedRoom(account.label) === room) ?? list.find((account) => !tiedRoom(account.label)) ?? list[0]
   return (pick(open.filter((account) => usedPercent(account) < 100)) ?? pick(open))?.id
 }
 
-export function accountHint(accounts: readonly AccountLike[], chosenId: string, dept: DeptId): { accountId: string; text: string } | undefined {
+export function accountHint(accounts: readonly AccountLike[], chosenId: string): { accountId: string; text: string } | undefined {
   const chosen = accounts.find((account) => account.id === chosenId)
-  const research = accounts.find((account) => isResearch(account) && usable(account))
-  if (!chosen || !research || isResearch(chosen) || !monorepo.has(dept)) return undefined
-  const used = usedPercent(chosen)
-  if (used < lowHeadroom || usedPercent(research) >= used) return undefined
-  return { accountId: research.id, text: `${chosen.label} is at ${Math.round(used)}% of its limit. Run this on ${research.label}; it keeps its department.` }
+  if (!chosen || usedPercent(chosen) < lowHeadroom) return undefined
+  const other = accounts.filter((account) => account.id !== chosenId && usable(account)).sort((a, b) => usedPercent(a) - usedPercent(b))[0]
+  if (!other || usedPercent(other) >= usedPercent(chosen)) return undefined
+  return { accountId: other.id, text: `${chosen.label} is at ${Math.round(usedPercent(chosen))}% of its limit. Run this on ${other.label}; it keeps its room.` }
 }

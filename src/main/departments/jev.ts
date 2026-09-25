@@ -1,4 +1,4 @@
-import { repoPath, type DeptId, type DeptRule, type Room } from '../../shared/departments'
+import { playgroundRoom, repoPath, reviewRoom, type DeptId, type RoomDef } from '../../shared/departments'
 import type { Post } from '../workflow/linear'
 
 export type Jev = ReturnType<typeof createJev>
@@ -14,25 +14,28 @@ const monorepo: Partial<Record<DeptId, string>> = {
   plat: 'Backend services, APIs, databases, infrastructure or CI of the monorepo, or work spread across several of its apps',
 }
 
-function criteriaFor(rules: readonly DeptRule[], rooms: readonly Room[], full: boolean): Record<string, string> {
+interface Registry {
+  list(): readonly RoomDef[]
+  folders(id: string): string[]
+}
+
+function criteriaFor(rooms: Registry): Record<string, string> {
   const inFolders = (id: DeptId, text: string) => {
-    const paths = rules.filter((rule) => rule.dept === id).map((rule) => rule.path)
+    const paths = rooms.folders(id)
     return paths.length ? `${text}. Its agents work in ${paths.join(' or ')}` : text
   }
+  const choices = rooms.list().filter((room) => room.id !== playgroundRoom.id && room.id !== reviewRoom.id && !room.account)
   return {
-    ...Object.fromEntries(Object.entries(monorepo).map(([id, text]) => [id, inFolders(id as DeptId, text)])),
-    ...Object.fromEntries(rooms.map((room) => [room.id, inFolders(room.id, `${room.name}: ${room.about}`)])),
-    ...(full
-      ? { side: 'Side projects: work in a repository none of the rooms above cover, or work that fits none of them' }
-      : { new: 'None of the rooms above: the agent works in a repository none of them cover, or on work that clearly fits none of them, so it gets a new room' }),
+    ...Object.fromEntries(choices.map((room) => [room.id, inFolders(room.id, monorepo[room.id] ?? (room.about ? `${room.name}: ${room.about}` : room.name))])),
+    new: 'None of the rooms above: the agent works in a repository none of them cover, or on work that clearly fits none of them, so it gets a new room',
   }
 }
 
-export function createJev(key: () => string | undefined, rules: readonly DeptRule[], rooms: { list(): readonly Room[]; full(): boolean }, post: Post = fetch) {
+export function createJev(key: () => string | undefined, rooms: Registry, post: Post = fetch) {
   return async function place(cwd: string, task: string): Promise<Placement | undefined> {
     const apiKey = key()
     if (!apiKey) return undefined
-    const criteria = criteriaFor(rules, rooms.list(), rooms.full())
+    const criteria = criteriaFor(rooms)
     try {
       const response = await post(endpoint, {
         method: 'POST',

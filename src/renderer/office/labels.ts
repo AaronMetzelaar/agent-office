@@ -265,8 +265,8 @@ export function setChipPlacement(chip: Chip, p: Placed) {
 export interface Sign {
   el: HTMLButtonElement
   obj: CSS2DObject
+  name: HTMLElement
   counts: HTMLSpanElement
-  name: Text
   path: HTMLSpanElement
   key: string
   w: number
@@ -286,21 +286,34 @@ export function createSign(name: string, path: string, accent: string | undefine
     event.stopPropagation()
     on.click()
   })
-  const label = document.createTextNode(name)
+  const label = document.createElement('b')
   span('sn', el).append(document.createElement('i'), label)
   const sub = span('sp', el)
   sub.textContent = path
   const counts = span('cts', el)
   const obj = new CSS2DObject(el)
   obj.center.set(0, 1)
-  return { el, obj, counts, name: label, path: sub, key: '', w: 150, h: 44 }
+  const sign = { el, obj, counts, name: label, path: sub, key: '', w: 150, h: 44 }
+  setSignName(sign, name)
+  return sign
+}
+
+export function setSignName(sign: Pick<Sign, 'el' | 'name'>, name: string) {
+  if (sign.name.textContent === name) return
+  sign.name.textContent = name
+  sign.el.title = name
+}
+
+export function signNames(rooms: readonly { id: string; name: string; parent?: string }[]): Map<string, string> {
+  const clash = (name: string) => rooms.filter((room) => room.name === name).length > 1
+  return new Map(rooms.map((room) => [room.id, clash(room.name) && room.parent ? `${room.name} · ${room.parent}` : room.name]))
 }
 
 export function renderSign(sign: Sign, name: string, counts: { key: string; label: string; n: number }[], empty: string, on: boolean, dim: boolean, path = sign.path.textContent ?? '') {
   const key = JSON.stringify([name, path, counts, on, dim])
   if (key === sign.key) return
   sign.key = key
-  sign.name.data = name
+  setSignName(sign, name)
   sign.path.textContent = path
   sign.counts.replaceChildren(
     ...(counts.length

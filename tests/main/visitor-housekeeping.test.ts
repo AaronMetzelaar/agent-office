@@ -5,12 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { defaultRules } from '../../src/shared/departments'
 import { day, summaryText } from '../../src/shared/housekeeping'
 import { wireHousekeeping } from '../../src/main/housekeeping'
 import { windowHub } from '../../src/main/ipc'
 import { wireOutside, type Outside } from '../../src/main/outside'
-import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
+import { createDesktopMeta, instances } from '../../src/main/outside/desktop-meta'
 import { createDiscovery } from '../../src/main/outside/transcripts'
 import { createVisitors } from '../../src/main/outside/visitors'
 import { openDb } from '../../src/main/store/db'
@@ -18,6 +17,7 @@ import { toAgents } from '../../src/renderer/state/projection'
 import { handlers } from '../fakes/electron'
 import { openHousekeeping, openOffice } from '../fakes/office'
 import { line, writeDesktopChat, writeTranscript } from '../fakes/outside'
+import { claudeWorktree, gitRepo } from '../fakes/repos'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
@@ -79,7 +79,8 @@ function openVisitors(settings: { setting(key: string): unknown; saveSetting(key
   const visitors = createVisitors({
     patch: () => {},
     accounts: () => [{ id: 'main', label: 'main' }],
-    rules: defaultRules,
+    instances: () => [],
+    rooms: office.rooms,
     officeSessions: () => new Set(),
     describe: (id) => discovery.describe(id, Date.now()),
     settings,
@@ -252,7 +253,7 @@ describe('visitor IPC', () => {
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
     const confirm = vi.fn(async () => false)
     wireHousekeeping(windowHub(win, appUrl), house)
-    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rules: defaultRules, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00' }), confirm })
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00' }), confirm })
     const trusted = { sender: win.webContents, senderFrame: { url: appUrl } }
     const invoke = (name: string, ...args: unknown[]) => handlers.get(name)!(trusted, ...args)
     const officeChat = office.start('Office work')
@@ -270,5 +271,57 @@ describe('visitor IPC', () => {
     confirm.mockResolvedValue(true)
     expect(await invoke('archiveVisitor', id)).toEqual({})
     expect(visitors.has(id)).toBe(false)
+  })
+
+  it('moves a visitor into the office in its own room, a research visitor into the room tied to its account, and out of it on another account', async () => {
+    const shop = gitRepo(join(dir, 'shop'))
+    const mainId = visitor(shop, hour)
+    const [researchId, overflowId] = [randomUUID(), randomUUID()]
+    for (const id of [researchId, overflowId]) {
+      writeTranscript(claudeDir, id, [line.user('Explore factoring')], { cwd: shop, at: Date.now() - hour })
+      writeDesktopChat(desktopDir, 'Claude-Research', { cliSessionId: id, title: 'Factoring', cwd: shop, lastActivityAt: Date.now() - hour })
+    }
+    const accounts = () => ['main', 'research'].map((id) => ({ id, label: id, createdAt: 0, health: { status: office.loggedOut.has(id) ? ('needs-login' as const) : ('ok' as const) } }))
+    const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read })
+    const visitors = createVisitors({ patch: () => {}, accounts, instances: () => instances(desktopDir), rooms: office.rooms, officeSessions: () => new Set(), describe: () => undefined, settings: office.db, log: () => {} })
+    visitors.sync(discovery.scan(Date.now(), new Set()))
+    const appUrl = 'app://office/index.html'
+    const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts, rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00' }), confirm: async () => true })
+    const move = async (id: string) => office.chat(((await handlers.get('moveIntoOffice')!({ sender: win.webContents, senderFrame: { url: appUrl } }, id)) as { chatId: string }).chatId)
+
+    const home = visitors.view(mainId)!.department!
+    expect(office.rooms.nameOf(home)).toBe('shop')
+    expect(visitors.view(researchId)).toMatchObject({ accountId: 'research', department: 'c-research-gym' })
+    expect(await move(mainId)).toMatchObject({ accountId: 'main', department: home })
+    expect(await move(researchId)).toMatchObject({ accountId: 'research', department: 'c-research-gym' })
+    office.loggedOut.add('research')
+    expect(await move(overflowId)).toMatchObject({ accountId: 'main', department: home })
+  })
+})
+
+describe('visitor rooms', { timeout: 60_000 }, () => {
+  it('builds a room for a visitor in a new repo, keeps a non-git one on the playground, and builds none for a retained one until it wakes up', () => {
+    const shop = gitRepo(join(dir, 'shop'))
+    const notes = join(dir, 'notes')
+    mkdirSync(notes)
+    const quietTree = claudeWorktree(gitRepo(join(dir, 'ledger')), 'quiet')
+    const inTerminal = (cwd: string, ago: number) => {
+      const id = randomUUID()
+      writeTranscript(claudeDir, id, [line.user('Fix the bid flow'), line.text('Done.')], { cwd, entrypoint: 'cli', at: Date.now() - ago })
+      return id
+    }
+    const [terminal, plain, quiet] = [inTerminal(shop, hour), inTerminal(notes, hour), inTerminal(quietTree, 4 * day)]
+    const { visitors } = openVisitors()
+    const names = () => office.rooms.list().map((room) => room.name)
+
+    expect(office.rooms.byId(visitors.view(terminal)!.department!)).toMatchObject({ name: 'shop', look: 'plain', root: shop })
+    expect(visitors.view(plain)?.department).toBe('side')
+    expect(visitors.view(quiet)).toMatchObject({ retained: true, department: 'side' })
+    expect(names()).not.toContain('ledger')
+
+    visitors.hook({ session_id: quiet, hook_event_name: 'UserPromptSubmit', prompt: 'Back at it' })
+    expect(visitors.view(quiet)?.retained).toBe(false)
+    expect(office.rooms.nameOf(visitors.view(quiet)?.department)).toBe('ledger')
   })
 })

@@ -1,7 +1,6 @@
-import { applyRooms, roomIds, type Room } from '../../shared/departments'
-import { deptIds, deptNames, type DeptId } from '../../shared/office'
+import { legacyRooms, playgroundRoom, type DeptId, type Look, type RoomDef } from '../../shared/departments'
 
-export { deptIds, isDeptId, type DeptId } from '../../shared/office'
+export type { DeptId } from '../../shared/departments'
 export type SlotKind = 'desk' | 'gym'
 export type Tier = 0 | 1 | 2 | 3
 export type Shell = 'room' | 'gym' | 'yard'
@@ -13,6 +12,9 @@ export interface DeptDef {
   path: string
   accent: number
   shell: Shell
+  look: Look
+  account?: string
+  parent?: string
 }
 
 export const X0 = -13.5
@@ -29,25 +31,35 @@ const screenAspect = 1.6
 const sinView = 0.755
 const wallView = 1.7
 
-export const depts: readonly DeptDef[] = [
-  { id: 'mkt', name: deptNames.mkt, path: 'monorepo/frontend/marketplace', accent: 0x1b34ff, shell: 'room' },
-  { id: 'adm', name: deptNames.adm, path: 'monorepo/frontend/admin', accent: 0xdb2777, shell: 'room' },
-  { id: 'mob', name: deptNames.mob, path: 'monorepo/frontend/mobile', accent: 0x16a34a, shell: 'room' },
-  { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, shell: 'room' },
-  { id: 'side', name: deptNames.side, path: '~/Documents/GitHub · outside', accent: 0xea580c, shell: 'yard' },
-  { id: 'rev', name: deptNames.rev, path: 'your review requests', accent: 0x854d0e, shell: 'room' },
-  ...roomIds.map((id, i): DeptDef => ({ id, name: deptNames[id], path: 'room made by Claude', accent: [0x0891b2, 0xca8a04, 0xdc2626, 0x4f46e5, 0x65a30d, 0xc026d3][i]!, shell: 'room' })),
-  { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, shell: 'gym' },
-]
+export const yardId = 'side'
 
-export const dept = Object.fromEntries(depts.map((d) => [d.id, d])) as Record<DeptId, DeptDef>
+const defOf = (room: RoomDef): DeptDef => ({
+  id: room.id,
+  name: room.name,
+  path: room.subtitle,
+  accent: room.accent,
+  look: room.id === yardId ? 'playground' : room.look === 'playground' ? 'plain' : room.look,
+  shell: room.id === yardId ? 'yard' : room.look === 'gym' ? 'gym' : 'room',
+  ...(room.account ? { account: room.account } : {}),
+  ...(room.parent ? { parent: room.parent } : {}),
+})
 
-export function nameRooms(rooms: readonly Room[]) {
-  applyRooms(rooms)
-  for (const room of rooms) Object.assign(dept[room.id], { name: room.name, path: room.folder ? room.folder.split('/').slice(-2).join('/') : 'room made by Claude' })
+export let depts: readonly DeptDef[] = []
+export let dept: Readonly<Record<DeptId, DeptDef>> = {}
+
+const oneOff = new Set<Look>(['showroom', 'devices', 'servers'])
+
+export function setRooms(rooms: readonly RoomDef[]) {
+  const taken = new Set<Look>()
+  depts = rooms.map(defOf).map((d) => (oneOff.has(d.look) && taken.has(d.look) ? { ...d, look: 'plain' as const } : (taken.add(d.look), d)))
+  dept = Object.fromEntries(depts.map((d) => [d.id, d]))
 }
+setRooms(legacyRooms)
 
-export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
+const fallback = defOf(playgroundRoom)
+export const deptOf = (id: DeptId | undefined): DeptDef => (id && dept[id]) || dept[yardId] || fallback
+export const shellOf = (id: DeptId): Shell => dept[id]?.shell ?? 'room'
+export const kindOf = (id: DeptId): SlotKind => (shellOf(id) === 'gym' ? 'gym' : 'desk')
 
 export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }
 export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, relax: 1.5, front: 0.5 }
@@ -61,16 +73,17 @@ export type Demand = Partial<Record<DeptId, number>>
 
 export function tierOf(id: DeptId, desks: number): Tier {
   if (desks <= 0) return 0
-  if (id === 'gym') return desks <= 3 ? 1 : desks <= 8 ? 2 : 3
+  if (shellOf(id) === 'gym') return desks <= 3 ? 1 : desks <= 8 ? 2 : 3
   return desks <= 3 ? 1 : desks <= 6 ? 2 : 3
 }
 
 export function gridOf(id: DeptId, desks: number): { cols: number; rows: number } {
-  if (id === 'side') {
+  const shell = shellOf(id)
+  if (shell === 'yard') {
     if (desks <= 3) return { cols: Math.max(2, desks), rows: 1 }
     return desks <= 8 ? { cols: desks <= 6 ? 3 : 4, rows: 2 } : { cols: Math.max(4, Math.ceil(desks / 3)), rows: 3 }
   }
-  if (id === 'gym') {
+  if (shell === 'gym') {
     if (desks <= 3) return { cols: 3, rows: 1 }
     return desks <= 8 ? { cols: desks <= 6 ? 3 : 4, rows: 2 } : { cols: Math.max(4, Math.ceil(desks / 3)), rows: 3 }
   }
@@ -105,7 +118,8 @@ export interface Section {
 export function sectionOf(id: DeptId, desks: number): Section {
   const tier = tierOf(id, desks)
   const { cols, rows } = gridOf(id, Math.max(1, desks))
-  if (id === 'gym') {
+  const shell = shellOf(id)
+  if (shell === 'gym') {
     const g = gymGrid
     return {
       tier, cols, rows,
@@ -114,7 +128,7 @@ export function sectionOf(id: DeptId, desks: number): Section {
       slots: cellOrder(id, desks).map(([c, r]) => [g.left + g.cw * (c + 0.5), g.back + g.cd * (r + 0.5)]),
     }
   }
-  const g = id === 'side' ? yardGrid : deskGrid
+  const g = shell === 'yard' ? yardGrid : deskGrid
   return {
     tier, cols, rows,
     w: g.left + cols * g.cw + (tier >= 2 ? g.side : 0) + g.right,
@@ -123,7 +137,7 @@ export function sectionOf(id: DeptId, desks: number): Section {
   }
 }
 
-export const minWidth = (id: DeptId, tier: Tier) => sectionOf(id, id === 'gym' ? [0, 1, 4, 9][tier]! : [0, 2, 4, 7][tier]!).w
+export const minWidth = (id: DeptId, tier: Tier) => sectionOf(id, shellOf(id) === 'gym' ? [0, 1, 4, 9][tier]! : [0, 2, 4, 7][tier]!).w
 
 export const gymRelaxZ = (rows: number) => gymGrid.back + rows * gymGrid.cd + gymGrid.relax / 2
 
@@ -269,11 +283,25 @@ function compositions<T>(items: readonly T[]): T[][][] {
   return out
 }
 
-function plan(sections: Record<DeptId, Section>, inside: readonly DeptId[], standby: number, yard: Section | undefined): Plan {
+export const exhaustive = 10
+
+function greedy(inside: readonly DeptId[], sec: (id: DeptId) => Section): DeptId[][] {
+  const target = Math.max(bandW, Math.sqrt(inside.reduce((sum, id) => sum + sec(id).w * sec(id).d, 0) * screenAspect))
+  const rows: DeptId[][] = []
+  let used = Infinity
+  for (const id of inside) {
+    const w = sec(id).w
+    if (used + gap + w > target) rows.push([id]), (used = w)
+    else rows.at(-1)!.push(id), (used += gap + w)
+  }
+  return rows
+}
+
+function plan(sec: (id: DeptId) => Section, inside: readonly DeptId[], standby: number, yard: Section | undefined): Plan {
   let best: Plan | undefined
-  for (const rows of compositions(inside)) {
-    const depth = rows.map((row) => Math.max(...row.map((id) => sections[id].d)))
-    const natural = rows.map((row) => row.reduce((sum, id) => sum + sections[id].w, 0) + gap * (row.length - 1))
+  for (const rows of inside.length > exhaustive ? [greedy(inside, sec)] : compositions(inside)) {
+    const depth = rows.map((row) => Math.max(...row.map((id) => sec(id).d)))
+    const natural = rows.map((row) => row.reduce((sum, id) => sum + sec(id).w, 0) + gap * (row.length - 1))
     for (const loungeAt of standby ? [-1, ...rows.keys()] : [-1]) {
       const lounge = (r: number) => (standby && loungeAt === r ? loungeShape(standby, r < 0 ? bandD : depth[r]!).w + (r < 0 ? 0 : gap) : 0)
       const W = Math.max(bandW + lounge(-1), ...natural.map((w, r) => w + lounge(r)))
@@ -293,23 +321,24 @@ function plan(sections: Record<DeptId, Section>, inside: readonly DeptId[], stan
 
 export function layoutFloor(desks: Demand, standby = 0, prev?: Floor): Floor {
   const count = (id: DeptId) => Math.max(0, desks[id] ?? 0)
-  const sections = Object.fromEntries(deptIds.map((id) => [id, sectionOf(id, count(id))])) as Record<DeptId, Section>
+  const sections = new Map(depts.map(({ id }) => [id, sectionOf(id, count(id))]))
+  const sec = (id: DeptId) => sections.get(id)!
   const shown = (id: DeptId) => count(id) > 0
   const inside = depts.filter((d) => d.shell !== 'yard' && shown(d.id)).map((d) => d.id)
-  const yard = shown('side') ? sections.side : undefined
-  const { rows, loungeAt, yard: side, W, D } = plan(sections, inside, standby, yard)
+  const yard = shown(yardId) && sections.has(yardId) ? sec(yardId) : undefined
+  const { rows, loungeAt, yard: side, W, D } = plan(sec, inside, standby, yard)
   const boxes: Partial<Record<DeptId, Box>> = {}
   let loungeBox: Box | undefined
   let loungeRows = loungeShape(standby, bandD).rows
   let z = ZF - D
   rows.forEach((row, r) => {
-    const depth = Math.max(...row.map((id) => sections[id].d))
-    const widths = row.reduce((sum, id) => sum + sections[id].w, 0)
+    const depth = Math.max(...row.map((id) => sec(id).d))
+    const widths = row.reduce((sum, id) => sum + sec(id).w, 0)
     const room = loungeAt === r ? loungeShape(standby, depth) : undefined
     const slack = W - widths - gap * (row.length - 1) - (room ? room.w + gap : 0)
     let x = X0
     for (const id of row) {
-      const w = sections[id].w + (room ? 0 : (slack * sections[id].w) / widths)
+      const w = sec(id).w + (room ? 0 : (slack * sec(id).w) / widths)
       boxes[id] = [x, z, x + w, z + depth]
       x += w + gap
     }
@@ -320,11 +349,11 @@ export function layoutFloor(desks: Demand, standby = 0, prev?: Floor): Floor {
     z += depth + aisle
   })
   if (standby && loungeAt < 0) loungeBox = [band.x1, band.z0, X0 + W, ZF]
-  if (side && yard) boxes.side = yardBox(side, yard.w, yard.d)
+  if (side && yard) boxes[yardId] = yardBox(side, yard.w, yard.d)
   const zones = {} as Record<DeptId, Zone>
   for (const { id } of depts) {
-    const box = boxes[id] ?? prev?.zones[id].box ?? [X0, FZ - sections[id].d, X0 + sections[id].w, FZ]
-    zones[id] = { id, ...sections[id], shown: shown(id), desks: count(id), box, world: sections[id].slots.map(([x, sz]) => [box[0] + x, box[1] + sz]) }
+    const box = boxes[id] ?? prev?.zones[id]?.box ?? [X0, FZ - sec(id).d, X0 + sec(id).w, FZ]
+    zones[id] = { id, ...sec(id), shown: shown(id), desks: count(id), box, world: sec(id).slots.map(([x, sz]) => [box[0] + x, box[1] + sz]) }
   }
   const lbox = loungeBox ?? prev?.lounge.box ?? [band.x1, band.z0, band.x1 + loungeShape(1, bandD).w, ZF]
   const lounge: LoungeZone = {
@@ -339,7 +368,7 @@ export function layoutFloor(desks: Demand, standby = 0, prev?: Floor): Floor {
     }),
   }
   const bounds: Bounds = { x0: X0, z0: ZF - D, x1: X0 + W, z1: ZF }
-  return { zones, lounge, yard: side, bounds, frame: union(bounds, boxes.side) }
+  return { zones, lounge, yard: side, bounds, frame: union(bounds, boxes[yardId]) }
 }
 
 export function anchorsFor(kind: SlotKind, x: number, z: number) {

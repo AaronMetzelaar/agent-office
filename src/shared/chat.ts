@@ -1,3 +1,4 @@
+import type { RoomDef } from './departments'
 import type { Decision, PendingRequestView, RequestSource } from './permissions'
 
 export const efforts = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -128,7 +129,17 @@ export interface LoginItem {
   label: string
 }
 
-export interface ChatSnapshot {
+export interface ConfigErrors {
+  unreadable?: string
+  skipped: string[]
+}
+
+export interface RoomsUpdate {
+  rooms: RoomDef[]
+  configErrors: ConfigErrors
+}
+
+export interface ChatSnapshot extends Partial<RoomsUpdate> {
   seq: number
   chats: ChatView[]
   logins: LoginItem[]

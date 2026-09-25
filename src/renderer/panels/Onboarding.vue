@@ -11,7 +11,7 @@ import AddAccount from './AddAccount.vue'
       <ol class="steps">
         <li>In Terminal, run <code>claude setup-token</code> and sign in with the account you want to add.</li>
         <li>Copy the token it prints. It lasts one year.</li>
-        <li>Paste it below and give the account a label, such as main or research.</li>
+        <li>Paste it below and give the account a label, such as main or work.</li>
       </ol>
       <AddAccount :taken="[]" />
       <p class="meta">The token is encrypted with a key in your macOS Keychain and only used to talk to Claude.</p>

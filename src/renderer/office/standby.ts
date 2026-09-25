@@ -1,5 +1,5 @@
 import { isBusy, type ChatState } from '../../shared/chat'
-import type { DeptId } from './layout'
+import { kindOf, type DeptId } from './layout'
 
 export type Spot = 'desk' | 'cooler' | 'lounge'
 
@@ -14,6 +14,6 @@ export const canRest = (state: ChatState) => state === 'done' || state === 'idle
 export function spotFor(agent: Resting, prev: Spot | undefined, open: boolean, sent = false): Spot {
   if (isBusy(agent.state)) return 'desk'
   if (sent) return 'lounge'
-  const want: Spot = agent.state === 'stuck' ? 'desk' : agent.state === 'done' && !agent.parked ? (agent.dept === 'gym' ? 'cooler' : 'desk') : 'lounge'
+  const want: Spot = agent.state === 'stuck' ? 'desk' : agent.state === 'done' && !agent.parked ? (kindOf(agent.dept) === 'gym' ? 'cooler' : 'desk') : 'lounge'
   return open && want === 'lounge' && prev && prev !== 'lounge' ? prev : want
 }

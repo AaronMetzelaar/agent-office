@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type Locator } from '@playwright/test'
 import type { ChatView } from '../../src/shared/chat'
+import { mwsMonorepo } from '../fakes/repos'
 
 const root = resolve(__dirname, '../..')
 const userData = mkdtempSync(join(tmpdir(), 'agent-office-new-agent-'))
@@ -21,7 +22,7 @@ test.afterAll(() => {
 
 test('starting from the free Mobile desk walks a new character in from the entrance to that desk, and the section grows its next free desk back at the overview', async () => {
   test.setTimeout(90_000)
-  mkdirSync(mobile, { recursive: true })
+  mwsMonorepo(resolve(mobile, '../..'))
   const app = await electron.launch({ args: ['--use-mock-keychain', root], env })
   const page = await app.firstWindow()
   const views = () => app.evaluate(() => (globalThis as unknown as { store: { views(): ChatView[] } }).store.views())

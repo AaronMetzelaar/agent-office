@@ -7,8 +7,11 @@ import { createWaitMetrics } from '../../src/main/metrics/wait'
 import { createBroker, type Broker } from '../../src/main/permissions/registry'
 import { createRules } from '../../src/main/permissions/rules'
 import { createSessionManager } from '../../src/main/sessions/manager'
+import { createRooms } from '../../src/main/departments/rooms'
 import { createChatStore } from '../../src/main/store/chats'
 import { openDb } from '../../src/main/store/db'
+
+import { configOf } from '../fakes/office'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
@@ -53,7 +56,7 @@ describe.skipIf(!enabled)('real session smoke', () => {
     let broker: Broker | undefined
     const engine = createSessionManager((id) => tokens.get(id), (...args) => broker!.canUseTool(...args))
     const rules = createRules(db.sql, engine)
-    const store = createChatStore(engine, db, { exists: (id) => tokens.has(id), label: (id) => id, needsLogin: () => false, loginFailed: () => {}, recordHeadroom: () => {} }, rules.forSession)
+    const store = createChatStore(engine, db, { exists: (id) => tokens.has(id), label: (id) => id, needsLogin: () => false, loginFailed: () => {}, recordHeadroom: () => {} }, createRooms(db, configOf(), () => []), rules.forSession)
     broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
     const states = new Map<string, string[]>()
     const pidTracked = new Map<string, boolean>()

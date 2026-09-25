@@ -18,11 +18,12 @@ function wire(pick: Placement | undefined) {
   wireWorkflow(hub, {
     store,
     commandNames: () => [],
+    commands: {},
+    tiedRoom: () => undefined,
     accounts: () => [{ id: 'main', label: 'Main' }, { id: 'lab', label: 'Research' }] as never,
     linear: { ticket: async () => ({}) } as never,
     jev,
-    rooms: { make: async () => ({ id: 'r1', name: 'Agent Office', about: 'x' }) },
-    rules: [],
+    rooms: { make: async () => ({ id: 'r1', name: 'Agent Office', about: 'x', subtitle: '', accent: 0, look: 'plain' }), resolve: (_cwd, _label, choice) => choice?.chosen ?? 'side' },
     gh: async () => '',
     confirm: async () => true,
   })

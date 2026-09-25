@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPlacement, loadRules, watchRules } from '../../src/main/departments/classifier'
-import { defaultRules, ruleFor, showsAccountBadge } from '../../src/shared/departments'
+import { createPlacement } from '../../src/main/departments/classifier'
+import { showsAccountBadge } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
+import { claudeWorktree, gitRepo, mwsMonorepo } from '../fakes/repos'
 
 vi.mock('electron', async () => await import('../fakes/electron'))
 
@@ -14,8 +15,9 @@ let dir: string
 let office: ReturnType<typeof openOffice>
 let open: string | undefined
 let placement: ReturnType<typeof createPlacement>
-const monorepo = () => join(dir, 'monorepo')
-const mkt = (file = 'components/BidFlow.vue') => join(monorepo(), 'frontend/marketplace', file)
+let root: string
+const monorepo = () => root
+const mkt = (file = 'components/BidFlow.vue', base = monorepo()) => join(base, 'frontend/marketplace', file)
 const mob = (file = 'src/screens/Bids.tsx') => join(monorepo(), 'frontend/mobile', file)
 
 const tool = (name: string, input: Record<string, unknown>) => ({ id: randomUUID(), name, input })
@@ -34,10 +36,11 @@ function startIn(folder: string, account = 'main', options?: object) {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'agent-office-classifier-'))
+  dir = realpathSync(mkdtempSync(join(tmpdir(), 'agent-office-classifier-')))
+  root = mwsMonorepo(join(dir, 'code', 'mws'))
   office = openOffice(dir)
   open = undefined
-  placement = createPlacement(office.engine, office.store, defaultRules, (chatId) => chatId === open)
+  placement = createPlacement(office.engine, office.store, office.rooms, (chatId) => chatId === open)
 })
 
 afterEach(() => {
@@ -45,7 +48,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('department placement', () => {
+describe('department placement', { timeout: 60_000 }, () => {
   it('places a monorepo chat whose file events are mostly under frontend/marketplace in Marketplace, and saves the department', () => {
     const id = startIn(monorepo())
     expect(department(id)).toBe('plat')
@@ -54,6 +57,27 @@ describe('department placement', () => {
     touch(id, read(mkt('stores/bids.ts')))
     expect(department(id)).toBe('mkt')
     expect(office.db.listChats().find((record) => record.id === id)?.department).toBe('mkt')
+  })
+
+  it('moves a chat in a .claude/worktrees worktree of the monorepo to Marketplace on marketplace edits', () => {
+    const tree = claudeWorktree(monorepo(), 'bid-flow')
+    const id = startIn(tree)
+    expect(department(id)).toBe('plat')
+    repeat(2, () => touch(id, edit(mkt('components/BidFlow.vue', tree))))
+    expect(department(id)).toBe('mkt')
+  })
+
+  it('never moves a chat into a repo that has no room, and moves it into one that does', () => {
+    const shop = gitRepo(join(dir, 'shop'))
+    const blog = gitRepo(join(dir, 'blog'))
+    const id = startIn(shop)
+    const home = department(id)
+    repeat(6, () => touch(id, edit(join(blog, 'post.md'))))
+    expect(department(id)).toBe(home)
+    const other = startIn(blog)
+    expect(department(other)).not.toBe(home)
+    repeat(6, () => touch(id, edit(join(blog, 'post.md'))))
+    expect(department(id)).toBe(department(other))
   })
 
   it('ignores one stray mobile read, and moves only when a shift holds 60% on two evaluations in a row', () => {
@@ -108,24 +132,29 @@ describe('department placement', () => {
   })
 })
 
-describe('the research account', () => {
+describe('the research account', { timeout: 60_000 }, () => {
   it('always lives in the gym, whatever files it touches', () => {
     const id = startIn(join(dir, 'enigma-rsa'), 'research')
-    expect(department(id)).toBe('gym')
+    expect(department(id)).toBe('c-research-gym')
     repeat(6, () => touch(id, edit(mkt())))
-    expect(department(id)).toBe('gym')
+    expect(department(id)).toBe('c-research-gym')
   })
 
   it('keeps the department an overflow chat was started in, with an account badge', () => {
+    office.rooms.resolve(monorepo())
     const id = startIn(join(monorepo(), 'frontend/marketplace'), 'research', { dept: 'mkt' })
     expect(department(id)).toBe('mkt')
-    expect(showsAccountBadge('mkt', true)).toBe(true)
-    expect(showsAccountBadge('gym', true)).toBe(false)
-    expect(showsAccountBadge('mkt', false)).toBe(false)
+    repeat(6, () => touch(id, edit(mob())))
+    expect(department(id)).toBe('mob')
+    const rooms = [{ id: 'mkt' }, { id: 'c-research-gym', account: 'research' }]
+    expect(showsAccountBadge(rooms, 'mkt', 'research')).toBe(true)
+    expect(showsAccountBadge(rooms, 'c-research-gym', 'research')).toBe(false)
+    expect(showsAccountBadge(rooms, 'c-research-gym', 'main')).toBe(true)
+    expect(showsAccountBadge(rooms, 'mkt', 'main')).toBe(false)
   })
 })
 
-describe('PR review agents', () => {
+describe('PR review agents', { timeout: 60_000 }, () => {
   it('sit in PR reviews because they were started as a review, whatever the PR’s files or the requested section', () => {
     const id = startIn(join(monorepo(), 'frontend/marketplace'), 'main', { review: true, dept: 'mkt' })
     expect(office.chat(id)).toMatchObject({ department: 'rev', review: true })
@@ -140,35 +169,5 @@ describe('PR review agents', () => {
     if ('error' in result) throw new Error(result.error)
     expect(office.chat(result.chatId).department).toBe('plat')
     expect(office.chat(result.chatId).review).toBeUndefined()
-  })
-})
-
-describe('path rules', () => {
-  it('maps worktrees to their repository and prefers the most specific rule', () => {
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo/.claude/worktrees/auc-1302/frontend/mobile/App.tsx')).toBe('mob')
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo/services/api')).toBe('plat')
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo-tools/x')).toBeUndefined()
-    expect(ruleFor('/x/monorepo/frontend/admin', [{ path: 'monorepo', dept: 'plat' }, { path: 'monorepo/frontend/admin', dept: 'adm' }])).toBe('adm')
-  })
-
-  it('reads editable rules from departments.json, and falls back to the defaults when the file is missing or invalid', () => {
-    expect(loadRules(dir)).toEqual(defaultRules)
-    writeFileSync(join(dir, 'departments.json'), JSON.stringify([{ path: 'cookbook', dept: 'side' }, { path: 'research', dept: 'gym' }, { path: 'x', dept: 'nope' }]))
-    expect(loadRules(dir)).toEqual([{ path: 'cookbook', dept: 'side' }, { path: 'research', dept: 'gym' }])
-    writeFileSync(join(dir, 'departments.json'), '{ not json')
-    expect(loadRules(dir)).toEqual(defaultRules)
-  })
-
-  it('picks up edits to departments.json in place, so every holder of the rules sees them', async () => {
-    const rules = loadRules(dir)
-    const stop = watchRules(dir, rules)
-    await vi.waitFor(
-      () => {
-        writeFileSync(join(dir, 'departments.json'), JSON.stringify([{ path: 'cookbook', dept: 'side' }]))
-        expect(rules).toEqual([{ path: 'cookbook', dept: 'side' }])
-      },
-      { timeout: 5000, interval: 200 },
-    )
-    stop()
   })
 })

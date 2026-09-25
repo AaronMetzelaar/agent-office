@@ -1,10 +1,9 @@
 import type { ChatView, LoginItem, StuckReason } from '../../shared/chat'
-import type { AccountView } from '../../shared/ipc'
-import { departmentOf, hexOf, isResearch, type DeptId } from '../../shared/office'
+import { hexOf, type DeptId } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
 import { buildQueue, type QueueItem } from '../../shared/queue'
 import { countsFor, stateKey, type StateKey } from '../office/labels'
-import { dept, depts } from '../office/layout'
+import { deptOf, depts } from '../office/layout'
 import { canRest, spotFor } from '../office/standby'
 import type { Agent } from './projection'
 
@@ -62,13 +61,12 @@ export interface FinishedRow {
   visitor: boolean
 }
 
-export function finishedOf(chats: Iterable<ChatView>, accounts: readonly AccountView[]): FinishedRow[] {
-  const research = new Set(accounts.filter(isResearch).map((account) => account.id))
+export function finishedOf(chats: Iterable<ChatView>): FinishedRow[] {
   return [...chats]
     .filter((chat) => chat.finished !== undefined && !chat.archived)
     .sort((a, b) => b.finished! - a.finished!)
     .map((chat) => {
-      const d = dept[departmentOf(chat, research.has(chat.accountId))]
+      const d = deptOf(chat.department)
       return { id: chat.id, title: chat.title, colour: chat.colour ?? '#9ca3af', dept: d.name, accent: hexOf(d.accent), at: chat.finished!, visitor: !!chat.visitor }
     })
 }
@@ -111,7 +109,7 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
       ...base,
       title: agent?.title ?? chat?.title ?? '',
       colour: agent ? hexOf(agent.colour) : '#9ca3af',
-      ...(agent ? { dept: dept[agent.dept].name, accent: hexOf(dept[agent.dept].accent) } : {}),
+      ...(agent ? { dept: deptOf(agent.dept).name, accent: hexOf(deptOf(agent.dept).accent) } : {}),
       requests: item.kind === 'request' ? (chat?.pendingRequests ?? []) : [],
       detail: agent?.caption ?? '',
       ...(agent?.stuckReason ? { stuckReason: agent.stuckReason } : {}),
@@ -135,6 +133,6 @@ export function buildInbox(chats: ReadonlyMap<string, ChatView>, agents: readonl
   const standby = agents
     .filter((agent) => lounged.has(agent.id))
     .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
-    .map((agent) => ({ id: agent.id, title: agent.title, colour: hexOf(agent.colour), dept: dept[agent.dept].name, accent: hexOf(dept[agent.dept].accent), at: agent.lastActivityAt, dozing: agent.parked }))
+    .map((agent) => ({ id: agent.id, title: agent.title, colour: hexOf(agent.colour), dept: deptOf(agent.dept).name, accent: hexOf(deptOf(agent.dept).accent), at: agent.lastActivityAt, dozing: agent.parked }))
   return { waiting, board, standby, parked: agents.filter((agent) => agent.parked).length }
 }

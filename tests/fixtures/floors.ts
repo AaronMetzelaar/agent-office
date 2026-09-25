@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ChatState, StuckReason } from '../../src/shared/chat'
-import type { DeptId, Room } from '../../src/shared/departments'
+import type { DeptId } from '../../src/shared/departments'
 
 export interface FloorChat {
   id: string
@@ -27,13 +27,13 @@ export interface FloorChat {
 export interface Floor {
   capturedAt?: string
   chats: FloorChat[]
-  rooms?: Room[]
+  rooms?: { id: string; name: string; about: string; folder?: string }[]
 }
 
 export const onFloor = (chat: FloorChat) => !chat.archived && !chat.retained
 
 const home = '/Users/axxxx/Dxxxxxxxx/Gxxxxx'
-const cwds: Partial<Record<DeptId, string>> = {
+const cwds: Record<string, string> = {
   mkt: `${home}/monorepo/frontend/marketplace`,
   adm: `${home}/monorepo/frontend/admin`,
   mob: `${home}/monorepo/frontend/mobile`,

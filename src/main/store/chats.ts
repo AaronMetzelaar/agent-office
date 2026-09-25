@@ -4,9 +4,10 @@ import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck } from '../../shared/chat'
-import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
-import { departmentOf, isResearch, pickColour } from '../../shared/office'
+import { playgroundRoom, repoPath, type StartOptions } from '../../shared/departments'
+import { pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
+import type { Rooms } from '../departments/rooms'
 import { withAttachments, type ImageBlock } from '../sessions/attachments'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
@@ -135,7 +136,7 @@ function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
   return { ...fields, doneAt, readAt }
 }
 
-export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined, rules: readonly DeptRule[] = defaultRules) {
+export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, rooms: Pick<Rooms, 'resolve' | 'revalidate' | 'tiedRoom' | 'isTied'>, permissionsFor: (chatId: string, accountId: string, cwd: string) => SessionPermissions | undefined = () => undefined) {
   const events = new EventEmitter<{ patch: [ChatPatch]; read: [chatId: string, doneAt: number, readAt: number] }>()
   const chats = new Map<string, Chat>()
 
@@ -380,8 +381,8 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   }
 
   const find = (chatId: unknown) => (typeof chatId === 'string' ? chats.get(chatId) : undefined)
-  const deptOf = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) => departmentOf(chat, isResearch({ label: accounts.label(chat.accountId) ?? '' }), rules)
-  const colourFor = (chat: Pick<ChatFields, 'accountId' | 'cwd' | 'department'>) =>
+  const deptOf = (chat: Pick<ChatFields, 'department'>) => chat.department ?? playgroundRoom.id
+  const colourFor = (chat: Pick<ChatFields, 'department'>) =>
     pickColour(
       [...chats.values()].filter(({ view }) => !view.archived && view.colour).map(({ view }) => ({ colour: view.colour, dept: deptOf(view) })),
       deptOf(chat),
@@ -419,6 +420,11 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   for (const record of db.listChats()) {
     const chat = fromRecord(record)
     chats.set(chat.view.id, chat)
+    const department = rooms.revalidate(chat.view, accounts.label(chat.view.accountId))
+    if (department) {
+      chat.view.department = department
+      save(chat)
+    }
     if (running(chat.view)) transition(chat, 'stuck', { stuck: { reason: 'interrupted' } })
   }
   for (const chat of chats.values()) {
@@ -503,7 +509,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         return { error: errorText(error) }
       }
       const review = wanted.review === true
-      const department: DeptId = review ? 'rev' : isDeptId(wanted.dept) ? wanted.dept : homeDept(cwd, isResearch({ label: accounts.label(accountId) ?? '' }), rules)
+      const department = rooms.resolve(cwd, accounts.label(accountId), { review, chosen: typeof wanted.dept === 'string' ? wanted.dept : undefined, build: true })
       const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}) })
       if (!named) nameTopic(chat.view.id, accountId, prompt)
       if (plan) {
@@ -543,13 +549,13 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (!chat || !view?.sessionId || view.state !== 'stuck' || typeof accountId !== 'string' || accountId === view.accountId || !accounts.exists(accountId)) return undefined
       if (accounts.needsLogin(accountId)) return needsLogin
       engine.stop(view.id)
-      const label = accounts.label(accountId) ?? 'the other account'
-      const research = isResearch({ label })
+      const label = accounts.label(accountId)
+      const leaving = !!view.department && rooms.isTied(view.department) && rooms.tiedRoom(label) !== view.department
       const copy = create({
         accountId,
         cwd: view.cwd,
         title: view.title,
-        department: view.department === 'gym' && !research ? homeDept(view.cwd, false, rules) : view.department,
+        department: leaving ? rooms.resolve(view.cwd, label, { review: view.review, build: true }) : view.department,
         sessionId: view.sessionId,
         ...(view.review ? { review: true } : {}),
         ...(view.worktree ? { worktree: view.worktree } : {}),
@@ -558,7 +564,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         ...(view.permissionMode ? { permissionMode: view.permissionMode } : {}),
         rows: structuredClone(view.rows),
       })
-      addRow(chat, { kind: 'other', id: randomUUID(), label: `Continued on ${label} in a new chat` })
+      addRow(chat, { kind: 'other', id: randomUUID(), label: `Continued on ${label ?? 'the other account'} in a new chat` })
       transition(chat, 'idle', { stuck: undefined, parked: true })
       send(copy, resumePrompt, {}, true)
       return { chatId: copy.view.id }
@@ -602,7 +608,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       save(chat)
     },
 
-    setDepartment(chatId: string, department: DeptId): void {
+    setDepartment(chatId: string, department: string): void {
       const chat = chats.get(chatId)
       if (!chat || chat.view.department === department) return
       set(chat, { department })

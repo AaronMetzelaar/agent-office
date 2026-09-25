@@ -1,15 +1,16 @@
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { app } from 'electron'
-import { departmentOf, deptNames, isResearch } from '../../shared/office'
-import { roomRules } from '../../shared/departments'
+import { playgroundRoom } from '../../shared/departments'
 import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
-import { createPlacement, loadRules, watchRules } from '../departments/classifier'
+import { createPlacement } from '../departments/classifier'
+import { loadConfig } from '../departments/config'
 import { createJev } from '../departments/jev'
 import { createRooms } from '../departments/rooms'
+import { upgradeRooms } from '../departments/upgrade'
 import { wireHandoff } from '../handoff'
 import { wireTerminal } from '../terminal'
 import { createSearch, wireHistory } from '../history'
@@ -52,22 +53,19 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validate, db)
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
-  const rooms = createRooms(db, engine.ask, (list) => {
-    deptRules.splice(0, deptRules.length, ...loadRules(configDir()), ...roomRules(list))
-    hub.send('rooms', list)
-  })
-  const deptRules = [...loadRules(configDir()), ...roomRules(rooms.list())]
-  const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
+  upgradeRooms(db, accounts.list().map((account) => account.label), configDir())
+  const loaded = loadConfig(configDir())
+  for (const problem of [...(loaded.unreadable ? [`departments.json can’t be read: ${loaded.unreadable}`] : []), ...loaded.skipped]) console.warn(`[rooms] ${problem}`)
+  const rooms = createRooms(db, loaded, () => [...store.views(), ...outside.visitors.views()].flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])), engine.ask)
+  const store = createChatStore(engine, db, accounts, rooms, rules.forSession)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
-  const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
-  const unwatchRules = watchRules(configDir(), deptRules, () => roomRules(rooms.list()))
-  const sync = wireChats(hub, store, outside.visitors, () => placement.release())
-  const placement = createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
+  const outside = createOutside({ store, accounts: accounts.list, rooms, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
+  const sync = wireChats(hub, store, outside.visitors, rooms, () => placement.release())
+  const placement = createPlacement(engine, store, rooms, (chatId) => sync.openChat() === chatId)
   const search = createSearch(join(dataDir, 'search.db'), join(claudeDir(), 'projects'), join(app.getAppPath(), 'out/main/indexer.js'))
   wireHistory(hub, search, { store, visitors: outside.visitors })
-  hub.handle('departmentRules', () => deptRules)
-  hub.handle('rooms', rooms.list)
+  hub.handle('roomFor', (cwd, accountId) => (typeof cwd === 'string' && isAbsolute(cwd) ? rooms.roomFor(cwd, typeof accountId === 'string' ? accounts.label(accountId) : undefined) : playgroundRoom))
   sync.setAccounts(accounts.list())
   hub.handle('resolveRequest', windowResolver(broker, () => ui.state().focused))
   hub.handle('listRules', rules.list)
@@ -107,8 +105,8 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules, rooms), rooms, rules: deptRules, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
-  wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, commands: loaded.config.commands, accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, jev: createJev(() => vault.jevKey(), rooms), rooms, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  wireOutside(hub, outside, { store, accounts: accounts.list, rooms, settings, confirm: ui.confirm })
   wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
   const terminals = wireTerminal(hub, { chat: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
@@ -121,10 +119,9 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     return settings()
   })
 
-  const research = () => new Set(accounts.list().filter(isResearch).map((account) => account.id))
   const notifier = createNotifier({
     store,
-    department: (chat) => deptNames[departmentOf(chat, research().has(chat.accountId))],
+    department: (chat) => rooms.nameOf(chat.department),
     resolve: (requestId, decision) => broker.resolveRequest(requestId, decision, 'notification'),
     sendMessage: store.sendMessage,
     open: ui.show,
@@ -172,7 +169,6 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
       stopped = true
       clearInterval(stripTimer)
       clearInterval(usageTimer)
-      unwatchRules()
       void search.stop()
       house.stop()
       phone.stop()

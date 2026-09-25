@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 const props = defineProps<{ taken: string[]; label?: string }>()
 const emit = defineEmits<{ added: [] }>()
 
-const suggestions = ['main', 'research']
+const suggestions = ['main', 'work', 'personal']
 const label = ref(props.label ?? suggestions.find((name) => !props.taken.includes(name)) ?? '')
 const token = ref('')
 const busy = ref(false)

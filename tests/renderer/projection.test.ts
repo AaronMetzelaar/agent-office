@@ -10,7 +10,8 @@ import { createNav, newWalker, stepWalker } from '../../src/renderer/office/nav'
 import { placementFor } from '../../src/renderer/office/pose'
 import { buildQueue, queuePositions } from '../../src/shared/queue'
 import { assignColours, createProjection, projectOf, toAgents, type ChatSource } from '../../src/renderer/state/projection'
-import { departmentOf } from '../../src/shared/office'
+import { setRooms } from '../../src/renderer/office/layout'
+import { legacyRooms, playgroundRoom } from '../../src/shared/departments'
 import type { ChatPatchBatch, ChatView } from '../../src/shared/chat'
 import type { AccountView } from '../../src/shared/ipc'
 import { sdk } from '../fakes/fake-engine'
@@ -82,7 +83,7 @@ describe('store projection', () => {
     const before = agentsOf(projection)
     expect(countsFor(before.filter((a) => a.dept === 'side')).find((c) => c.key === 'needs')?.n).toBe(1)
     const floor = layoutFloor({ side: 2 })
-    const [x, z] = floor.zones.side.world[1]!
+    const [x, z] = floor.zones.side!.world[1]!
     const seat = anchorsFor('desk', x, z).seat
     const walker = newWalker(new Vector3(seat[0], 0, seat[1]))
 
@@ -129,18 +130,14 @@ describe('store projection', () => {
 })
 
 describe('placement and colour', () => {
-  const research = new Set(['research'])
 
-  it('maps folders to departments with the placeholder rules', () => {
-    const at = (cwd: string, accountId = 'main') => departmentOf({ cwd }, research.has(accountId))
-    expect(at('/Users/a/Documents/GitHub/monorepo/frontend/marketplace/components')).toBe('mkt')
-    expect(at('/Users/a/Documents/GitHub/monorepo/frontend/admin')).toBe('adm')
-    expect(at('/Users/a/Documents/GitHub/monorepo/frontend/mobile')).toBe('mob')
-    expect(at('/Users/a/Documents/GitHub/monorepo/services/api')).toBe('plat')
-    expect(at('/Users/a/Documents/GitHub/monorepo/.claude/worktrees/auc-1302')).toBe('plat')
-    expect(at('/Users/a/Documents/GitHub/portfolio')).toBe('side')
-    expect(at('/Users/a/Documents/GitHub/monorepo/frontend/marketplace', 'research')).toBe('gym')
-    expect(departmentOf({ cwd: '/x', department: 'mob' }, false)).toBe('mob')
+  it('keeps the room the host gave a chat, and shows a chat whose room isn’t known on the playground', () => {
+    const now = Date.now()
+    const chat = (id: string, department?: string) => ({ id, accountId: 'main', cwd: '/x/api', title: id, archived: false, state: 'working', stateSince: now, lastActivityAt: now, createdAt: 0, pending: [], pendingRequests: [], subagents: [], rows: [], ...(department ? { department } : {}) }) as unknown as ChatView
+    setRooms([...legacyRooms, { id: 'r-api', name: 'api', subtitle: '~/code/api', accent: 0x3b7bff, look: 'plain' }])
+    const depts = toAgents([chat('a', 'r-api'), chat('b', 'r-gone'), chat('c')], accounts, now, new Map()).map((agent) => agent.dept)
+    setRooms(legacyRooms)
+    expect(depts).toEqual(['r-api', playgroundRoom.id, playgroundRoom.id])
     expect(projectOf('/Users/a/Documents/GitHub/cookbook/.claude/worktrees/pages')).toBe('cookbook')
   })
 

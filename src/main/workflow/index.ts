@@ -1,5 +1,5 @@
 import type { StartChatResult } from '../../shared/chat'
-import { defaultAccount, type DeptRule, type StartOptions } from '../../shared/departments'
+import { defaultAccountFor, reviewRoom, type ConfigCommands, type StartOptions } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import type { TicketLookup } from '../../shared/workflow'
 import type { Jev } from '../departments/jev'
@@ -15,16 +15,17 @@ import { createReviewQueue, reviewStart } from './review-requests'
 export interface WorkflowDeps {
   store: Pick<ChatStore, 'view' | 'views' | 'start' | 'setDepartment'>
   commandNames(chatId: string): string[]
+  commands: ConfigCommands
   accounts: () => AccountView[]
+  tiedRoom(label: string): string | undefined
   linear: Linear
   jev: Jev
-  rooms: Pick<Rooms, 'make'>
-  rules: readonly DeptRule[]
+  rooms: Pick<Rooms, 'make' | 'resolve'>
   gh: Run
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, jev, rooms, rules, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(hub: Hub, { store, commandNames, commands, accounts, tiedRoom, linear, jev, rooms, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
@@ -37,7 +38,8 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
     const wanted = (typeof seeded.options === 'object' && seeded.options ? seeded.options : {}) as StartOptions
     const task = seeded.prompt
     const pick = wanted.review || typeof cwd !== 'string' || typeof task !== 'string' ? undefined : await jev(cwd, task)
-    const dept = pick === 'new' ? undefined : pick
+    const label = accounts().find((account) => account.id === accountId)?.label
+    const dept = pick === 'new' && typeof cwd === 'string' ? rooms.resolve(cwd, label, { review: wanted.review, chosen: wanted.dept }) : pick
     const result = store.start(accountId, cwd, task, model, effort, dept ? { ...wanted, dept } : seeded.options)
     if (pick === 'new' && 'chatId' in result && typeof accountId === 'string') void moveToNewRoom(result.chatId, accountId, cwd as string, task as string)
     return result
@@ -45,14 +47,14 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
 
   async function moveToNewRoom(chatId: string, accountId: string, cwd: string, task: string) {
     try {
-      const room = await rooms.make(accountId, (await toplevel(cwd)) ?? cwd, task, rules)
+      const room = await rooms.make(accountId, cwd, task)
       if (room) store.setDepartment(chatId, room.id)
     } catch (error) {
       console.warn('[rooms] could not make a room', error)
     }
   }
 
-  hub.handle('getShipIt', (chatId) => loadShipIt(cwdOf(chatId), commandNames(String(chatId)), linear, gh))
+  hub.handle('getShipIt', (chatId) => loadShipIt(cwdOf(chatId), commandNames(String(chatId)), linear, gh, commands))
 
   hub.handle('lookupTicket', async (text): Promise<TicketLookup> => {
     const id = typeof text === 'string' ? ticketId(text) : undefined
@@ -72,9 +74,9 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
   hub.handle('startReview', async (url): Promise<StartChatResult> => {
     const request = queue.find(url)
     if (!request) return { error: 'That review request isn’t in the list any more.' }
-    const accountId = defaultAccount(accounts(), 'rev')
+    const accountId = defaultAccountFor(accounts(), tiedRoom, reviewRoom.id)
     if (!accountId) return { error: 'Log in to an account first.' }
-    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd) ?? chat.cwd))])
+    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd) ?? chat.cwd))], commands.review)
     return store.start(accountId, cwd, prompt, undefined, undefined, options)
   })
 

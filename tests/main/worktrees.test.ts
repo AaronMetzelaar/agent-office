@@ -28,6 +28,8 @@ beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'agent-office-worktrees-')))
   repo = join(dir, 'monorepo')
   mkdirSync(join(repo, 'frontend/mobile'), { recursive: true })
+  mkdirSync(join(repo, 'frontend/marketplace'))
+  writeFileSync(join(repo, 'README.md'), '# MWS Monorepo\n')
   writeFileSync(join(repo, 'frontend/mobile/App.tsx'), 'export {}\n')
   git('init', '-q', '-b', 'main')
   git('-c', 'user.email=office@test', '-c', 'user.name=office', 'add', '.')

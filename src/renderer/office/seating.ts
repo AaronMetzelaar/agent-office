@@ -1,4 +1,4 @@
-import { deptIds, type Demand, type DeptId } from './layout'
+import { depts, type Demand, type DeptId } from './layout'
 import type { Spot } from './standby'
 
 export interface Sitter {
@@ -61,7 +61,7 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
   let lounge = Math.max(prev.lounge, ...[...seats.values()].map((seat) => seat + 1))
   const grew = lounge > prev.lounge
 
-  const plans = deptIds.map((dept) => {
+  const plans = depts.map(({ id: dept }) => {
     const kept = (a: Sitter) => (prev.desks.get(a.id)?.dept === dept ? prev.desks.get(a.id)!.slot : undefined)
     const holders = agents.filter((a) => a.dept === dept && holds(prev, a))
     const staying = new Set(holders.filter((a) => kept(a) !== undefined).map((a) => a.id))
@@ -124,6 +124,6 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
     lounge = seats.size
   }
   const known = new Set(agents.filter((a) => a.spot !== 'gone').map((a) => a.id))
-  const resized = deptIds.some((d) => (size[d] ?? 0) !== (prev.size[d] ?? 0))
+  const resized = [...new Set([...depts.map((d) => d.id), ...Object.keys(prev.size)])].some((d) => (size[d] ?? 0) !== (prev.size[d] ?? 0))
   return { desks, free, owed, seats, known, size, lounge, pending, repack: resized || lounge !== prev.lounge }
 }

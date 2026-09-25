@@ -19,7 +19,6 @@ import { createProjection, toAgents, type ChatSource } from '../state/projection
 import { createCamera, type View } from './camera'
 import { isWarning, tightest } from '../../shared/guardrails'
 import { stateKey, type ChipAction, type StateKey } from './labels'
-import { nameRooms } from './layout'
 import { createWorld, type AgentEntry, type World, type WorldUi } from './world'
 
 const props = defineProps<{ accounts: AccountView[]; source: ChatSource }>()
@@ -42,6 +41,7 @@ const hits = shallowRef<SearchHit[]>([])
 const searching = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 const inbox = shallowRef(emptyInbox)
+const configErrors = shallowRef(projection.configErrors)
 const mode = ref<'inbox' | 'new' | 'house'>('inbox')
 const house = shallowRef<HousekeepingView>()
 const reviews = shallowRef<ReviewQueue>()
@@ -54,7 +54,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined
 const loose = shallowRef<AgentEntry>()
 const shownAgent = computed(() => ui.selected ?? loose.value)
 const openChat = computed(() => (tick.value, shownAgent.value ? projection.chats.get(shownAgent.value.id) : undefined))
-const finished = computed(() => finishedOf(chatList.value, props.accounts))
+const finished = computed(() => finishedOf(chatList.value))
 const leaving = new Set<string>()
 let pendingSelect: string | undefined
 let pendingView: View = 'fly'
@@ -84,6 +84,7 @@ function push() {
   const agents = toAgents(projection.chats.values(), props.accounts, Date.now(), colours, hasNewArtifact).filter((a) => !leaving.has(a.id))
   for (const a of agents) colours.set(a.id, a.colour)
   inbox.value = buildInbox(projection.chats, agents, projection.logins, w.sentAway())
+  configErrors.value = projection.configErrors
   w.sync(agents, projection.logins)
   w.setReviews(reviews.value?.requests ?? [])
   tick.value++
@@ -347,8 +348,6 @@ const offNavigate = window.office.onNavigate(navigate)
 const offHousekeeping = window.office.onHousekeeping((view) => (house.value = view))
 void window.office.getHousekeeping().then((view) => (house.value ??= view))
 const offReviews = window.office.onReviewRequests((queue) => (reviews.value = queue))
-const offRooms = window.office.onRooms(nameRooms)
-void window.office.rooms().then(nameRooms)
 void window.office.getReviewRequests().then((queue) => (reviews.value ??= queue))
 watch([reviews, world], () => world.value?.setReviews(reviews.value?.requests ?? []))
 onMounted(() => addEventListener('keydown', onKey))
@@ -357,7 +356,6 @@ onUnmounted(() => {
   offNavigate()
   offHousekeeping()
   offReviews()
-  offRooms()
   clearInterval(captions)
   clearTimeout(toastTimer)
   clearTimeout(searchTimer)
@@ -405,9 +403,9 @@ onUnmounted(() => {
   <p v-if="toast" class="toast" role="status">{{ toast }}</p>
   <aside ref="inboxEl" class="inbox" aria-label="Inbox">
     <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
-    <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" @close="mode = 'inbox'" @started="started" />
+    <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" :version="tick" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
-    <Inbox v-else :inbox="inbox" :finished="finished" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
+    <Inbox v-else :inbox="inbox" :finished="finished" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" :config-errors="configErrors" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Search">
@@ -894,7 +892,15 @@ kbd {
   letter-spacing: -0.01em;
 }
 
+.sign .sn b {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: inherit;
+}
+
 .sign .sn i {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 2px;

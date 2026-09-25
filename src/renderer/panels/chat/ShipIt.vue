@@ -13,7 +13,7 @@ const confirming = ref(false)
 const flash = ref('')
 
 const busy = computed(() => midTurn.has(props.chat.state))
-const shown = computed(() => !!ship.value && (!!ship.value.ticket || ship.value.steps.length > 0 || !!ship.value.waiting))
+const shown = computed(() => !!ship.value && (!!ship.value.ticket || ship.value.steps.length > 0 || !!ship.value.waiting || !!ship.value.hint))
 
 async function load() {
   const chatId = props.chat.id
@@ -82,6 +82,7 @@ onUnmounted(() => {
       <button type="button" class="btn sm accent" @click="cleanUp">Clean up</button>
       <button type="button" class="btn sm" @click="confirming = false">Cancel</button>
     </div>
+    <p v-if="ship?.hint" class="note">{{ ship.hint }}</p>
     <p v-if="shown && ship?.notice" class="note">{{ ship.notice }}</p>
     <p v-if="flash" class="note" role="status">{{ flash }}</p>
   </section>

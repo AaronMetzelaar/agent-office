@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatPatch } from '../../src/shared/chat'
-import { defaultRules } from '../../src/shared/departments'
 import type { SearchHit } from '../../src/shared/history'
 import { wireHistory } from '../../src/main/history'
 import { ftsQuery, openIndex, snippetOf, type Index } from '../../src/main/history/indexer'
@@ -112,7 +111,8 @@ describe('opening a result', () => {
     const visitors = createVisitors({
       patch: (patch) => patches.push(patch),
       accounts: () => [{ id: 'main', label: 'main' }],
-      rules: defaultRules,
+      instances: () => [],
+      rooms: office.rooms,
       officeSessions: () => new Set(office.store.views().flatMap((view) => (view.sessionId ? [view.sessionId] : []))),
       describe: (id) => discovery.describe(id, Date.now()),
       settings: { setting: (key) => settings.get(key), saveSetting: (key, value) => void settings.set(key, value) },

@@ -1,3 +1,4 @@
+import { legacyRooms, type RoomDef } from '../../shared/departments'
 import { emptyUsage, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatState, type ChatView } from '../../shared/chat'
 import type { AccountView } from '../../shared/ipc'
 import type { PendingRequestView } from '../../shared/permissions'
@@ -11,6 +12,8 @@ const where: Record<string, string> = {
   plat: `${home}/monorepo/services/api`,
   rev: `${home}/monorepo`,
 }
+const built = (id: string, name: string, accent: number): RoomDef => ({ id, name, subtitle: `~/Documents/GitHub/${name}`, accent, look: 'plain', parent: 'GitHub' })
+const demoRooms: RoomDef[] = [...legacyRooms, built('r-weather', 'weather-dashboard', 0x38bdf8), built('r-homelab', 'homelab', 0x84cc16), built('r-poseidon', 'poseidon', 0xf25ca2)]
 
 type Sample = [dept: string, title: string, state: ChatState, minutes: number, activity: string, extra?: { project?: string; subs?: string[]; ask?: [string, string, boolean]; office?: boolean }]
 
@@ -44,6 +47,9 @@ const samples: Sample[] = [
   ['plat', 'Sentry sourcemaps', 'done', 12960, ''],
   ['side', 'Portfolio case study', 'done', 4608, '', { project: 'portfolio' }],
   ['rev', 'Review #412 Round bids to the euro', 'working', 5, 'Running gh pr diff 412'],
+  ['r-weather', 'Forecast cards', 'working', 8, 'Editing Forecast.tsx', { project: 'weather-dashboard' }],
+  ['r-homelab', 'Backup cron', 'done', 16, '', { project: 'homelab' }],
+  ['r-poseidon', 'Tide model tests', 'working', 3, 'Running pytest', { project: 'poseidon' }],
 ]
 
 export const floorFixture: Sample[] = [
@@ -101,7 +107,8 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     id,
     accountId: dept === 'gym' ? 'demo-research' : 'demo-main',
     cwd: where[dept] ?? `${home}/${extra.project}`,
-    ...(dept === 'rev' ? { department: 'rev', review: true } : {}),
+    department: dept,
+    ...(dept === 'rev' ? { review: true } : {}),
     ...(visitors && !extra.office ? { visitor: 'desktop' as const } : {}),
     title,
     archived: false,
@@ -180,7 +187,7 @@ export function createDemoSource(fixture = false): ChatSource & { stop(): void }
   const finish = (ids: string[]) => push(ids.filter((id) => chats.has(id)).map((id) => ({ id, fields: { finished: Date.now(), unread: false } })))
 
   return {
-    getSnapshot: async () => ({ seq, chats: structuredClone([...chats.values()]), logins: [] }),
+    getSnapshot: async () => ({ seq, chats: structuredClone([...chats.values()]), logins: [], rooms: demoRooms, configErrors: { skipped: [] } }),
     finishChat: async (chatId) => (finish([chatId]), {}),
     finishChats: async (chatIds) => (finish(chatIds), { finished: chatIds, skipped: [], removed: 0 }),
     onChatPatches(listener) {

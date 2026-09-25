@@ -4,14 +4,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ChatPatch } from '../../src/shared/chat'
-import { defaultRules } from '../../src/shared/departments'
-import { createDesktopMeta } from '../../src/main/outside/desktop-meta'
+import { createRooms } from '../../src/main/departments/rooms'
+import { createDesktopMeta, instances } from '../../src/main/outside/desktop-meta'
 import { createDiscovery, inferState, workingWindowMs } from '../../src/main/outside/transcripts'
-import { createVisitors } from '../../src/main/outside/visitors'
+import { createVisitors, type VisitorOptions } from '../../src/main/outside/visitors'
+import { configOf, researchGym } from '../fakes/office'
 import { line, writeDesktopChat, writeTranscript } from '../fakes/outside'
+import { mwsMonorepo } from '../fakes/repos'
 
 const hour = 60 * 60_000
-const accounts = [
+let accounts = [
   { id: 'acc-main', label: 'main' },
   { id: 'acc-research', label: 'research' },
 ]
@@ -21,17 +23,19 @@ let claudeDir: string
 let desktopDir: string
 let repo: (path: string) => string
 
+function wiring(settings = new Map<string, unknown>()): Pick<VisitorOptions, 'accounts' | 'instances' | 'rooms' | 'settings'> {
+  const store = { setting: (key: string) => settings.get(key), saveSetting: (key: string, value: unknown) => void settings.set(key, value) }
+  return { accounts: () => accounts, instances: () => instances(desktopDir), rooms: createRooms(store, configOf({ rooms: [researchGym] }), () => []), settings: store }
+}
+
 function open(skip = new Set<string>(), now = Date.now) {
-  const settings = new Map<string, unknown>()
   const patches: ChatPatch[] = []
   const discovery = createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read })
   const visitors = createVisitors({
+    ...wiring(),
     patch: (patch) => patches.push(patch),
-    accounts: () => accounts,
-    rules: defaultRules,
     officeSessions: () => skip,
     describe: (id) => discovery.describe(id, Date.now()),
-    settings: { setting: (key) => settings.get(key), saveSetting: (key, value) => void settings.set(key, value) },
     now,
   })
   const scan = () => discovery.scan(Date.now(), skip)
@@ -39,6 +43,10 @@ function open(skip = new Set<string>(), now = Date.now) {
 }
 
 beforeEach(() => {
+  accounts = [
+    { id: 'acc-main', label: 'main' },
+    { id: 'acc-research', label: 'research' },
+  ]
   root = mkdtempSync(join(tmpdir(), 'agent-office-backfill-'))
   claudeDir = join(root, 'claude')
   desktopDir = join(root, 'desktop')
@@ -51,11 +59,11 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }))
 
-describe('backfill', () => {
+describe('backfill', { timeout: 60_000 }, () => {
   it('shows chats active in the last day from both desktop instances and the terminal, and nothing else', () => {
     const now = Date.now()
     const ids = Object.fromEntries(['main', 'research', 'archived', 'old', 'terminal', 'office', 'sdk', 'prior', 'spike'].map((name) => [name, randomUUID()]))
-    const marketplace = repo('monorepo/frontend/marketplace')
+    const marketplace = join(mwsMonorepo(join(root, 'code', 'mws')), 'frontend/marketplace')
     const rsa = repo('side/rsa')
     const tray = repo('agent-office')
     writeTranscript(claudeDir, ids.main!, [line.user('Fix the bid rounding in BidFlow'), line.text('Fixed.')], { cwd: marketplace, at: now - hour })
@@ -77,7 +85,7 @@ describe('backfill', () => {
 
     expect(visitors.views().map((view) => view.id).sort()).toEqual([ids.main, ids.research, ids.terminal].sort())
     expect(visitors.view(ids.main!)).toMatchObject({ visitor: 'desktop', accountId: 'acc-main', department: 'mkt', title: 'Fix the bid rounding', state: 'idle', unread: false })
-    expect(visitors.view(ids.research!)).toMatchObject({ visitor: 'desktop', accountId: 'acc-research', department: 'gym', title: 'Explore RSA factoring' })
+    expect(visitors.view(ids.research!)).toMatchObject({ visitor: 'desktop', accountId: 'acc-research', department: 'c-research-gym', title: 'Explore RSA factoring' })
     expect(visitors.view(ids.terminal!)).toMatchObject({ visitor: 'terminal', accountId: 'unknown', department: 'side', title: 'Refactor the tray strip', cwd: tray })
   })
 
@@ -110,7 +118,7 @@ describe('backfill', () => {
   })
 
   it('places a chat by the files its recent tool calls touched, but keeps research chats in the gym', () => {
-    const monorepo = repo('monorepo')
+    const monorepo = mwsMonorepo(join(root, 'mws'))
     const admin = join(monorepo, 'frontend/admin/src/Users.vue')
     const edits = [line.tool('Edit', { file_path: admin }), line.tool('Edit', { file_path: admin }), line.tool('Read', { file_path: admin })]
     const [mainId, researchId] = [randomUUID(), randomUUID()]
@@ -122,7 +130,7 @@ describe('backfill', () => {
     const { visitors, sync } = open()
     sync()
     expect(visitors.view(mainId)).toMatchObject({ department: 'adm', title: 'Fix the users table' })
-    expect(visitors.view(researchId)?.department).toBe('gym')
+    expect(visitors.view(researchId)?.department).toBe('c-research-gym')
   })
 
   it('lets hook events take over the state, while rescans still update the title', () => {
@@ -192,12 +200,10 @@ describe('backfill', () => {
     const settings = new Map<string, unknown>()
     const make = () =>
       createVisitors({
+        ...wiring(settings),
         patch: () => {},
-        accounts: () => accounts,
-        rules: defaultRules,
         officeSessions: () => new Set(),
         describe: () => undefined,
-        settings: { setting: (key) => settings.get(key), saveSetting: (key, value) => void settings.set(key, value) },
       })
     const scan = () => createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: createDesktopMeta(desktopDir).read }).scan(Date.now(), new Set())
     const first = make()
@@ -224,12 +230,10 @@ describe('backfill', () => {
     const settings = new Map<string, unknown>()
     const make = () =>
       createVisitors({
+        ...wiring(settings),
         patch: () => {},
-        accounts: () => accounts,
-        rules: defaultRules,
         officeSessions: () => new Set(),
         describe: () => undefined,
-        settings: { setting: (key) => settings.get(key), saveSetting: (key, value) => void settings.set(key, value) },
       })
     const scan = () => createDiscovery({ projectsDir: join(claudeDir, 'projects'), desktop: () => new Map() }).scan(Date.now(), new Set())
     const first = make()
@@ -240,5 +244,34 @@ describe('backfill', () => {
     const second = make()
     second.sync(scan())
     expect(second.view(id)).toMatchObject({ moved: true, parked: true })
+  })
+
+  it('maps each desktop instance to the account whose label it names, and the rest to the first account no other instance names', () => {
+    const cwd = repo('app')
+    const chatIn = (instance: string) => {
+      const id = randomUUID()
+      writeTranscript(claudeDir, id, [line.user('Go')], { cwd })
+      writeDesktopChat(desktopDir, instance, { cliSessionId: id, cwd, lastActivityAt: Date.now() })
+      return id
+    }
+    const [research, plain, thirdParty] = ['Claude-Research', 'Claude', 'Claude-3p'].map(chatIn)
+    const { visitors, sync } = open()
+    sync()
+    expect([research, plain, thirdParty].map((id) => visitors.view(id!)?.accountId)).toEqual(['acc-research', 'acc-main', 'acc-main'])
+
+    accounts = [
+      { id: 'acc-main', label: 'main' },
+      { id: 'acc-domain', label: 'domain' },
+    ]
+    const domain = chatIn('Claude-Domain')
+    const second = open()
+    second.sync()
+    expect(second.visitors.view(domain)?.accountId).toBe('acc-domain')
+    expect(second.visitors.view(plain!)?.accountId).toBe('acc-main')
+
+    accounts = []
+    const none = open()
+    none.sync()
+    expect(none.visitors.view(domain)?.accountId).toBe('unknown')
   })
 })

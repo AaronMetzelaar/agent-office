@@ -2,11 +2,13 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { applyRegion, fitOverview, VIEW } from '../../src/renderer/office/camera'
-import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
-import { anchorsFor, dept, deptIds, kindOf, layoutFloor, queueSpots, type DeptId } from '../../src/renderer/office/layout'
+import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, signNames, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
+import { anchorsFor, dept, depts, kindOf, layoutFloor, queueSpots, type DeptId } from '../../src/renderer/office/layout'
 import { noSeating, reseat } from '../../src/renderer/office/seating'
 import { placementFor } from '../../src/renderer/office/pose'
 import { buildQueue, queuePositions } from '../../src/shared/queue'
+
+const deptIds = depts.map((d) => d.id)
 
 interface Sample {
   id: string
@@ -53,10 +55,10 @@ function overview(samples: Sample[], zoomed: boolean) {
   }
   const queue = queuePositions(buildQueue(samples.map((s) => ({ id: s.id, accountId: 'main', state: s.state, since: Number(s.id.slice(1)) }))))
   const signs = deptIds
-    .filter((id) => floor.zones[id].shown)
+    .filter((id) => floor.zones[id]!.shown)
     .map((id) => {
-      const [x, y] = screen(floor.zones[id].box[0] + 0.25, 0.62, floor.zones[id].box[3])
-      return [x, y - 40, x + 30 + dept[id].name.length * 6.5, y] as [number, number, number, number]
+      const [x, y] = screen(floor.zones[id]!.box[0] + 0.25, 0.62, floor.zones[id]!.box[3])
+      return [x, y - 40, x + 30 + dept[id]!.name.length * 6.5, y] as [number, number, number, number]
     })
   const items: LabelItem[] = []
   const labelled: Labelled[] = []
@@ -66,7 +68,7 @@ function overview(samples: Sample[], zoomed: boolean) {
     labelled.push(who)
     const mode = chipMode(who, {})
     const place = placementFor({ state: s.state, kind: kindOf(s.dept), spot: 'desk', parked: false, queueIndex: queued, spots: queueSpots.length })
-    const [bx, bz] = floor.zones[s.dept].world[seating.desks.get(s.id)!.slot]!
+    const [bx, bz] = floor.zones[s.dept]!.world[seating.desks.get(s.id)!.slot]!
     const seat = anchorsFor(kindOf(s.dept), bx, bz).seat
     const [ax, az] = place.anchor === 'queue' ? queueSpots[queued]! : seat
     if (!mode) continue
@@ -134,5 +136,14 @@ describe('highlighting', () => {
       { key: 'stuck', label: 'stuck', n: 1 },
       { key: 'working', label: 'working', n: 1 },
     ])
+  })
+})
+
+describe('sign names', () => {
+  it('adds the parent folder when two shown rooms share a name, and drops it once one folds', () => {
+    const work = { id: 'r-1', name: 'api', parent: 'work' }
+    const oss = { id: 'r-2', name: 'api', parent: 'oss' }
+    expect(signNames([work, oss, { id: 'mkt', name: 'Marketplace' }])).toEqual(new Map([['r-1', 'api · work'], ['r-2', 'api · oss'], ['mkt', 'Marketplace']]))
+    expect(signNames([work])).toEqual(new Map([['r-1', 'api']]))
   })
 })

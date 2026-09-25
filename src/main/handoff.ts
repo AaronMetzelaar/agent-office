@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { ChatView } from '../shared/chat'
-import { isResearch } from '../shared/departments'
 import type { AccountView } from '../shared/ipc'
 import type { Hub } from './ipc'
 import { launch } from './review'
@@ -86,7 +85,7 @@ export function wireHandoff(hub: Hub, { store, visitors, vault, accounts }: Hand
   hub.handle('openInDesktop', async (chatId) => {
     const chat = chatOf(chatId)
     if (!chat || chat.visitor !== 'desktop') return { error: 'Only chats running in the desktop app can reopen there.' }
-    const research = isResearch({ label: accounts().find((account) => account.id === chat.accountId)?.label ?? '' })
+    const research = /research/i.test(accounts().find((account) => account.id === chat.accountId)?.label ?? '')
     const { stdout } = await exec('ps', psArgs).catch(() => ({ stdout: '' }))
     const pid = findInstancePid(stdout, research)
     const error =

@@ -1,11 +1,12 @@
 import { statSync, watch } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { defaultAccount, homeDept, isResearch, type DeptId, type DeptRule } from '../../shared/departments'
+import { defaultAccountFor } from '../../shared/departments'
 import type { AccountView, Settings } from '../../shared/ipc'
+import type { Rooms } from '../departments/rooms'
 import type { Hub } from '../ipc'
 import type { ChatStore } from '../store/chats'
-import { createDesktopMeta } from './desktop-meta'
+import { createDesktopMeta, instances } from './desktop-meta'
 import { endpointSecret, install, isInstalled, uninstall, writeEndpoint, type HookPaths } from './installer'
 import { isSessionId, startListener } from './listener'
 import { createDiscovery } from './transcripts'
@@ -14,7 +15,7 @@ import { createVisitors, type VisitorOptions } from './visitors'
 export interface OutsideDeps {
   store: Pick<ChatStore, 'events' | 'views'>
   accounts(): readonly AccountView[]
-  rules: readonly DeptRule[]
+  rooms: VisitorOptions['rooms']
   settings: VisitorOptions['settings']
   claudeDir: string
   desktopDir: string
@@ -25,7 +26,7 @@ export interface OutsideDeps {
 export interface WireOutsideDeps {
   store: Pick<ChatStore, 'adopt' | 'views'>
   accounts(): readonly AccountView[]
-  rules: readonly DeptRule[]
+  rooms: Pick<Rooms, 'resolve' | 'isTied' | 'tiedRoom'>
   settings(): Settings
   confirm(message: string, detail: string, action?: string): Promise<boolean>
 }
@@ -49,12 +50,12 @@ function watchQuietly(path: string, wanted: (file: string) => boolean, onChange:
   }
 }
 
-export function createOutside({ store, accounts, rules, settings, claudeDir, desktopDir, configDir, log = (message) => console.warn(`[outside] ${message}`) }: OutsideDeps) {
+export function createOutside({ store, accounts, rooms, settings, claudeDir, desktopDir, configDir, log = (message) => console.warn(`[outside] ${message}`) }: OutsideDeps) {
   const projectsDir = join(claudeDir, 'projects')
   const desktop = createDesktopMeta(desktopDir)
   const discovery = createDiscovery({ projectsDir, desktop: desktop.read })
   const officeSessions = () => new Set(store.views().flatMap((view) => (view.sessionId && !view.forkPending ? [view.sessionId] : [])))
-  const visitors = createVisitors({ patch: (patch) => store.events.emit('patch', patch), accounts, rules, officeSessions, describe: (id) => discovery.describe(id, Date.now()), settings, log })
+  const visitors = createVisitors({ patch: (patch) => store.events.emit('patch', patch), accounts, instances: () => instances(desktopDir), rooms, officeSessions, describe: (id) => discovery.describe(id, Date.now()), settings, log })
   const paths: HookPaths = { settings: join(claudeDir, 'settings.json'), dir: configDir }
 
   const rescan = () => {
@@ -72,7 +73,6 @@ export function createOutside({ store, accounts, rules, settings, claudeDir, des
     }, rescanMs)
   }
 
-  rescan()
   const unwatch = [desktop.watch(soon), watchQuietly(projectsDir, (file) => file.endsWith('.jsonl') && !file.includes('subagents'), soon)]
   const timer = setInterval(rescan, refreshMs)
   timer.unref()
@@ -105,7 +105,7 @@ export function createOutside({ store, accounts, rules, settings, claudeDir, des
   }
 }
 
-export function wireOutside(hub: Hub, { visitors, paths, transcript }: Outside, { store, accounts, rules, settings, confirm }: WireOutsideDeps): void {
+export function wireOutside(hub: Hub, { visitors, paths, transcript }: Outside, { store, accounts, rooms, settings, confirm }: WireOutsideDeps): void {
   const attempt = (change: () => unknown): Settings | { error: string } => {
     try {
       change()
@@ -123,13 +123,13 @@ export function wireOutside(hub: Hub, { visitors, paths, transcript }: Outside, 
     if (!visitor || visitor.moved) return undefined
     if (!statSync(visitor.cwd, { throwIfNoEntry: false })?.isDirectory()) return { error: 'This chat’s folder no longer exists, so it can’t move into the office.' }
     const list = accounts()
-    const accountId = list.some((account) => account.id === visitor.accountId && account.health.status !== 'needs-login') ? visitor.accountId : defaultAccount(list, visitor.department as DeptId)
+    const accountId = list.some((account) => account.id === visitor.accountId && account.health.status !== 'needs-login') ? visitor.accountId : defaultAccountFor(list, rooms.tiedRoom, visitor.department)
     if (!accountId) return { error: 'Add an account that can run it first.' }
     const busy = visitor.state === 'working' || visitor.state === 'needs-you'
     const detail = `The original stays as it is; the office continues a copy from your next message.${busy ? ' It’s still running outside, so stop it there first or both copies will work in the same folder.' : ''}`
     if (!(await confirm('Move this chat into the office?', detail)) || visitors.view(visitor.id)?.moved) return undefined
-    const research = isResearch({ label: list.find((account) => account.id === accountId)?.label ?? '' })
-    const department = research ? 'gym' : visitor.department && visitor.department !== 'gym' ? visitor.department : homeDept(visitor.cwd, false, rules)
+    const label = list.find((account) => account.id === accountId)?.label
+    const department = rooms.tiedRoom(label) ?? (visitor.department && !rooms.isTied(visitor.department) ? visitor.department : rooms.resolve(visitor.cwd, label, { build: true }))
     const moved = store.adopt({ accountId, cwd: visitor.cwd, title: visitor.title, department, sessionId: visitor.id })
     visitors.markMoved(visitor.id)
     return { chatId: moved }

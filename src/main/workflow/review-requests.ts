@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import type { StartOptions } from '../../shared/departments'
 import type { CiSummary, ReviewQueue, ReviewRequest } from '../../shared/workflow'
 import { run, type Run } from '../review/git'
+import { slashed } from './next-step'
 
 interface RawSearch {
   id: string
@@ -75,7 +76,7 @@ function unavailable(error: unknown): string {
   return 'Couldn’t reach GitHub, so review requests may be out of date.'
 }
 
-const remoteSlug = (url: string) => /[/:]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]?.toLowerCase()
+export const remoteSlug = (url: string) => /[/:]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]?.toLowerCase()
 
 export async function localClone(repo: string, folders: readonly string[], git: Run = run): Promise<string | undefined> {
   for (const folder of folders) {
@@ -85,10 +86,10 @@ export async function localClone(repo: string, folders: readonly string[], git: 
   return undefined
 }
 
-export async function reviewStart(request: Pick<ReviewRequest, 'url' | 'repo' | 'number' | 'title'>, folders: readonly string[], git: Run = run) {
+export async function reviewStart(request: Pick<ReviewRequest, 'url' | 'repo' | 'number' | 'title'>, folders: readonly string[], command?: string, git: Run = run) {
   const cwd = (await localClone(request.repo, folders, git)) ?? homedir()
   const options: StartOptions = { review: true, title: `Review #${request.number} ${request.title}` }
-  return { cwd, prompt: `/pr-review-rundown ${request.url}`, options }
+  return { cwd, prompt: command ? `${slashed(command)} ${request.url}` : `Review this pull request: ${request.url}`, options }
 }
 
 export function createReviewQueue(gh: Run = run, onChange: (queue: ReviewQueue) => void = () => {}, now = Date.now) {

@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { anchorsFor, chairFootprint, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
-import { roomIds, type RoomId } from '../../shared/departments'
+import type { Look } from '../../shared/departments'
+import { anchorsFor, chairFootprint, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, shellOf, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
 import { lookKey, type SeatLook } from './lounge'
 import type { Nav } from './nav'
 
@@ -471,7 +471,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(CY(0.016, 0.02, 0.16, 8), mat.metal, 0, 0.84, 0.03, m2)
       mesh(RB(0.18, 0.012, 0.12, 0.006), mat.metal, 0, 0.776, 0.02, m2)
     }
-    if (v % 3 === 0 || d.id === 'rev') {
+    if (v % 3 === 0 || d.look === 'reading') {
       const lg = grp(0.6, 0.05, -0.6, g)
       mesh(CY(0.07, 0.08, 0.02, 20), mat.black, 0, 0.78, 0, lg)
       mesh(CY(0.01, 0.01, 0.36, 6), mat.black, 0, 0.95, -0.03, lg).rotation.x = -0.18
@@ -1250,9 +1250,9 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         snake(W - 1, 5.4, 0.9)
       })
   }
-  const build: Record<DeptId, Build> = {
-    ...(Object.fromEntries(roomIds.map((id) => [id, room])) as Record<RoomId, Build>),
-    mkt(t, W, strip) {
+  const build: Record<Look, Build> = {
+    plain: room,
+    showroom(t, W, strip) {
       if (t < 3) {
         frameShirt(1.75, 1.58, 0)
         auctionWall(3.5, 1.6)
@@ -1272,7 +1272,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
           cooler(W - 1, 5.8)
         })
     },
-    adm(t, W, strip) {
+    backoffice(t, W, strip) {
       if (t < 3) {
         cabinet(1, 0.35)
         cabinet(1.55, 0.35)
@@ -1292,7 +1292,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
           snake(W - 1, 5.4)
         })
     },
-    mob(t, W, strip) {
+    devices(t, W, strip) {
       hands.length = 0
       if (t < 3) {
         dock(1.3, 0.35)
@@ -1314,7 +1314,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
           snake(W - 1, 3.4, 0.9)
         })
     },
-    plat(t, W, strip) {
+    servers(t, W, strip) {
       leds.length = 0
       ledMesh = undefined
       const n = [0, 2, 3, 6][t]!
@@ -1328,7 +1328,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         snake(W - 1, 5, 0.85)
       })
     },
-    side(t, W, strip) {
+    playground(t, W, strip) {
       tree(0.8, 0.7, 0.95)
       stringLights(1.7, W - 1.1, 0.35)
       bush(W - 0.55, 0.9, 0.8)
@@ -1342,7 +1342,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
           tree(W - 0.7, 0.7, 1.1)
         })
     },
-    rev(t, W, strip) {
+    reading(t, W, strip) {
       reviewBoard(2.4, 0.4)
       if (t < 3) {
         floorLamp(4.2, 0.45)
@@ -1472,8 +1472,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     }
   }
 
-  const deptScenes = {} as Record<DeptId, DeptScene>
-  for (const def of depts) {
+  const deptScenes: Record<DeptId, DeptScene> = {}
+  function addRoom(def: DeptDef) {
     const gym = def.shell === 'gym', yard = def.shell === 'yard'
     const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), shell = grp(0, 0, 0, gi)
     const tintLo = yard ? new THREE.Color(0x9ccc84) : lighten(def.accent, gym ? 0.55 : 0.62), tintHi = yard ? new THREE.Color(0xb4dc9c) : lighten(def.accent, gym ? 0.42 : 0.5)
@@ -1485,7 +1485,20 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     g.visible = false
     g.scale.setScalar(0.001)
     deptScenes[def.id] = d
+    return d
   }
+  function removeRoom(id: DeptId) {
+    const d = deptScenes[id]
+    if (!d) return
+    d.slots.forEach((_, i) => nav.unblock(`desk:${id}:${i}`))
+    nav.unblock(`shell:${id}`)
+    nav.unblock(`props:${id}`)
+    for (const s of d.slots) if (s) dispose(s.g, true)
+    dispose(d.g)
+    d.tint.dispose()
+    delete deptScenes[id]
+  }
+  depts.forEach(addRoom)
   cloakroom()
   snake(-13.05, 11.1, 0.85)
   const lounge: LoungeScene = (() => {
@@ -1713,7 +1726,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     cur = back
     owner = id
     tag = `props:${id}`
-    build[id](tier, minWidth(id, tier), (fn) => {
+    build[d.def.look](tier, minWidth(id, tier), (fn) => {
       const was = [cur, owner] as const
       cur = side
       owner = `${id}:side`
@@ -1728,12 +1741,12 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
 
   function addSlot(id: DeptId, i: number, x: number, z: number, bare = false) {
-    const d = deptScenes[id]
+    const d = deptScenes[id]!
     const prev = [cur, owner, tag] as const
     cur = d.gi
     owner = id
     tag = `desk:${id}:${i}`
-    const s = kindOf(id) === 'gym' ? treadmill(d.def, i, x, z) : (id === 'side' ? picnic : desk)(d.def, i, x, z, bare)
+    const s = kindOf(id) === 'gym' ? treadmill(d.def, i, x, z) : (shellOf(id) === 'yard' ? picnic : desk)(d.def, i, x, z, bare)
     ;[cur, owner, tag] = prev
     bake(s.g, new Set(s.chair ? [s.chair] : []))
     if (s.chair) bake(s.chair, new Set())
@@ -1741,18 +1754,18 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     return s
   }
   function rebuildSlot(id: DeptId, i: number, bare: boolean) {
-    const old = deptScenes[id].slots[i]
+    const old = deptScenes[id]?.slots[i]
     if (!old || kindOf(id) === 'gym' || !!old.bare === bare) return old
     dispose(old.g, true)
     nav.unblock(`desk:${id}:${i}`)
     return addSlot(id, i, old.bx, old.bz, bare)
   }
   function removeSlot(id: DeptId, i: number) {
-    const s = deptScenes[id].slots[i]
-    if (!s) return
+    const slots = deptScenes[id]?.slots
+    const s = slots?.[i]
+    if (!slots || !s) return
     dispose(s.g, true)
     nav.unblock(`desk:${id}:${i}`)
-    const slots = deptScenes[id].slots
     delete slots[i]
     while (slots.length && !slots.at(-1)) slots.length--
   }
@@ -1907,6 +1920,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   return {
     root,
     depts: deptScenes,
+    addRoom,
+    removeRoom,
     lounge,
     myScreen,
     setShell,

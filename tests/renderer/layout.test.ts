@@ -2,15 +2,18 @@ import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { Vector3 } from 'three'
 import { createNav } from '../../src/renderer/office/nav'
-import { band, bandArea, chairFootprint, coffeeFootprint, loungeDecor, loungeSpots, standBy, visitSpot, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
+import { band, bandArea, chairFootprint, coffeeFootprint, loungeDecor, loungeSpots, standBy, visitSpot, depts, exhaustive, setRooms, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
 import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
+import { legacyRooms, type RoomDef } from '../../src/shared/departments'
+
+const deptIds = depts.map((d) => d.id)
 
 const inside = deptIds.filter((id) => id !== 'side')
 const overlap = (a: readonly number[], b: readonly number[]) => a[0]! < b[2]! - 1e-9 && b[0]! < a[2]! - 1e-9 && a[1]! < b[3]! - 1e-9 && b[1]! < a[3]! - 1e-9
 const agentsToDesks = (agents: Demand): Demand => Object.fromEntries(deptIds.map((id) => [id, agents[id] ? agents[id]! + 1 : 0]))
-const shownOrder = (desks: Demand) => deptIds.filter((id) => layoutFloor(desks).zones[id].shown)
+const shownOrder = (desks: Demand) => deptIds.filter((id) => layoutFloor(desks).zones[id]!.shown)
 const atDesks = (agents: Demand, from = 0): Sitter[] => deptIds.flatMap((dept) => Array.from({ length: agents[dept] ?? 0 }, (_, i) => ({ id: `${dept}${i + from}`, dept, spot: 'desk' as const, parked: false, recent: true })))
 
 function floorOf(agents: readonly { dept: DeptId; state: ChatState; parked?: boolean }[], recent: boolean) {
@@ -21,7 +24,7 @@ function floorOf(agents: readonly { dept: DeptId; state: ChatState; parked?: boo
 const fixture = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), false)
 
 function occupied(floor: Floor): Box[] {
-  return [...inside.filter((id) => floor.zones[id].shown).map((id) => floor.zones[id].box), ...(floor.lounge.shown ? [floor.lounge.box] : []), ...fixedParts]
+  return [...inside.filter((id) => floor.zones[id]!.shown).map((id) => floor.zones[id]!.box), ...(floor.lounge.shown ? [floor.lounge.box] : []), ...fixedParts]
 }
 
 function largestEmptySquare(floor: Floor): number {
@@ -47,8 +50,8 @@ function largestEmptySquare(floor: Floor): number {
 
 const area = (b: { x0: number; z0: number; x1: number; z1: number }) => (b.x1 - b.x0) * (b.z1 - b.z0)
 const loungeArea = (floor: Floor) => (floor.lounge.shown ? (loungeGrid.left + floor.lounge.cols * loungeGrid.pitchX + loungeGrid.pair * Math.floor((floor.lounge.cols - 1) / 2) + loungeGrid.right) * (loungeGrid.back + (floor.lounge.rows - 1) * loungeGrid.pitchZ + loungeGrid.front) : 0)
-const natural = (floor: Floor) => inside.filter((id) => floor.zones[id].shown).reduce((sum, id) => sum + floor.zones[id].w * floor.zones[id].d, 0) + bandArea + loungeArea(floor)
-const laidOut = (floor: Floor) => inside.filter((id) => floor.zones[id].shown).reduce((sum, id) => sum + area({ x0: floor.zones[id].box[0], z0: floor.zones[id].box[1], x1: floor.zones[id].box[2], z1: floor.zones[id].box[3] }), 0) + bandArea + (floor.lounge.shown ? area({ x0: floor.lounge.box[0], z0: floor.lounge.box[1], x1: floor.lounge.box[2], z1: floor.lounge.box[3] }) : 0)
+const natural = (floor: Floor) => inside.filter((id) => floor.zones[id]!.shown).reduce((sum, id) => sum + floor.zones[id]!.w * floor.zones[id]!.d, 0) + bandArea + loungeArea(floor)
+const laidOut = (floor: Floor) => inside.filter((id) => floor.zones[id]!.shown).reduce((sum, id) => sum + area({ x0: floor.zones[id]!.box[0], z0: floor.zones[id]!.box[1], x1: floor.zones[id]!.box[2], z1: floor.zones[id]!.box[3] }), 0) + bandArea + (floor.lounge.shown ? area({ x0: floor.lounge.box[0], z0: floor.lounge.box[1], x1: floor.lounge.box[2], z1: floor.lounge.box[3] }) : 0)
 
 const others: [string, Demand, number][] = [
   ['one working agent, nobody resting', { plat: 1 }, 0],
@@ -123,14 +126,14 @@ describe('section size follows its agents', () => {
 describe('packing Aaron’s floor', () => {
   it('gives desks to working, needs-you, stuck and done-unread chats, and sends the other 15 to the Lounge', () => {
     const { zones, lounge } = fixture.floor
-    expect(inside.filter((id) => zones[id].shown)).toEqual(['mkt', 'plat', 'gym'])
-    expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([2, 2, 2, 3])
+    expect(inside.filter((id) => zones[id]!.shown)).toEqual(['mkt', 'plat', 'gym'])
+    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([2, 2, 2, 3])
     expect(lounge).toMatchObject({ shown: true, seats: 15 })
   })
 
   it('reserves a desk for every chat active in the last day after a relaunch', () => {
     const { zones, lounge } = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), true).floor
-    expect([zones.mkt.desks, zones.plat.desks, zones.gym.desks, zones.side.desks]).toEqual([5, 7, 9, 4])
+    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([5, 7, 9, 4])
     expect(lounge.seats).toBe(15)
   })
 
@@ -151,7 +154,7 @@ describe('packing Aaron’s floor', () => {
 
   it('puts Side projects outside the building by the entrance, and frames both about as tightly as the building alone', () => {
     const { floor } = fixture
-    const yard = floor.zones.side.box
+    const yard = floor.zones.side!.box
     expect(overlap(yard, [floor.bounds.x0, floor.bounds.z0, floor.bounds.x1, floor.bounds.z1])).toBe(false)
     const dx = Math.max(yard[0] - door[0], 0, door[0] - yard[2]), dz = Math.max(yard[1] - door[1], 0, door[1] - yard[3])
     expect(Math.hypot(dx, dz)).toBeLessThan(2)
@@ -179,16 +182,16 @@ describe('packing other floors', () => {
 
   it.each(others)('%s: keeps the playground outside and the combined view compact', (_name, desks, standby) => {
     const floor = layoutFloor(agentsToDesks(desks), standby)
-    if (floor.zones.side.shown) expect(overlap(floor.zones.side.box, [floor.bounds.x0, floor.bounds.z0, floor.bounds.x1, floor.bounds.z1])).toBe(false)
+    if (floor.zones.side!.shown) expect(overlap(floor.zones.side!.box, [floor.bounds.x0, floor.bounds.z0, floor.bounds.x1, floor.bounds.z1])).toBe(false)
     expect(fitSize(floor.frame)).toBeLessThanOrEqual(fitSize(floor.bounds) * 1.35)
   })
 
   it('packs the shown sections in the fixed reading order: rows back to front, left to right', () => {
     for (const [, desks, standby] of others) {
       const { zones } = layoutFloor(agentsToDesks(desks), standby)
-      const shown = inside.filter((id) => zones[id].shown)
+      const shown = inside.filter((id) => zones[id]!.shown)
       for (let i = 1; i < shown.length; i++) {
-        const [a, b] = [zones[shown[i - 1]!].box, zones[shown[i]!].box]
+        const [a, b] = [zones[shown[i - 1]!]!.box, zones[shown[i]!]!.box]
         expect(b[1] > a[1] + 1e-9 || (Math.abs(b[1] - a[1]) < 1e-9 && b[0] > a[0])).toBe(true)
       }
     }
@@ -258,8 +261,8 @@ describe('folding sections', () => {
     const all = reseat(noSeating, atDesks(everyone), true)
     const folded = reseat(all, atDesks({ ...everyone, adm: 0, rev: 0 }), true)
     const without = layoutFloor(folded.size)
-    expect(without.zones.adm.shown).toBe(false)
-    expect(without.zones.rev.shown).toBe(false)
+    expect(without.zones.adm!.shown).toBe(false)
+    expect(without.zones.rev!.shown).toBe(false)
     expect(shownOrder(folded.size)).toEqual(['mkt', 'mob', 'plat', 'side', 'gym'])
   })
 
@@ -271,7 +274,7 @@ describe('folding sections', () => {
     const before = reseat(noSeating, atDesks({ mkt: 1 }), true)
     const back = reseat(before, atDesks({ mkt: 1, rev: 1 }), false)
     expect(back.size.rev).toBe(1)
-    expect(layoutFloor(back.size).zones.rev.shown).toBe(true)
+    expect(layoutFloor(back.size).zones.rev!.shown).toBe(true)
     expect(shownOrder(back.size)).toEqual(['mkt', 'rev'])
     expect(back.pending).toBe(true)
     expect(reseat(back, atDesks({ mkt: 1, rev: 1 }), true)).toMatchObject({ size: expect.objectContaining({ rev: 2 }), pending: false })
@@ -282,12 +285,12 @@ describe('folding sections', () => {
     const hovering = reseat(all, atDesks({ ...everyone, adm: 0, mkt: 1 }), false)
     expect(hovering.pending).toBe(true)
     expect(hovering.size).toMatchObject({ adm: 2, mkt: 4 })
-    expect(layoutFloor(hovering.size).zones.adm.shown).toBe(true)
-    expect(layoutFloor(hovering.size).zones.mkt.w).toBe(layoutFloor(all.size).zones.mkt.w)
+    expect(layoutFloor(hovering.size).zones.adm!.shown).toBe(true)
+    expect(layoutFloor(hovering.size).zones.mkt!.w).toBe(layoutFloor(all.size).zones.mkt!.w)
     const released = reseat(hovering, atDesks({ ...everyone, adm: 0, mkt: 1 }), true)
     expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0 }), pending: false })
     expect(builtDesks(released, 'mkt')).toEqual([0, 1])
-    expect(layoutFloor(released.size).zones.adm.shown).toBe(false)
+    expect(layoutFloor(released.size).zones.adm!.shown).toBe(false)
     const next = reseat(released, [...atDesks({ ...everyone, adm: 0, mkt: 1 }), { id: 'late', dept: 'plat', spot: 'desk', parked: false, recent: true }], true)
     expect(next.size.mkt).toBe(2)
     expect(builtDesks(next, 'mkt')).toEqual([0, 1])
@@ -301,8 +304,8 @@ describe('folding sections', () => {
     expect(reseat(zoomed, atDesks({ mob: 2 }), true).size.mob).toBe(3)
   })
 
-  it('lists PR reviews after Side projects, then the rooms Claude makes, then the gym', () => {
-    expect(depts.map((d) => d.id)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'gym'])
+  it('lists PR reviews after Side projects, then the gym, when the host hasn’t sent its rooms yet', () => {
+    expect(depts.map((d) => d.id)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'])
     expect(depts.find((d) => d.id === 'rev')?.name).toBe('PR reviews')
   })
 })
@@ -311,7 +314,7 @@ describe('desks', () => {
   it('never seats two agents at one desk, even with 15 agents in one department', () => {
     const seating = reseat(noSeating, atDesks({ mkt: 15 }), true)
     const floor = layoutFloor(seating.size)
-    const spots = [...seating.desks.values()].map((d) => floor.zones.mkt.world[d.slot]!.join(','))
+    const spots = [...seating.desks.values()].map((d) => floor.zones.mkt!.world[d.slot]!.join(','))
     expect(new Set(spots).size).toBe(15)
   })
 
@@ -406,5 +409,29 @@ describe('Lounge decor and errands', () => {
     expect(spots.coffee).toHaveLength(2)
     expect(spots.browse).toHaveLength(2 * loungeDecor(8, rows).filter((d) => d.kind === 'shelf').length)
     expect(spots.water).toHaveLength(1)
+  })
+})
+
+describe('rooms from the host', () => {
+  const plain = (id: string): RoomDef => ({ id, name: id, subtitle: `~/code/${id}`, accent: 0x3b7bff, look: 'plain' })
+
+  it('packs more rooms than the exhaustive search allows with the greedy packer, fast and without overlaps', () => {
+    const ids = Array.from({ length: exhaustive + 2 }, (_, i) => `r-${i}`)
+    setRooms([...legacyRooms, ...ids.map(plain)])
+    const started = performance.now()
+    const floor = layoutFloor(Object.fromEntries(ids.map((id, i) => [id, 1 + (i % 4)])))
+    const took = performance.now() - started
+    setRooms(legacyRooms)
+    expect(took).toBeLessThan(50)
+    const boxes = ids.map((id) => floor.zones[id]!.box)
+    expect(ids.every((id) => floor.zones[id]!.shown)).toBe(true)
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i]!, boxes[j]!), `${i}/${j}`).toBe(false)
+  })
+
+  it('gives a one-off look to the first room that asks for it, and the plain look to the next', () => {
+    setRooms([...legacyRooms, { ...plain('c-api'), look: 'servers' }, { ...plain('c-reading'), look: 'reading' }])
+    const looks = Object.fromEntries(depts.map((d) => [d.id, d.look]))
+    setRooms(legacyRooms)
+    expect(looks).toMatchObject({ plat: 'servers', 'c-api': 'plain', rev: 'reading', 'c-reading': 'reading', side: 'playground' })
   })
 })

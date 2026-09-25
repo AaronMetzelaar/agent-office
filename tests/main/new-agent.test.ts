@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultEffort, defaultModel } from '../../src/shared/chat'
-import { accountHint, defaultAccount } from '../../src/shared/departments'
+import { accountHint, defaultAccountFor } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
+import { gitRepo, mwsMonorepo } from '../fakes/repos'
 
 vi.mock('electron', async () => await import('../fakes/electron'))
 
@@ -15,33 +16,37 @@ describe('account defaults and headroom', () => {
   const main = account('m', 'main', 30)
   const research = account('r', 'research', 10)
 
-  it('defaults to main for main-account folders and to research for the gym', () => {
-    expect(defaultAccount([research, main], 'mkt')).toBe('m')
-    expect(defaultAccount([research, main], 'side')).toBe('m')
-    expect(defaultAccount([main, research], 'gym')).toBe('r')
-    expect(defaultAccount([main], 'gym')).toBe('m')
-    expect(defaultAccount([account('m', 'main', 0, 0, 'needs-login'), research], 'mkt')).toBe('r')
-    expect(defaultAccount([account('m', 'main', 100), research], 'mkt')).toBe('r')
-    expect(defaultAccount([account('m', 'main', 0, 100), research], 'mkt')).toBe('r')
-    expect(defaultAccount([account('m', 'main', 100), account('r', 'research', 100)], 'mkt')).toBe('m')
+  it('defaults to the account tied to an account-tied room, and to the first usable untied account anywhere else', () => {
+    const tiedRoom = (label: string) => (label.includes('research') ? 'c-research-gym' : undefined)
+    expect(defaultAccountFor([research, main], tiedRoom, 'c-research-gym')).toBe('r')
+    expect(defaultAccountFor([research, main], tiedRoom, 'r-shop')).toBe('m')
+    expect(defaultAccountFor([research, main], tiedRoom, 'rev')).toBe('m')
+    expect(defaultAccountFor([research, main], tiedRoom)).toBe('m')
+    expect(defaultAccountFor([account('m', 'main', 0, 0, 'needs-login'), research], tiedRoom, 'mkt')).toBe('r')
+    expect(defaultAccountFor([main], tiedRoom, 'c-research-gym')).toBe('m')
+    expect(defaultAccountFor([], tiedRoom, 'mkt')).toBeUndefined()
+    expect(defaultAccountFor([account('m', 'main', 100), research], tiedRoom, 'mkt')).toBe('r')
+    expect(defaultAccountFor([account('m', 'main', 0, 100), research], tiedRoom, 'mkt')).toBe('r')
+    expect(defaultAccountFor([account('m', 'main', 100), account('r', 'research', 100)], tiedRoom, 'mkt')).toBe('m')
   })
 
-  it('suggests research for monorepo work when main is low on headroom in either window', () => {
-    expect(accountHint([main, research], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([account('m', 'main', 86), research], 'm', 'mob')).toEqual({ accountId: 'r', text: 'main is at 86% of its limit. Run this on research; it keeps its department.' })
-    expect(accountHint([account('m', 'main', 20, 93), research], 'm', 'plat')?.accountId).toBe('r')
+  it('suggests the usable account with the most room once the chosen one is low in either window, in any room', () => {
+    expect(accountHint([main, research], 'm')).toBeUndefined()
+    expect(accountHint([account('m', 'main', 86), research], 'm')).toEqual({ accountId: 'r', text: 'main is at 86% of its limit. Run this on research; it keeps its room.' })
+    expect(accountHint([account('m', 'main', 20, 93), research], 'm')?.accountId).toBe('r')
+    expect(accountHint([account('m', 'main', 90), account('w', 'work', 40), research], 'm')?.accountId).toBe('r')
   })
 
-  it('stays quiet for side projects, when research has no more room, or when research is already chosen', () => {
+  it('stays quiet with one account, when the others have no more room, or when they need login', () => {
     const tight = account('m', 'main', 90)
-    expect(accountHint([tight, research], 'm', 'side')).toBeUndefined()
-    expect(accountHint([tight, account('r', 'research', 95)], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([tight, account('r', 'research', 5, 0, 'needs-login')], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([tight, research], 'r', 'mkt')).toBeUndefined()
+    expect(accountHint([tight], 'm')).toBeUndefined()
+    expect(accountHint([tight, account('r', 'research', 95)], 'm')).toBeUndefined()
+    expect(accountHint([tight, account('r', 'research', 5, 0, 'needs-login')], 'm')).toBeUndefined()
+    expect(accountHint([tight, research], 'r')).toBeUndefined()
   })
 })
 
-describe('continue on the other account', () => {
+describe('continue on the other account', { timeout: 60_000 }, () => {
   let dir: string
   let office: ReturnType<typeof openOffice>
 
@@ -67,7 +72,7 @@ describe('continue on the other account', () => {
   }
 
   it('forks a rate-limited chat into a new chat under the other account’s token and parks the original', () => {
-    const id = rateLimited('main', join(dir, 'monorepo/frontend/marketplace'))
+    const id = rateLimited('main', join(mwsMonorepo(join(dir, 'mws')), 'frontend/marketplace'))
     const original = office.chat(id).sessionId
     office.store.setPlanMode(id, true)
     const result = office.store.continueOnAccount(id, 'research')
@@ -84,17 +89,25 @@ describe('continue on the other account', () => {
     expect(office.db.listChats().find((record) => record.id === id)).toMatchObject({ parked: true, state: 'idle' })
   })
 
-  it('moves a gym chat to its folder’s department when it continues on main', () => {
-    const id = rateLimited('research', join(dir, 'enigma-rsa'))
-    expect(office.chat(id).department).toBe('gym')
+  it('moves a gym chat to its repo’s room when it continues on main, and keeps a folder room when it continues on research', () => {
+    const repo = gitRepo(join(dir, 'enigma-rsa'))
+    const id = rateLimited('research', repo)
+    expect(office.chat(id).department).toBe('c-research-gym')
     const result = office.store.continueOnAccount(id, 'main')
     if (!result || !('chatId' in result)) throw new Error('expected a new chat')
-    expect(office.chat(result.chatId)).toMatchObject({ accountId: 'main', department: 'side' })
-    expect(office.chat(id)).toMatchObject({ accountId: 'research', department: 'gym', parked: true })
+    const home = office.chat(result.chatId).department!
+    expect(office.rooms.byId(home)).toMatchObject({ name: 'enigma-rsa', look: 'plain' })
+    expect(office.chat(result.chatId)).toMatchObject({ accountId: 'main', department: home })
+    expect(office.chat(id)).toMatchObject({ accountId: 'research', department: 'c-research-gym', parked: true })
+
+    const overflow = rateLimited('main', join(dir, 'notes'))
+    const moved = office.store.continueOnAccount(overflow, 'research')
+    if (!moved || !('chatId' in moved)) throw new Error('expected a new chat')
+    expect(office.chat(moved.chatId)).toMatchObject({ accountId: 'research', department: 'side' })
   })
 
   it('refuses an account that needs login, and ignores the same account or a chat that is not stuck', () => {
-    const id = rateLimited('main', join(dir, 'monorepo'))
+    const id = rateLimited('main', join(dir, 'app'))
     office.loggedOut.add('research')
     expect(office.store.continueOnAccount(id, 'research')).toMatchObject({ code: 'needs-login' })
     expect(office.store.continueOnAccount(id, 'main')).toBeUndefined()
