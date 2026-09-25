@@ -163,6 +163,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   {
     const sign = createSign('Lounge', 'standby · idle or read', undefined, { enter: () => setHoverDept('lounge'), leave: () => setHoverDept(undefined), click: () => focusDept('lounge') })
     sign.obj.visible = false
+    sign.obj.center.set(0, 0)
     labelScene.add(sign.obj)
     signs.set('lounge', sign)
   }
@@ -736,7 +737,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       projected.copy(sign.obj.position).project(camera)
       if (projected.z >= 1) continue
       const x = ((projected.x + 1) / 2) * w, y = ((1 - projected.y) / 2) * h
-      rects.push([x, y - sign.h, x + sign.w, y])
+      const top = y - sign.h * sign.obj.center.y
+      rects.push([x, top, x + sign.w, top + sign.h])
     }
     const items: LabelItem[] = []
     const byKey = new Map<string, Live>()
