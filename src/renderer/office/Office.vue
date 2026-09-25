@@ -305,6 +305,11 @@ watch(
   },
 )
 
+function nextAgent(back = false) {
+  const next = cycleAgent(ui.agents.map((a) => a.id), shownAgent.value?.id, back)
+  if (next) select(next)
+}
+
 function onKey(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
@@ -312,8 +317,7 @@ function onKey(event: KeyboardEvent) {
   }
   if (event.ctrlKey && event.key === 'Tab') {
     event.preventDefault()
-    const next = cycleAgent(ui.agents.map((a) => a.id), shownAgent.value?.id, event.shiftKey)
-    return void (next && select(next))
+    return nextAgent(event.shiftKey)
   }
   const typing = !!(event.target as HTMLElement).closest?.('input,textarea,select')
   if (event.key === 'Escape') {
@@ -369,6 +373,7 @@ onUnmounted(() => {
     </div>
     <button type="button" class="tbtn" @click="world?.overview()">Overview</button>
     <button type="button" class="tbtn" aria-haspopup="dialog" title="Jump to an agent or search inside every chat" @click="openPalette">Search <kbd>⌘K</kbd></button>
+    <button type="button" class="tbtn" title="Next agent. Ctrl+Shift+Tab goes back" :disabled="!ui.agents.length" @click="nextAgent()">Next agent <kbd>⌃Tab</kbd></button>
     <button
       type="button"
       :class="['tbtn', 'res', { hot: house?.hot }]"
