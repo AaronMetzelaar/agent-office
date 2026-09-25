@@ -1,7 +1,7 @@
 ---
 title: "feat: A room for every repo (rooms for any setup, step 1)"
 type: feat
-status: active
+status: completed
 date: 2026-09-25
 origin: docs/brainstorms/2026-09-25-rooms-for-any-setup-requirements.md
 ---
