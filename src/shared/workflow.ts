@@ -26,6 +26,7 @@ export interface ShipIt {
   ticket?: Ticket
   waiting?: string
   notice?: string
+  hint?: string
 }
 
 export type TicketLookup = { ticket: Ticket; notice?: string } | { error: string }

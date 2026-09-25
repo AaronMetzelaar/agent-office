@@ -50,7 +50,8 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
   upgradeRooms(db, accounts.list().map((account) => account.label), configDir())
-  const rooms = createRooms(db, loadConfig(configDir()), () => [...store.views(), ...outside.visitors.views()].flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])))
+  const loaded = loadConfig(configDir())
+  const rooms = createRooms(db, loaded, () => [...store.views(), ...outside.visitors.views()].flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])))
   const store = createChatStore(engine, db, accounts, rooms, rules.forSession)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
@@ -85,7 +86,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, commands: loaded.config.commands, accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rooms, settings, confirm: ui.confirm })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
