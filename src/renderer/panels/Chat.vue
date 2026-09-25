@@ -51,6 +51,7 @@ function step(delta: number) {
 async function decide(request: PendingRequestView, decision: Decision) {
   const result = await window.office.resolveRequest(request.id, decision, 'chat')
   if ('error' in result) say(result.error)
+  else if (request.tool === 'AskUserQuestion') emit('select', undefined)
 }
 
 async function move() {
