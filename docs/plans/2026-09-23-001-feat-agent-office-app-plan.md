@@ -657,7 +657,7 @@ The queue holds every chat in Needs you or Stuck, plus one grouped item per acco
 **Approach:**
 - The transcript shows streaming text (partial messages), tool rows with results and diff stats, a subagent card, and Stuck banners with Resume, Retry and Re-login.
 - Markdown renders with raw HTML disabled plus a sanitizer. Links open externally only after a confirmation.
-- The composer keeps a draft per chat, persisted. Send with ⌘↵ and Stop. A visible effort control (Low, Medium, High, Extra high, Max) sits next to the model in the chat header, with an Auto-mode chip. Changes apply from the next turn, as in Claude Code.
+- The composer keeps a draft per chat, persisted. Send with ↵ (⇧↵ for a newline) and Stop. A visible effort control (Low, Medium, High, Extra high, Max) sits next to the model in the chat header, with an Auto-mode chip. Changes apply from the next turn, as in Claude Code.
 - One request card per pending request, stacked oldest first. Plan and question cards are variants.
 - A queue strip at the top steps through waiting chats.
 

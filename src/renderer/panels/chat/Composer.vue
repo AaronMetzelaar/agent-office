@@ -49,6 +49,12 @@ function acceptSuggestion(event: KeyboardEvent) {
   edit(suggestion.value)
 }
 
+function enter(event: KeyboardEvent) {
+  if (event.isComposing || slash.value?.picking) return
+  event.preventDefault()
+  void send()
+}
+
 async function send() {
   const chatId = props.chat.id
   const body = text.value.trim()
@@ -81,7 +87,7 @@ async function send() {
       :placeholder="waiting ? 'Tell Claude what to do instead…' : suggestion ? `${suggestion}   (Tab to use)` : `Reply to ${chat.title}… (/ for commands)`"
       @update:model-value="edit"
       @blur="store.flush(chat.id)"
-      @keydown.meta.enter.prevent="send"
+      @keydown.enter.exact="enter"
       @keydown.tab.exact="acceptSuggestion"
     />
     <div v-if="error" class="cerr" role="alert">
@@ -95,7 +101,7 @@ async function send() {
       <button type="button" class="btn sm" :aria-pressed="mode === 'plan'" title="Plan first: Claude proposes a plan and waits for your approval before editing" @click="togglePlan">Plan</button>
       <span class="sp" />
       <button v-if="busy" type="button" class="btn sm" title="Stop this turn" @click="stop">Stop</button>
-      <button type="button" class="btn accent" :disabled="!text.trim() || sending" @click="send">{{ waiting ? 'Deny and send' : 'Send' }} <kbd>⌘↵</kbd></button>
+      <button type="button" class="btn accent" :disabled="!text.trim() || sending" @click="send">{{ waiting ? 'Deny and send' : 'Send' }} <kbd>↵</kbd></button>
     </div>
   </div>
 </template>

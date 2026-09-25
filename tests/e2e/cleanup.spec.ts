@@ -88,7 +88,7 @@ test('Housekeeping previews the safe cleanup, runs it, and reports what was free
   await left.getByRole('button', { name: 'Open chat' }).click()
   await expect(drawer.getByRole('tab', { name: 'Chat' })).toBeVisible()
   await drawer.getByLabel('Message').fill('Commit what you have')
-  await drawer.getByLabel('Message').press('Meta+Enter')
+  await drawer.getByLabel('Message').press('Enter')
   await expect.poll(async () => (await view(ids[3]!))?.parked).toBe(false)
 
   await app.evaluate(({ dialog }) => Object.assign(dialog, { showMessageBox: async () => ({ response: 0, checkboxChecked: false }) }))

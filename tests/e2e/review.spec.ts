@@ -44,7 +44,7 @@ test('the Review tab shows the empty states, then the diff after the next Stop',
   writeFileSync(join(repo, 'BidFlow.vue'), '<template>\n  <p>{{ Math.round(bid) }}</p>\n</template>\n')
   writeFileSync(join(repo, 'round.ts'), 'export const round = (n: number) => Math.round(n)\n')
   await drawer.getByLabel('Message').fill('Round to whole euros')
-  await drawer.getByLabel('Message').press('Meta+Enter')
+  await drawer.getByLabel('Message').press('Enter')
 
   const files = drawer.getByRole('region', { name: 'Changed files' })
   await expect(files.locator('.sum')).toContainText('2 files · +2 −1')

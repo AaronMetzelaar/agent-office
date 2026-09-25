@@ -37,6 +37,12 @@ async function decide(requestId: string, decision: Decision, source: WindowSourc
   if ('error' in result) say(result.error)
 }
 
+function enter(event: KeyboardEvent, chatId: string) {
+  if (event.isComposing) return
+  event.preventDefault()
+  void send(chatId, 'inbox')
+}
+
 async function send(chatId: string, source: WindowSource) {
   const text = drafts[chatId]?.trim()
   if (!text) return
@@ -123,10 +129,10 @@ onUnmounted(() => {
       </template>
       <div v-if="expanded.has(item.key) && item.chatId" class="xp">
         <p class="last">{{ item.lastReply ?? 'No reply yet.' }}</p>
-        <textarea v-if="!item.visitor" v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.meta.enter.prevent="send(item.chatId, 'inbox')" />
+        <textarea v-if="!item.visitor" v-model="drafts[item.chatId]" rows="2" :placeholder="item.requests[0] ? 'Or tell Claude what to do instead…' : 'Reply…'" aria-label="Reply" @keydown.enter.exact="enter($event, item.chatId)" />
         <div v-if="!item.visitor" class="crow">
           <span class="sp" />
-          <button type="button" class="btn accent sm" @click="send(item.chatId, 'inbox')">Send <kbd>⌘↵</kbd></button>
+          <button type="button" class="btn accent sm" @click="send(item.chatId, 'inbox')">Send <kbd>↵</kbd></button>
         </div>
       </div>
     </article>

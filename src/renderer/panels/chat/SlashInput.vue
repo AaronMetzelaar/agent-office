@@ -86,7 +86,7 @@ function closeBrowser() {
   area.value?.focus()
 }
 
-defineExpose({ focus: () => area.value?.focus(), browse })
+defineExpose({ focus: () => area.value?.focus(), browse, picking: computed(() => open.value && flat.value.length > 0) })
 </script>
 
 <template>

@@ -61,8 +61,11 @@ test('opening a chat shows its transcript, and a draft survives leaving and comi
 })
 
 test('send, then stop the turn', async () => {
+  await drawer().getByLabel('Message').fill('Keep going')
+  await drawer().getByLabel('Message').press('Shift+Enter')
+  await expect(drawer().getByLabel('Message')).toHaveValue('Keep going\n')
   await drawer().getByLabel('Message').fill('Keep going [hang]')
-  await drawer().getByLabel('Message').press('Meta+Enter')
+  await drawer().getByLabel('Message').press('Enter')
   await expect.poll(async () => (await snapshotChat())?.state).toBe('working')
   await expect(drawer().getByLabel('Message')).toHaveValue('')
   await expect(drawer().getByRole('log', { name: 'Transcript' }).locator('.ur').last()).toHaveText('Keep going [hang]')

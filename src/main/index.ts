@@ -44,6 +44,7 @@ if (process.argv.includes(hostFlag)) {
 }
 
 async function start(): Promise<void> {
+  if (!app.isPackaged) app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))
   const prepared = inlineHost ? await prepareCore() : undefined
   secureSession(devServerUrl, join(__dirname, '../renderer'))
   const win = createWindow()
