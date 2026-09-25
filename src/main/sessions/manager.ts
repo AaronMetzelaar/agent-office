@@ -44,6 +44,7 @@ export interface Engine {
   pid(chatId: string): number | undefined
   commands(chatId: string): SlashCommand[] | undefined
   topic(accountId: string, prompt: string): Promise<string | undefined>
+  ask(accountId: string, system: string, prompt: string): Promise<string | undefined>
 }
 
 const topicPrompt = 'Name the topic of this request to a coding agent in 3 to 6 words, like a chat title. Reply with the title only: no quotes, no trailing period.'
@@ -100,7 +101,15 @@ export function createSessionManager(tokenFor: (accountId: string) => string | n
   const events = new EventEmitter<EngineEvents>()
   const sessions = new Map<string, Session>()
   const commands = new Map<string, SlashCommand[]>()
-  const learn = (chatId: string, list: SlashCommand[]) => {
+  async function ask(accountId: string, system: string, prompt: string) {
+    const token = tokenFor(accountId)
+    if (token === undefined) return undefined
+    const { query } = await import('@anthropic-ai/claude-agent-sdk')
+    const run = query({ prompt, options: { model: 'haiku', systemPrompt: system, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token), spawnClaudeCodeProcess: spawnClaude } })
+    for await (const message of run) if (message.type === 'result') return message.subtype === 'success' && !message.is_error ? message.result.trim() : undefined
+    return undefined
+  }
+  const learn =(chatId: string, list: SlashCommand[]) => {
     commands.set(chatId, list)
     events.emit('commands', chatId, list)
   }
@@ -213,13 +222,10 @@ export function createSessionManager(tokenFor: (accountId: string) => string | n
     running: (chatId) => sessions.has(chatId),
     pid: (chatId) => sessions.get(chatId)?.spawned.pid,
     commands: (chatId) => commands.get(chatId),
-    async topic(accountId, prompt) {
-      const token = tokenFor(accountId)
-      if (token === undefined) return undefined
-      const { query } = await import('@anthropic-ai/claude-agent-sdk')
-      const run = query({ prompt: prompt.slice(0, 4000), options: { model: 'haiku', systemPrompt: topicPrompt, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token), spawnClaudeCodeProcess: spawnClaude } })
-      for await (const message of run) if (message.type === 'result') return message.subtype === 'success' && !message.is_error ? topicOf(message.result) : undefined
-      return undefined
+    topic: async (accountId, prompt) => {
+      const reply = await ask(accountId, topicPrompt, prompt.slice(0, 4000))
+      return reply === undefined ? undefined : topicOf(reply)
     },
+    ask,
   }
 }

@@ -7,7 +7,7 @@ import type { HookEvent } from '../../src/main/outside/listener'
 import type { VisitorSeed } from '../../src/main/outside/transcripts'
 import { openDb } from '../../src/main/store/db'
 import { emptyUsage, type ChatState, type ChatView } from '../../src/shared/chat'
-import { defaultRules, deptNames, homeDept } from '../../src/shared/departments'
+import { applyRooms, defaultRules, deptNames, homeDept } from '../../src/shared/departments'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floors, onFloor, type Floor, type FloorChat } from '../fixtures/floors'
 
@@ -62,6 +62,7 @@ function seedOffice(userData: string, floor: Floor, now: number) {
       usage: emptyUsage(),
     })
   }
+  db.saveSetting('rooms', floor.rooms ?? [])
   db.saveSetting('movedSessions', floor.chats.filter((chat) => chat.moved).map((chat) => chat.id))
   db.close()
 }
@@ -177,6 +178,7 @@ for (const [name, floor] of Object.entries(floors)) {
     await seedLive(app, floor, now)
     await expect.poll(() => agentsOnSigns(page)).toBe(onScreen.length)
     const spots = onScreen.map((chat) => ({ dept: chat.department, spot: spotFor({ state: chat.state, parked: !!chat.parked || !!chat.moved, dept: chat.department }, undefined, false) }))
+    applyRooms(floor.rooms ?? [])
     const sections = [...new Set(spots.filter((agent) => agent.spot === 'desk').map((agent) => deptNames[agent.dept]))]
     for (const section of sections) await expect(page.locator('.sign', { hasText: section })).toBeVisible()
     if (spots.some((agent) => agent.spot === 'lounge')) await expect(page.locator('.sign', { hasText: 'Lounge' })).toBeVisible()

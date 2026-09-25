@@ -1,6 +1,6 @@
 import type { CommandList, CommandTarget } from './commands'
 import type { Attachment, ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
-import type { DeptRule, StartOptions } from './departments'
+import type { DeptRule, Room, StartOptions } from './departments'
 import type { SearchHit } from './history'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
@@ -89,6 +89,7 @@ export interface Commands {
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): Promise<StartChatResult>
   continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined
   departmentRules(): DeptRule[]
+  rooms(): readonly Room[]
   sendMessage(chatId: string, text: string, attachments?: Attachment[]): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
   stopTask(chatId: string, id: string): Promise<void>
@@ -160,6 +161,7 @@ export interface Events {
   navigate: Navigate
   housekeeping: HousekeepingView
   reviewRequests: ReviewQueue
+  rooms: readonly Room[]
   hostStatus: HostStatus
   appUpdate: AppUpdate
   terminalData: { chatId: string; data: string }
@@ -176,6 +178,7 @@ export type OfficeApi = {
   onNavigate(listener: (payload: Events['navigate']) => void): () => void
   onHousekeeping(listener: (payload: Events['housekeeping']) => void): () => void
   onReviewRequests(listener: (payload: Events['reviewRequests']) => void): () => void
+  onRooms(listener: (payload: Events['rooms']) => void): () => void
   onHostStatus(listener: (payload: Events['hostStatus']) => void): () => void
   onAppUpdate(listener: (payload: Events['appUpdate']) => void): () => void
   onTerminalData(listener: (payload: Events['terminalData']) => void): () => void

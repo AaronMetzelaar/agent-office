@@ -33,9 +33,9 @@ export function loadRules(dir: string): DeptRule[] {
   }
 }
 
-export function watchRules(dir: string, rules: DeptRule[]): () => void {
+export function watchRules(dir: string, rules: DeptRule[], extra: () => readonly DeptRule[] = () => []): () => void {
   try {
-    const watcher = watch(dir, (_event, name) => name === 'departments.json' && rules.splice(0, rules.length, ...loadRules(dir)))
+    const watcher = watch(dir, (_event, name) => name === 'departments.json' && rules.splice(0, rules.length, ...loadRules(dir), ...extra()))
     return () => watcher.close()
   } catch {
     return () => {}

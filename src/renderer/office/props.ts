@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { anchorsFor, chairFootprint, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
+import { roomIds, type RoomId } from '../../shared/departments'
 import { lookKey, type SeatLook } from './lounge'
 import type { Nav } from './nav'
 
@@ -1233,7 +1234,24 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   }
 
   type Build = (t: Tier, W: number, strip: (fn: () => void) => void) => void
+  const room: Build = (t, W, strip) => {
+    bookshelf(1.2, 0.3)
+    cabinet(3, 0.35)
+    cabinet(3.55, 0.35)
+    leafy(5.2, 0.5, 0.9)
+    if (t === 3) {
+      floorLamp(7, 0.45)
+      bookshelf(8.4, 0.3)
+    }
+    if (t > 1)
+      strip(() => {
+        cooler(W - 1, 0.6)
+        lily(W - 1, 3)
+        snake(W - 1, 5.4, 0.9)
+      })
+  }
   const build: Record<DeptId, Build> = {
+    ...(Object.fromEntries(roomIds.map((id) => [id, room])) as Record<RoomId, Build>),
     mkt(t, W, strip) {
       if (t < 3) {
         frameShirt(1.75, 1.58, 0)

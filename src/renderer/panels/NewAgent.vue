@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { defaultEffort, defaultModel, effortLabels, efforts, modelLabels } from '../../shared/chat'
-import { accountHint, defaultAccount, defaultRules, deptIds, deptNames, homeDept, isResearch, ruleFor, showsAccountBadge, type DeptId, type DeptRule } from '../../shared/departments'
+import { accountHint, defaultAccount, defaultRules, deptNames, homeDept, isResearch, ruleFor, showsAccountBadge, type DeptId, type DeptRule } from '../../shared/departments'
 import { usageLine, type AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
 import { leadingTicket, type Ticket } from '../../shared/workflow'
@@ -22,6 +22,7 @@ function recallWorktree(): boolean {
 }
 
 const rules = ref<readonly DeptRule[]>(defaultRules)
+const hasJev = ref(false)
 const folders = ref<string[]>([])
 const promptEl = ref<InstanceType<typeof SlashInput>>()
 const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
@@ -38,10 +39,8 @@ const accountId = computed({
 })
 const account = computed(() => props.accounts.find((candidate) => candidate.id === accountId.value))
 const research = computed(() => !!account.value && isResearch(account.value))
-const section = computed<DeptId>({
-  get: () => form.section || props.desk?.dept || homeDept(form.folder, research.value, rules.value),
-  set: (id: DeptId) => (form.section = id),
-})
+const section = computed<DeptId>(() => form.section || props.desk?.dept || homeDept(form.folder, research.value, rules.value))
+const jevPicks = computed(() => hasJev.value && !research.value)
 const hint = computed(() => accountHint(props.accounts, accountId.value, section.value))
 const overflow = computed(() => !!account.value && showsAccountBadge(section.value, research.value))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
@@ -110,7 +109,8 @@ async function start() {
 
 onMounted(async () => {
   promptEl.value?.focus()
-  const [recent, configured] = await Promise.all([window.office.recentFolders(), window.office.departmentRules()])
+  const [recent, configured, jev] = await Promise.all([window.office.recentFolders(), window.office.departmentRules(), window.office.hasJevKey()])
+  hasJev.value = jev
   rules.value = configured
   folders.value = recent
   const wanted = props.desk?.dept
@@ -123,7 +123,7 @@ onMounted(async () => {
     <span class="av new">+</span>
     <div>
       <h2>New agent</h2>
-      <p class="meta"><span class="dd" :style="{ background: hexOf(deptDefs[section].accent) }" />{{ deptNames[section] }} · {{ place }}</p>
+      <p class="meta"><span class="dd" :style="{ background: hexOf(deptDefs[section].accent) }" />{{ jevPicks ? 'Jev picks the room' : deptNames[section] }} · {{ place }}</p>
     </div>
     <button type="button" class="ib" aria-label="Cancel" title="Cancel (Esc)" @click="emit('close')">×</button>
   </div>
@@ -156,12 +156,6 @@ onMounted(async () => {
       <span><b>Fresh worktree</b> in <code>.claude/worktrees</code> on a new branch</span>
     </label>
     <div class="fields">
-      <label class="field">
-        Section
-        <select v-model="section" aria-label="Section">
-          <option v-for="id in deptIds" :key="id" :value="id">{{ deptNames[id] }}</option>
-        </select>
-      </label>
       <label class="field">
         Account
         <select v-model="accountId" aria-label="Account">

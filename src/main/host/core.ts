@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { app } from 'electron'
 import { departmentOf, deptNames, isResearch } from '../../shared/office'
+import { roomRules } from '../../shared/departments'
 import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
@@ -8,6 +9,7 @@ import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
 import { createPlacement, loadRules, watchRules } from '../departments/classifier'
 import { createJev } from '../departments/jev'
+import { createRooms } from '../departments/rooms'
 import { wireHandoff } from '../handoff'
 import { wireTerminal } from '../terminal'
 import { createSearch, wireHistory } from '../history'
@@ -50,17 +52,22 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const accounts = createAccounts(vault, useFakeValidator ? fakeValidator : validate, db)
   const engine: Engine = fakeEngine ?? createSessionManager((accountId) => vault.token(accountId), (...args) => broker.canUseTool(...args))
   const rules = createRules(db.sql, engine)
-  const deptRules = loadRules(configDir())
+  const rooms = createRooms(db, engine.ask, (list) => {
+    deptRules.splice(0, deptRules.length, ...loadRules(configDir()), ...roomRules(list))
+    hub.send('rooms', list)
+  })
+  const deptRules = [...loadRules(configDir()), ...roomRules(rooms.list())]
   const store = createChatStore(engine, db, accounts, rules.forSession, deptRules)
   const broker = createBroker(engine, store, rules, createWaitMetrics(db.sql, store))
   if (fakeEngine) fakeEngine.canUseTool = broker.canUseTool
   const outside = createOutside({ store, accounts: accounts.list, rules: deptRules, settings: db, claudeDir: claudeDir(), desktopDir: desktopDir(), configDir: configDir() })
-  const unwatchRules = watchRules(configDir(), deptRules)
+  const unwatchRules = watchRules(configDir(), deptRules, () => roomRules(rooms.list()))
   const sync = wireChats(hub, store, outside.visitors, () => placement.release())
   const placement = createPlacement(engine, store, deptRules, (chatId) => sync.openChat() === chatId)
   const search = createSearch(join(dataDir, 'search.db'), join(claudeDir(), 'projects'), join(app.getAppPath(), 'out/main/indexer.js'))
   wireHistory(hub, search, { store, visitors: outside.visitors })
   hub.handle('departmentRules', () => deptRules)
+  hub.handle('rooms', rooms.list)
   sync.setAccounts(accounts.list())
   hub.handle('resolveRequest', windowResolver(broker, () => ui.state().focused))
   hub.handle('listRules', rules.list)
@@ -100,7 +107,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules, rooms), rooms, rules: deptRules, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
   wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
   const terminals = wireTerminal(hub, { chat: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) })

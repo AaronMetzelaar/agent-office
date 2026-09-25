@@ -17,6 +17,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   startChat: true,
   continueOnAccount: true,
   departmentRules: true,
+  rooms: true,
   sendMessage: true,
   interruptChat: true,
   stopTask: true,

@@ -506,7 +506,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
         const dozing = here.filter((l) => l.facts.parked).length
         const counts = [{ key: 'idle', label: 'relaxing', n: here.length - dozing }, { key: 'idle', label: 'dozing', n: dozing }].filter((c) => c.n > 0)
         renderSign(sign, 'Lounge', counts, 'Empty', on, dim)
-      } else renderSign(sign, dept[id].name, countsFor(act.filter((l) => l.facts.dept === id && l.spot !== 'lounge').map((l) => l.facts)), 'No agents', on, dim)
+      } else renderSign(sign, dept[id].name, countsFor(act.filter((l) => l.facts.dept === id && l.spot !== 'lounge').map((l) => l.facts)), 'No agents', on, dim, dept[id].path)
       sign.w = sign.el.offsetWidth || sign.w
       sign.h = sign.el.offsetHeight || sign.h
     }

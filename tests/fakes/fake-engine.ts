@@ -69,6 +69,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const sentIds: string[] = []
   const calls: string[] = []
   const topics: (string | undefined)[] = []
+  const answers: (string | undefined)[] = []
   const table = new Map<number, FakeProcess>()
   const signals: { pid: number; signal: string }[] = []
   const ignoresTerm = new Set<number>()
@@ -179,6 +180,7 @@ export function createFakeEngine({ auto = false } = {}) {
     pid: (chatId) => live.get(chatId)?.pid,
     commands: (chatId) => (starts.some((start) => start.chatId === chatId) ? listed() : undefined),
     topic: async () => topics.shift(),
+    ask: async () => answers.shift(),
   } satisfies Engine
 
   const processes = {
@@ -203,6 +205,7 @@ export function createFakeEngine({ auto = false } = {}) {
     sentIds,
     calls,
     topics,
+    answers,
     emit,
     init,
     processes,

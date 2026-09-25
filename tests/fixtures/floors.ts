@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ChatState, StuckReason } from '../../src/shared/chat'
-import type { DeptId } from '../../src/shared/departments'
+import type { DeptId, Room } from '../../src/shared/departments'
 
 export interface FloorChat {
   id: string
@@ -27,12 +27,13 @@ export interface FloorChat {
 export interface Floor {
   capturedAt?: string
   chats: FloorChat[]
+  rooms?: Room[]
 }
 
 export const onFloor = (chat: FloorChat) => !chat.archived && !chat.retained
 
 const home = '/Users/axxxx/Dxxxxxxxx/Gxxxxx'
-const cwds: Record<DeptId, string> = {
+const cwds: Partial<Record<DeptId, string>> = {
   mkt: `${home}/monorepo/frontend/marketplace`,
   adm: `${home}/monorepo/frontend/admin`,
   mob: `${home}/monorepo/frontend/mobile`,
@@ -51,7 +52,7 @@ function floor(specs: Spec[]): Floor {
       kind: 'office',
       account: department === 'gym' ? 'research' : 'main',
       title: `Chat ${index + 1}`.padEnd(24, ' lorem'),
-      cwd: cwds[department],
+      cwd: cwds[department] ?? `${home}/${department}`,
       department,
       state,
       unread: state === 'done',
@@ -104,5 +105,12 @@ export const floors: Record<string, Floor> = {
     ['adm', 'done'],
     ['side', 'needs-you', { kind: 'terminal', account: 'unknown' }],
   ]),
+  rooms: {
+    ...floor([['mkt', 'working'], ...repeat(3, ['r1', 'working']), ['r1', 'done'], ['r2', 'needs-you'], ['side', 'working']]),
+    rooms: [
+      { id: 'r1', name: 'Agent Office', about: 'The Electron app that shows agents in an office', folder: `${home}/agent-office` },
+      { id: 'r2', name: 'Docs', about: 'Handbooks and guides' },
+    ],
+  },
   tiers: floor([...repeat(1, ['mob', 'working']), ...repeat(5, ['mkt', 'working']), ...repeat(8, ['plat', 'done']), ...repeat(9, ['gym', 'working'])]),
 }

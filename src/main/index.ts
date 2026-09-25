@@ -24,7 +24,7 @@ const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_
 const appUrl = devServerUrl ?? bundleUrl
 const inlineHost = !app.isPackaged && process.env.AGENT_OFFICE_INLINE_HOST === '1'
 const hidden = !app.isPackaged && process.env.AGENT_OFFICE_HIDDEN === '1'
-const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests', 'terminalData', 'terminalExit'] satisfies (keyof Events)[])
+const rendererEvents = new Set<string>(['accountsChanged', 'chatPatches', 'housekeeping', 'reviewRequests', 'rooms', 'terminalData', 'terminalExit'] satisfies (keyof Events)[])
 
 if (hidden) {
   process.on('uncaughtException', (error) => console.error('[main] uncaught exception', error))

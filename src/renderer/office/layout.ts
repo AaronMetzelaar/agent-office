@@ -1,3 +1,4 @@
+import { applyRooms, roomIds, type Room } from '../../shared/departments'
 import { deptIds, deptNames, type DeptId } from '../../shared/office'
 
 export { deptIds, isDeptId, type DeptId } from '../../shared/office'
@@ -35,10 +36,17 @@ export const depts: readonly DeptDef[] = [
   { id: 'plat', name: deptNames.plat, path: 'services · api · workers · infra', accent: 0x7c3aed, shell: 'room' },
   { id: 'side', name: deptNames.side, path: '~/Documents/GitHub · outside', accent: 0xea580c, shell: 'yard' },
   { id: 'rev', name: deptNames.rev, path: 'your review requests', accent: 0x854d0e, shell: 'room' },
+  ...roomIds.map((id, i): DeptDef => ({ id, name: deptNames[id], path: 'room made by Claude', accent: [0x0891b2, 0xca8a04, 0xdc2626, 0x4f46e5, 0x65a30d, 0xc026d3][i]!, shell: 'room' })),
   { id: 'gym', name: deptNames.gym, path: 'research account', accent: 0x0d9488, shell: 'gym' },
 ]
 
 export const dept = Object.fromEntries(depts.map((d) => [d.id, d])) as Record<DeptId, DeptDef>
+
+export function nameRooms(rooms: readonly Room[]) {
+  applyRooms(rooms)
+  for (const room of rooms) Object.assign(dept[room.id], { name: room.name, path: room.folder ? room.folder.split('/').slice(-2).join('/') : 'room made by Claude' })
+}
+
 export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
 
 export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }

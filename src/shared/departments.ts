@@ -1,7 +1,16 @@
 
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'] as const
+export const roomIds = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6'] as const
+export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', ...roomIds, 'gym'] as const
 export type DeptId = (typeof deptIds)[number]
+export type RoomId = (typeof roomIds)[number]
 export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
+
+export interface Room {
+  id: RoomId
+  name: string
+  about: string
+  folder?: string
+}
 
 export const deptNames: Record<DeptId, string> = {
   mkt: 'Marketplace',
@@ -11,7 +20,14 @@ export const deptNames: Record<DeptId, string> = {
   side: 'Side projects',
   rev: 'PR reviews',
   gym: 'Research gym',
+  ...(Object.fromEntries(roomIds.map((id) => [id, 'New room'])) as Record<RoomId, string>),
 }
+
+export function applyRooms(rooms: readonly Room[]) {
+  for (const room of rooms) deptNames[room.id] = room.name
+}
+
+export const roomRules = (rooms: readonly Room[]): DeptRule[] => rooms.flatMap((room) => (room.folder ? [{ path: room.folder, dept: room.id }] : []))
 
 export const isResearch = (account: { label: string }) => /research/i.test(account.label)
 

@@ -19,6 +19,7 @@ import { createProjection, toAgents, type ChatSource } from '../state/projection
 import { createCamera, type View } from './camera'
 import { isWarning, tightest } from '../../shared/guardrails'
 import { stateKey, type ChipAction, type StateKey } from './labels'
+import { nameRooms } from './layout'
 import { createWorld, type AgentEntry, type World, type WorldUi } from './world'
 
 const props = defineProps<{ accounts: AccountView[]; source: ChatSource }>()
@@ -344,6 +345,8 @@ const offNavigate = window.office.onNavigate(navigate)
 const offHousekeeping = window.office.onHousekeeping((view) => (house.value = view))
 void window.office.getHousekeeping().then((view) => (house.value ??= view))
 const offReviews = window.office.onReviewRequests((queue) => (reviews.value = queue))
+const offRooms = window.office.onRooms(nameRooms)
+void window.office.rooms().then(nameRooms)
 void window.office.getReviewRequests().then((queue) => (reviews.value ??= queue))
 watch([reviews, world], () => world.value?.setReviews(reviews.value?.requests ?? []))
 onMounted(() => addEventListener('keydown', onKey))
@@ -352,6 +355,7 @@ onUnmounted(() => {
   offNavigate()
   offHousekeeping()
   offReviews()
+  offRooms()
   clearInterval(captions)
   clearTimeout(toastTimer)
   clearTimeout(searchTimer)

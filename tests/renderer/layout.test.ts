@@ -301,8 +301,8 @@ describe('folding sections', () => {
     expect(reseat(zoomed, atDesks({ mob: 2 }), true).size.mob).toBe(3)
   })
 
-  it('lists PR reviews after Side projects and before the gym', () => {
-    expect(depts.map((d) => d.id)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'])
+  it('lists PR reviews after Side projects, then the rooms Claude makes, then the gym', () => {
+    expect(depts.map((d) => d.id)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'gym'])
     expect(depts.find((d) => d.id === 'rev')?.name).toBe('PR reviews')
   })
 })
