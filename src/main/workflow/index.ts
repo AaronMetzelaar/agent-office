@@ -54,7 +54,7 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
     if (!request) return { error: 'That review request isn’t in the list any more.' }
     const accountId = defaultAccount(accounts(), 'rev')
     if (!accountId) return { error: 'Log in to an account first.' }
-    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd)))])
+    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd) ?? chat.cwd))])
     return store.start(accountId, cwd, prompt, undefined, undefined, options)
   })
 

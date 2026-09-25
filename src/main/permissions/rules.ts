@@ -43,7 +43,11 @@ export function createRules(sql: Database.Database, engine: Pick<Engine, 'runnin
   const roots = new Map<string, string>()
   const sessions = new Map<string, { accountId: string; root: string }>()
 
-  const root = (cwd: string) => roots.get(cwd) ?? roots.set(cwd, rootOf(cwd)).get(cwd)!
+  const root = (cwd: string) => {
+    const known = roots.get(cwd) ?? rootOf(cwd)
+    if (known) roots.set(cwd, known)
+    return known
+  }
   const permissions = (accountId: string, repo: string): SessionPermissions => ({
     allow: (forRepo.all(accountId, repo) as Pick<Row, 'rule'>[]).map((row) => row.rule),
     ask: alwaysAsk,
@@ -63,13 +67,17 @@ export function createRules(sql: Database.Database, engine: Pick<Engine, 'runnin
     root,
 
     forSession(chatId: string, accountId: string, cwd: string): SessionPermissions {
-      const repo = root(cwd)
+      const repo = root(cwd) ?? cwd
       sessions.set(chatId, { accountId, root: repo })
       return permissions(accountId, repo)
     },
 
     add(accountId: string, cwd: string, rules: string[]): Promise<void> {
       const repo = root(cwd)
+      if (!repo) {
+        console.warn(`[rules] git timed out finding the repository for ${cwd}, so the rule wasn’t saved`)
+        return Promise.resolve()
+      }
       const now = Date.now()
       for (const rule of rules) if (!askOnly(rule)) insert.run(accountId, repo, rule, now)
       return refresh(accountId, repo)

@@ -1,11 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { repoRoot } from '../../src/main/permissions/repo-root'
-import { alwaysAllowRules } from '../../src/main/permissions/rules'
+import { alwaysAllowRules, createRules } from '../../src/main/permissions/rules'
 import { createFakeEngine, sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
 
@@ -61,6 +61,27 @@ describe('repo root', () => {
     const plain = join(dir, 'plain')
     mkdirSync(plain)
     expect(repoRoot(plain)).toBe(plain)
+  })
+
+  it('reports an unknown root when git times out, instead of passing the folder off as outside git', () => {
+    const bin = join(dir, 'bin')
+    mkdirSync(bin)
+    writeFileSync(join(bin, 'git'), '#!/bin/sh\nsleep 5\n')
+    chmodSync(join(bin, 'git'), 0o755)
+    vi.stubEnv('PATH', `${bin}:${process.env.PATH}`)
+    expect(repoRoot(worktree, 200)).toBeUndefined()
+  })
+
+  it('doesn’t save or remember a rule’s repository while git is timing out', async () => {
+    const answers: (string | undefined)[] = [undefined, realpathSync(repo)]
+    const rootOf = vi.fn(() => answers.shift())
+    const rules = createRules(office.db.sql, office.engine, rootOf)
+    await rules.add('main', worktree, ['Bash(pnpm test:unit)'])
+    expect(rules.list()).toEqual([])
+    await rules.add('main', worktree, ['Bash(pnpm test:unit)'])
+    expect(rules.list()).toMatchObject([{ repoRoot: realpathSync(repo), rule: 'Bash(pnpm test:unit)' }])
+    expect(rules.root(worktree)).toBe(realpathSync(repo))
+    expect(rootOf).toHaveBeenCalledTimes(2)
   })
 })
 

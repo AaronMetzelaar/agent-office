@@ -38,15 +38,16 @@ export interface CommandDeps {
 export function wireCommands(hub: Hub, { engine, store, db, claudeDir }: CommandDeps) {
   engine.events.on('commands', (chatId, list) => {
     const cwd = store.view(chatId)?.cwd
+    const root = cwd && repoRoot(cwd)
     try {
-      if (cwd) db.saveCommands(repoRoot(cwd), list)
+      if (root) db.saveCommands(root, list)
     } catch (error) {
       console.warn(`[commands] couldn’t save the command list: ${String(error)}`)
     }
   })
 
   const forFolder = (cwd: string, chatId?: string) => {
-    const root = repoRoot(cwd)
+    const root = repoRoot(cwd) ?? cwd
     const known = { live: chatId ? engine.commands(chatId) : undefined, running: !!chatId && engine.running(chatId), saved: db.commands(root) }
     return commandList(known, scanCommands(claudeDir, [cwd, root]))
   }

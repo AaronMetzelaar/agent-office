@@ -124,7 +124,10 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   }
 
   async function listAll(): Promise<Listed[]> {
-    for (const chat of [...store.views(), ...visitors.views()]) if (chat.cwd && !repos.has(chat.cwd)) repos.set(chat.cwd, repoRoot(chat.cwd))
+    for (const chat of [...store.views(), ...visitors.views()]) {
+      const root = chat.cwd && !repos.has(chat.cwd) ? repoRoot(chat.cwd) : undefined
+      if (root) repos.set(chat.cwd, root)
+    }
     const lists = await Promise.all([...new Set(repos.values())].map((repo) => listWorktrees(system.run, repo).then((list) => list.map((tree) => ({ ...tree, repo })), (): Listed[] => [])))
     return lists.flat()
   }

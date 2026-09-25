@@ -46,6 +46,7 @@ export function planWorktree(folder: string, base: string): WorktreePlan {
     throw new Error('This folder isn’t in a git repository, so it can’t get a fresh worktree.')
   }
   const repo = repoRoot(folder)
+  if (!repo) throw new Error('Git took too long to answer, so the worktree wasn’t created. Try again in a moment.')
   for (let n = 1; ; n++) {
     const slug = n === 1 ? base : `${base}-${n}`
     const path = join(repo, '.claude', 'worktrees', slug)
