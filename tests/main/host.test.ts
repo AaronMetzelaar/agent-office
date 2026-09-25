@@ -108,6 +108,16 @@ describe('agent host protocol', () => {
     expect(await remoteUi(server).confirm('Move?', 'detail')).toBe(true)
   })
 
+  it('delivers a reply the window forwards without attachments', async () => {
+    await startHost()
+    const { host } = client()
+    const chatId = (await host.call('startChat', ['First'])) as string
+    office.finish(chatId)
+    expect(await host.call('sendMessage', [chatId, 'Follow up', undefined])).toBeUndefined()
+    expect(office.engine.sent.at(-1)).toEqual({ chatId, text: 'Follow up' })
+    expect(office.chat(chatId).rows.at(-1)).toMatchObject({ kind: 'user', text: 'Follow up' })
+  })
+
   it('gives a reconnecting UI a full snapshot, then patches', async () => {
     await startHost()
     const first = client()

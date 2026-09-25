@@ -15,7 +15,7 @@ function valid(item: unknown): item is Attachment {
 }
 
 export function withAttachments(text: string, attachments: unknown): { text: string; images: ImageBlock[] } | undefined {
-  if (attachments === undefined) return { text, images: [] }
+  if (attachments == null) return { text, images: [] }
   if (!Array.isArray(attachments) || attachments.length > maxAttachments || !attachments.every(valid)) return undefined
   const lines = attachments.map((a) => (a.kind === 'file' ? `- ${a.path}` : `- [image: ${a.name}]`))
   const images = attachments.flatMap((a): ImageBlock[] => (a.kind === 'image' ? [{ type: 'image', source: { type: 'base64', media_type: a.mediaType, data: a.data } }] : []))

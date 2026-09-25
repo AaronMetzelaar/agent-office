@@ -61,6 +61,16 @@ describe('chat store', () => {
     expect(engine.sent.at(-1)).toEqual({ chatId: id, text: 'Now add a test' })
   })
 
+  it('refuses attachments it can’t send, so the composer keeps the message', () => {
+    const { engine, store, chat } = office
+    const id = working('Fix the bid flow')
+    engine.emit(id, sdk.result())
+    const rows = chat(id).rows.length
+    expect(store.sendMessage(id, 'Look at these', 'nope')).toMatchObject({ error: expect.stringContaining('attachments') })
+    expect(chat(id).rows).toHaveLength(rows)
+    expect(engine.sent.at(-1)?.text).toBe('Fix the bid flow')
+  })
+
   it('holds the predicted next prompt until the user sends something', () => {
     const { engine, store, chat } = office
     const id = working('Fix the bid flow')

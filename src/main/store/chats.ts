@@ -516,8 +516,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
     sendMessage(chatId: unknown, text: unknown, attachments?: unknown): Refusal | undefined {
       const chat = find(chatId)
-      const message = typeof text === 'string' ? withAttachments(text, attachments) : undefined
-      if (!chat || !message?.text.trim()) return undefined
+      if (!chat || typeof text !== 'string') return undefined
+      const message = withAttachments(text, attachments)
+      if (!message) return { error: 'Couldn’t send those attachments. Remove them and try again.' }
+      if (!message.text.trim()) return undefined
       if (accounts.needsLogin(chat.view.accountId)) return needsLogin
       send(chat, message.text, {}, false, message.images)
       return undefined

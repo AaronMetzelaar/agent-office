@@ -142,7 +142,7 @@ export interface ChatPatchBatch {
 
 export interface Refusal {
   error: string
-  code: 'needs-login'
+  code?: 'needs-login'
 }
 
 export type StartChatResult = { chatId: string } | { error: string; code?: Refusal['code'] }
