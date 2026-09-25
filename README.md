@@ -121,7 +121,7 @@ The MWS monorepo gets Marketplace, Admin, Mobile and Backend / infra with no set
 
 The most specific folder wins, across config rooms, MWS rooms and playground folders, and config rooms win over built rooms. A room Jev asked for wins over a playground folder, so its repository's outside chats and file activity land there too. An unreadable file shows its error at the top of the inbox and new repositories go to the playground until it's fixed. A bad room entry is skipped and named there too.
 
-The first launch after the rooms update keeps an existing office as it was: if there's no `departments.json` and the office has a research account or gym chats, it writes the file above. Narrow `playground` to let your other repositories get their own rooms.
+The first launch after the rooms update keeps an existing office as it was: if there's no `departments.json` and the office has a research account or gym chats, it writes the file above. An old list-format `departments.json` is moved to `departments.old.json` first. Narrow `playground` to let your other repositories get their own rooms.
 
 ## Outside chats
 

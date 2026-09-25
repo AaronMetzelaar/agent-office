@@ -81,6 +81,17 @@ describe('the one-time rooms upgrade', { timeout: 60_000 }, () => {
     expect(db.setting('roomsVersion')).toBe(1)
   })
 
+  it('moves an old list-format file aside and writes the legacy config in its place', () => {
+    mkdirSync(configDir, { recursive: true })
+    const old = '[{ "path": "cookbook", "dept": "side" }]\n'
+    writeFileSync(file(), old)
+    seed([join(dir, 'notes'), 'gym'])
+    upgradeRooms(db, ['research'], configDir)
+    expect(readFileSync(join(configDir, 'departments.old.json'), 'utf8')).toBe(old)
+    expect(JSON.parse(readFileSync(file(), 'utf8'))).toEqual(legacy)
+    expect(loadConfig(configDir).unreadable).toBeUndefined()
+  })
+
   it('leaves an existing config file untouched', () => {
     mkdirSync(configDir, { recursive: true })
     writeFileSync(file(), '{ "rooms": [] }\n')

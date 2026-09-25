@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 import { repoPath } from '../../shared/departments'
 import { writeAtomic } from '../outside/installer'
@@ -14,6 +14,14 @@ const legacy = {
 }
 const monorepo = new Set(['mkt', 'adm', 'mob', 'plat'])
 
+function oldList(file: string): boolean {
+  try {
+    return Array.isArray(JSON.parse(readFileSync(file, 'utf8')))
+  } catch {
+    return false
+  }
+}
+
 export function upgradeRooms(db: Pick<Db, 'listChats' | 'saveChat' | 'setting' | 'saveSetting'>, labels: readonly string[], dir: string): void {
   if (db.setting('roomsVersion') === 1) return
   const chats = db.listChats()
@@ -22,6 +30,10 @@ export function upgradeRooms(db: Pick<Db, 'listChats' | 'saveChat' | 'setting' |
   db.saveSetting('mwsRoots', [...new Set([...((db.setting('mwsRoots') as string[] | undefined) ?? []), ...found])])
   const gymChats = chats.filter((chat) => chat.department === 'gym')
   const file = join(dir, 'departments.json')
+  if (oldList(file)) {
+    renameSync(file, join(dir, 'departments.old.json'))
+    console.warn('[rooms] moved the old list-format departments.json to departments.old.json')
+  }
   if (!existsSync(file) && (gymChats.length || labels.some((label) => /research/i.test(label)))) {
     mkdirSync(dir, { recursive: true, mode: 0o700 })
     writeAtomic(file, `${JSON.stringify(legacy, null, 2)}\n`)
