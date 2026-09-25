@@ -15,7 +15,7 @@ const menuOpen = ref(false)
 const accountsOpen = ref(false)
 const settings = ref<Settings>()
 const host = ref<HostStatus>({ connected: true, updateReady: false })
-const update = ref<AppUpdate>({ behind: 0, subjects: [], installing: false })
+const update = ref<AppUpdate>({ behind: 0, subjects: [] })
 const updateList = computed(() => [...update.value.subjects, ...(update.value.behind > update.value.subjects.length ? [`and ${update.value.behind - update.value.subjects.length} more`] : [])].join('\n'))
 const needsLogin = computed(() => accounts.value?.some((account) => account.health.status === 'needs-login'))
 let unsubscribe = () => {}
@@ -92,7 +92,9 @@ onUnmounted(() => {
   <p v-else-if="host.updateReady" class="host" role="status">
     Agent host update ready<button @click="restartHost">Restart now</button>
   </p>
-  <p v-else-if="update.installing" class="host" role="status">Updating Agent Office. The window reopens when the new build is ready.</p>
+  <p v-else-if="update.stage === 'installing'" class="host" role="status">Installing the update. The window reopens in a moment.</p>
+  <p v-else-if="update.stage === 'waiting'" class="host" role="status" :title="updateList">Update ready. It installs once no agent is working.<button @click="installUpdate">Install now</button></p>
+  <p v-else-if="update.stage === 'building'" class="host" role="status" :title="updateList">Getting {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} ready in the background…</p>
   <p v-else-if="update.error" class="host" role="alert">{{ update.error }}<button @click="installUpdate">Try again</button></p>
   <p v-else-if="update.behind" class="host" role="status" :title="updateList">
     {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} available: {{ update.subjects[0] }}<button @click="installUpdate">Update</button>

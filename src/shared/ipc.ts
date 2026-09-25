@@ -15,7 +15,7 @@ export interface AppInfo {
 export interface AppUpdate {
   behind: number
   subjects: string[]
-  installing: boolean
+  stage?: 'building' | 'waiting' | 'installing'
   error?: string
 }
 

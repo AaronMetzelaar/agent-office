@@ -76,7 +76,18 @@ async function start(): Promise<void> {
   win.once('ready-to-show', () => {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
-  const updater = createUpdater({ commit: app.isPackaged ? __BUILD_COMMIT__ : '', repo: __SOURCE_REPO__, git: runGit(__SOURCE_REPO__), launch: launchInstaller(() => loginShellPath()), changed: (update) => send(win, 'appUpdate', update) })
+  let agentsBusy = async () => false
+  const confirmInterrupt = async () =>
+    (await dialog.showMessageBox(win, { type: 'warning', buttons: ['Install Now', 'When Agents Finish'], defaultId: 1, cancelId: 1, message: 'Agents are still working', detail: 'Installing restarts the app, which interrupts their turns. They come back as Stuck, with Resume. Otherwise the update installs by itself once no agent is working.' })).response === 0
+  const updater = createUpdater({
+    commit: app.isPackaged ? __BUILD_COMMIT__ : '',
+    repo: __SOURCE_REPO__,
+    git: runGit(__SOURCE_REPO__),
+    launch: launchInstaller(() => loginShellPath()),
+    busy: () => agentsBusy(),
+    confirmInterrupt,
+    changed: (update) => send(win, 'appUpdate', update),
+  })
   updater.start()
   win.on('focus', () => updater.focused())
   handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version, commit: __BUILD_COMMIT__.slice(0, 7) || undefined }))
@@ -97,6 +108,7 @@ async function start(): Promise<void> {
     const ui = localUi({ win, confirm, show, strip: strip.update })
     changed = ui.changed
     core = createCore(dataDir, windowHub(win, appUrl), ui, prepared)
+    agentsBusy = async () => core?.busy() ?? false
     ui.changed()
     handle('restartHost', win, appUrl, () => {})
     handle('stopHost', win, appUrl, async () => app.quit())
@@ -137,6 +149,7 @@ async function start(): Promise<void> {
         return host.call(name, args)
       })
     }
+    agentsBusy = async () => (await host.call('busy')) === true
     const stopAgents = async () => {
       if ((await host.call('busy')) === true && !(await confirmQuit(win))) return
       await host.call('exit').catch(() => {})
