@@ -12,11 +12,13 @@ import type { StripState } from './tray/strip'
 import { guard, handle, send, windowHub } from './ipc'
 import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle'
 import { pinFolder } from './folders'
+import { loginShellPath } from './login-path'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { simulatorScreenshot } from './simulator'
 import { openArtifact } from './artifacts'
 import { createTray } from './tray'
+import { createUpdater, launchInstaller, runGit } from './updates'
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 const appUrl = devServerUrl ?? bundleUrl
@@ -74,7 +76,12 @@ async function start(): Promise<void> {
   win.once('ready-to-show', () => {
     if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
   })
-  handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version }))
+  const updater = createUpdater({ commit: app.isPackaged ? __BUILD_COMMIT__ : '', repo: __SOURCE_REPO__, git: runGit(__SOURCE_REPO__), launch: launchInstaller(() => loginShellPath()), changed: (update) => send(win, 'appUpdate', update) })
+  updater.start()
+  win.on('focus', () => updater.focused())
+  handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version, commit: __BUILD_COMMIT__.slice(0, 7) || undefined }))
+  handle('getAppUpdate', win, appUrl, updater.state)
+  handle('installAppUpdate', win, appUrl, () => updater.install())
   handle('pickFolder', win, appUrl, async () => {
     const picked = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose' })
     const path = picked.canceled ? undefined : picked.filePaths[0]

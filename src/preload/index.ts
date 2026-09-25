@@ -67,6 +67,8 @@ const office: OfficeApi = {
   moveIntoOffice: (chatId) => ipcRenderer.invoke('moveIntoOffice', chatId),
   archiveVisitor: (chatId) => ipcRenderer.invoke('archiveVisitor', chatId),
   getHostStatus: () => ipcRenderer.invoke('getHostStatus'),
+  getAppUpdate: () => ipcRenderer.invoke('getAppUpdate'),
+  installAppUpdate: () => ipcRenderer.invoke('installAppUpdate'),
   restartHost: () => ipcRenderer.invoke('restartHost'),
   stopHost: () => ipcRenderer.invoke('stopHost'),
   onWindowVisibility: (listener) => subscribe('windowVisibility', listener),
@@ -76,6 +78,7 @@ const office: OfficeApi = {
   onHousekeeping: (listener) => subscribe('housekeeping', listener),
   onReviewRequests: (listener) => subscribe('reviewRequests', listener),
   onHostStatus: (listener) => subscribe('hostStatus', listener),
+  onAppUpdate: (listener) => subscribe('appUpdate', listener),
 }
 
 contextBridge.exposeInMainWorld('office', office)

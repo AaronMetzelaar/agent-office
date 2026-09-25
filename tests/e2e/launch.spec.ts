@@ -48,7 +48,7 @@ test.afterAll(async () => {
 test('launch shows the window, the floor and a tray icon', async () => {
   await expect.poll(windowStates).toEqual([true])
   await expect(page.locator('canvas')).toBeVisible()
-  await expect(page.getByText(/^Agent Office \d+\.\d+\.\d+$/)).toBeVisible()
+  await expect(page.getByText(/^Agent Office \d+\.\d+\.\d+ · [0-9a-f]{7}$/)).toBeVisible()
   expect(await app.evaluate(() => !(globalThis as unknown as Recorded).tray.isDestroyed())).toBe(true)
 })
 
@@ -75,7 +75,7 @@ test('a second launch focuses the existing window instead of starting another ap
 
 test('the renderer calls a typed command and receives pushed events', async () => {
   const info = await page.evaluate(() => window.office.getAppInfo())
-  expect(info).toEqual({ name: 'Agent Office', version: expect.stringMatching(/^\d+\.\d+\.\d+$/) })
+  expect(info).toEqual({ name: 'Agent Office', version: expect.stringMatching(/^\d+\.\d+\.\d+$/), commit: expect.stringMatching(/^[0-9a-f]{7}$/) })
 
   await page.evaluate(() => {
     window.seen = []

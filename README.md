@@ -159,6 +159,14 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 
 `pnpm hooks` (also run by `postinstall`) points `core.hooksPath` at `.githooks`, so every merge into `main` builds a throwaway worktree in the background and runs `tests/e2e/real-floor.spec.ts` against it, logging to `~/Library/Logs/agent-office/post-merge-e2e.log` and raising a macOS notification, plus an ntfy push if `~/.config/agent-office/ntfy-topic` exists, on failure.
 
+## Installing and updating the app
+
+`pnpm app:install` builds `origin/main` in a throwaway worktree, packages it and puts it in `/Applications/Agent Office.app`. It never builds from your own checkout, so uncommitted work stays out. If the window app is open, the script quits it, swaps the bundle and opens the new one. Agents keep running in the host, and the host moves to the new code once nothing is working. The replaced bundle goes to `~/Library/Caches/agent-office/Agent Office.previous.app`, and the log to `~/Library/Logs/agent-office/install-app.log`. `AGENT_OFFICE_REF` builds another commit, and `AGENT_OFFICE_APP` installs somewhere else.
+
+Each build records the commit it came from, shown next to the version in the corner, and the checkout it came from. The installed app fetches `origin/main` in that checkout every 30 minutes and when you focus the window. When `main` has moved on, a bar at the top says how many updates there are, with the newest title and the rest on hover. Update runs the install script from `origin/main`, so the newest script always does the install. Dev builds skip the check.
+
+The script signs ad-hoc unless `CSC_NAME` names an identity, because electron-builder otherwise picks up any Apple Development certificate in the keychain.
+
 ## Packaging and signing
 
 `electron-builder.yml` uses the app id `com.aaronmetzelaar.agentoffice`. Build with `pnpm build && pnpm exec electron-builder --mac --dir`. Without a signing identity the app comes out ad-hoc signed, runs fine, and gets no notifications.

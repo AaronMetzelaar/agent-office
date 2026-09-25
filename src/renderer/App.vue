@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-import type { AccountView, HostStatus, Settings } from '../shared/ipc'
+import type { AccountView, AppUpdate, HostStatus, Settings } from '../shared/ipc'
 import { editors } from '../shared/review'
 import Office from './office/Office.vue'
 import Accounts from './panels/Accounts.vue'
@@ -15,9 +15,12 @@ const menuOpen = ref(false)
 const accountsOpen = ref(false)
 const settings = ref<Settings>()
 const host = ref<HostStatus>({ connected: true, updateReady: false })
+const update = ref<AppUpdate>({ behind: 0, subjects: [], installing: false })
+const updateList = computed(() => [...update.value.subjects, ...(update.value.behind > update.value.subjects.length ? [`and ${update.value.behind - update.value.subjects.length} more`] : [])].join('\n'))
 const needsLogin = computed(() => accounts.value?.some((account) => account.health.status === 'needs-login'))
 let unsubscribe = () => {}
 let offHost = () => {}
+let offUpdate = () => {}
 
 function openHousekeeping() {
   menuOpen.value = false
@@ -27,6 +30,10 @@ function openHousekeeping() {
 function openAccounts() {
   menuOpen.value = false
   accountsOpen.value = true
+}
+
+function installUpdate() {
+  void window.office.installAppUpdate()
 }
 
 function restartHost() {
@@ -55,6 +62,8 @@ async function setEditor(event: Event) {
 onMounted(async () => {
   offHost = window.office.onHostStatus((status) => (host.value = status))
   host.value = await window.office.getHostStatus()
+  offUpdate = window.office.onAppUpdate((next) => (update.value = next))
+  update.value = await window.office.getAppUpdate()
   const demoMode = import.meta.env.RENDERER_VITE_OFFICE_DEMO
   if (demoMode === '1' || demoMode === 'fixture') {
     const demo = await import('./state/demo')
@@ -67,12 +76,14 @@ onMounted(async () => {
     unsubscribe = window.office.onAccountsChanged((list) => (accounts.value = list))
     accounts.value = await window.office.listAccounts()
   }
-  version.value = (await window.office.getAppInfo()).version
+  const info = await window.office.getAppInfo()
+  version.value = info.commit ? `${info.version} · ${info.commit}` : info.version
   settings.value = await window.office.getSettings()
 })
 onUnmounted(() => {
   unsubscribe()
   offHost()
+  offUpdate()
 })
 </script>
 
@@ -80,6 +91,11 @@ onUnmounted(() => {
   <p v-if="!host.connected" class="host" role="status">Reconnecting to agent host…</p>
   <p v-else-if="host.updateReady" class="host" role="status">
     Agent host update ready<button @click="restartHost">Restart now</button>
+  </p>
+  <p v-else-if="update.installing" class="host" role="status">Updating Agent Office. The window reopens when the new build is ready.</p>
+  <p v-else-if="update.error" class="host" role="alert">{{ update.error }}<button @click="installUpdate">Try again</button></p>
+  <p v-else-if="update.behind" class="host" role="status" :title="updateList">
+    {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} available: {{ update.subjects[0] }}<button @click="installUpdate">Update</button>
   </p>
   <template v-if="accounts && source">
     <Onboarding v-if="accounts.length === 0" />

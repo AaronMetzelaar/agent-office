@@ -9,6 +9,14 @@ import type { ReviewQueue, ShipIt, TicketLookup } from './workflow'
 export interface AppInfo {
   name: string
   version: string
+  commit?: string
+}
+
+export interface AppUpdate {
+  behind: number
+  subjects: string[]
+  installing: boolean
+  error?: string
 }
 
 export type AccountStatus = 'ok' | 'needs-login' | 'unknown'
@@ -119,6 +127,8 @@ export interface Commands {
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
   archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
   getHostStatus(): HostStatus
+  getAppUpdate(): AppUpdate
+  installAppUpdate(): void
   restartHost(): void
   stopHost(): Promise<void>
 }
@@ -131,6 +141,7 @@ export interface Events {
   housekeeping: HousekeepingView
   reviewRequests: ReviewQueue
   hostStatus: HostStatus
+  appUpdate: AppUpdate
 }
 
 export type OfficeApi = {
@@ -143,4 +154,5 @@ export type OfficeApi = {
   onHousekeeping(listener: (payload: Events['housekeeping']) => void): () => void
   onReviewRequests(listener: (payload: Events['reviewRequests']) => void): () => void
   onHostStatus(listener: (payload: Events['hostStatus']) => void): () => void
+  onAppUpdate(listener: (payload: Events['appUpdate']) => void): () => void
 }
