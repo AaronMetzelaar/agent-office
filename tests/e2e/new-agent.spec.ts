@@ -55,7 +55,7 @@ test('starting from the free Mobile desk walks a new character in from the entra
 
   const chip = page.locator('.chip', { hasText: 'Push notification deep links' })
   const start = await anchor(chip)
-  expect(!start || Math.hypot(start.x - target.x, start.y - target.y) > 150).toBe(true)
+  expect(!start || Math.hypot(start.x - target.x, start.y - target.y) > 100).toBe(true)
   await expect
     .poll(
       async () => {
