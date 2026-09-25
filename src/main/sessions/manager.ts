@@ -1,9 +1,15 @@
 import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import type { CanUseTool, PermissionMode, Query, RewindFilesResult, SDKMessage, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk'
+import type { CanUseTool, PermissionMode, Query, RewindFilesResult, SDKMessage, SDKUserMessage, SlashCommand, SpawnOptions } from '@anthropic-ai/claude-agent-sdk'
 import type { ContextUsage, Effort } from '../../shared/chat'
 
 export const outsideAsar = (path: string) => path.replace(/\bapp\.asar(?=[/\\])/, 'app.asar.unpacked')
+
+export const spawnClaude = ({ command, args, cwd, env, signal }: SpawnOptions) => {
+  const child = spawn(outsideAsar(command), args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
+  child.stderr.resume()
+  return child
+}
 
 export type SessionPermissions = { allow: string[]; ask: string[] }
 
@@ -156,9 +162,8 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
             enableFileCheckpointing: true,
             perTaskStopAffordance: true,
             canUseTool: (...args) => canUseTool(chatId, ...args),
-            spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
-              const child = spawn(outsideAsar(command), args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
-              child.stderr.resume()
+            spawnClaudeCodeProcess: (spawnOptions) => {
+              const child = spawnClaude(spawnOptions)
               spawned.pid = child.pid
               return child
             },
@@ -207,7 +212,7 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
       const token = tokenFor(accountId)
       if (!token) return undefined
       const { query } = await import('@anthropic-ai/claude-agent-sdk')
-      const run = query({ prompt: prompt.slice(0, 4000), options: { model: 'haiku', systemPrompt: topicPrompt, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token) } })
+      const run = query({ prompt: prompt.slice(0, 4000), options: { model: 'haiku', systemPrompt: topicPrompt, tools: [], maxTurns: 1, persistSession: false, settingSources: [], env: sessionEnv(token), spawnClaudeCodeProcess: spawnClaude } })
       for await (const message of run) if (message.type === 'result') return message.subtype === 'success' && !message.is_error ? topicOf(message.result) : undefined
       return undefined
     },

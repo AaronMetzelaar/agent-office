@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import type { SDKRateLimitInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { AccountHealth, AccountView, AddAccountResult, Headroom, UsageWindow } from '../../shared/ipc'
-import { sessionEnv } from '../sessions/manager'
+import { sessionEnv, spawnClaude } from '../sessions/manager'
 import { errorReason } from '../sessions/normalize'
 import type { Account, Vault } from './tokens'
 
@@ -37,6 +37,7 @@ export const validateWithSdk: Validator = async (token) => {
       persistSession: false,
       maxTurns: 1,
       abortController,
+      spawnClaudeCodeProcess: spawnClaude,
     },
   })
   const fromEvents: Headroom = {}
