@@ -289,7 +289,7 @@ flowchart TB
   U6 --> U9
 ```
 
-- [ ] **Unit 1: Repo info and MWS detection**
+- [x] **Unit 1: Repo info and MWS detection**
 
 **Goal:** A cached way to ask "which repository is this path in, where's its worktree top, and is it the MWS monorepo?" that can tell "not a repo" apart from a repo root.
 
@@ -336,7 +336,7 @@ flowchart TB
 **Verification:**
 - Repo roots, worktree tops and MWS monorepo detection are correct for real temporary repos, and non-repos return nothing.
 
-- [ ] **Unit 2: Config file v2**
+- [x] **Unit 2: Config file v2**
 
 **Goal:** Read and validate the new `departments.json`, and report errors one entry at a time.
 
@@ -380,7 +380,7 @@ flowchart TB
 **Verification:**
 - Every R8 behaviour is covered by tests, and the old `loadRules` is gone.
 
-- [ ] **Unit 3: Room registry, resolver and one-time upgrade**
+- [x] **Unit 3: Room registry, resolver and one-time upgrade**
 
 **Goal:** The host-side list of rooms, the function that decides a chat's room, cheap placement evidence, and the migration that keeps Aaron's office the same.
 
