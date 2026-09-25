@@ -459,7 +459,7 @@ flowchart TB
 **Verification:**
 - The parity test passes: today's `homeDept` and `evidenceDept`, run on the same fixture, give the same answers as the new resolver and evidence for every case.
 
-- [ ] **Unit 4: Host wiring**
+- [x] **Unit 4: Host wiring**
 
 **Goal:** Put the registry and resolver behind every place that decides or reports a department, and get rooms to the renderer in both inline and split-host mode.
 
