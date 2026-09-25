@@ -1,6 +1,6 @@
 import type { CommandList, CommandTarget } from './commands'
 import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RoomsUpdate, SimulatorShot, StartChatResult } from './chat'
-import type { DeptRule, RoomDef, StartOptions } from './departments'
+import type { RoomDef, StartOptions } from './departments'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
 import type { CiLog, Editor, Review } from './review'
@@ -71,7 +71,6 @@ export interface Commands {
   getSnapshot(): ChatSnapshot
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): Promise<StartChatResult>
   continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined
-  departmentRules(): DeptRule[]
   roomFor(cwd: string, accountId?: string): RoomDef & { isNew?: true }
   sendMessage(chatId: string, text: string): Refusal | undefined
   interruptChat(chatId: string): Promise<void>

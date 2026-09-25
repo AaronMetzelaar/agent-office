@@ -61,9 +61,9 @@ describe('Aaron’s office after the upgrade', () => {
       ['Admin', 0xdb2777],
       ['Mobile', 0x16a34a],
       ['Backend / infra', 0x7c3aed],
+      ['Side projects', 0xea580c],
       ['PR reviews', 0x854d0e],
       ['Research gym', 0x0d9488],
-      ['Side projects', 0xea580c],
     ])
   })
 

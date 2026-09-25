@@ -7,7 +7,7 @@ import type { HookEvent } from '../../src/main/outside/listener'
 import type { VisitorSeed } from '../../src/main/outside/transcripts'
 import { openDb } from '../../src/main/store/db'
 import { emptyUsage, type ChatState, type ChatView } from '../../src/shared/chat'
-import { defaultRules, deptNames, homeDept } from '../../src/shared/departments'
+import { legacyRooms } from '../../src/shared/departments'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floors, onFloor, type Floor, type FloorChat } from '../fixtures/floors'
 
@@ -33,9 +33,18 @@ const env = (userData: string) => ({
   CLAUDE_CONFIG_DIR: mkdtempSync(join(scratch, 'claude-')),
 })
 
+const legacyRules = [
+  { path: 'monorepo/frontend/marketplace', dept: 'mkt' },
+  { path: 'monorepo/frontend/admin', dept: 'adm' },
+  { path: 'monorepo/frontend/mobile', dept: 'mob' },
+  { path: 'monorepo', dept: 'plat' },
+]
+const legacyHome = (cwd: string, research: boolean) => (research ? 'gym' : (legacyRules.find((rule) => `${cwd}/`.includes(`/${rule.path}/`))?.dept ?? 'side'))
+const nameOf = (id: string) => legacyRooms.find((room) => room.id === id)?.name ?? id
+
 function evidenceFor(chat: FloorChat): VisitorSeed['evidence'] {
-  if (chat.department === homeDept(chat.cwd, chat.account === 'research')) return []
-  const rule = defaultRules.find((candidate) => candidate.dept === chat.department)
+  if (chat.department === legacyHome(chat.cwd, chat.account === 'research')) return []
+  const rule = legacyRules.find((candidate) => candidate.dept === chat.department)
   const file = rule ? `/elsewhere/${rule.path}/index.ts` : `${chat.cwd}/index.ts`
   return Array.from({ length: confirmations }, (_, k) => [{ type: 'tool-use', id: `evidence-${k}`, name: 'Edit', input: { file_path: file } }])
 }
@@ -177,7 +186,7 @@ for (const [name, floor] of Object.entries(floors)) {
     await seedLive(app, floor, now)
     await expect.poll(() => agentsOnSigns(page)).toBe(onScreen.length)
     const spots = onScreen.map((chat) => ({ dept: chat.department, spot: spotFor({ state: chat.state, parked: !!chat.parked || !!chat.moved, dept: chat.department }, undefined, false) }))
-    const sections = [...new Set(spots.filter((agent) => agent.spot === 'desk').map((agent) => deptNames[agent.dept]))]
+    const sections = [...new Set(spots.filter((agent) => agent.spot === 'desk').map((agent) => nameOf(agent.dept)))]
     for (const section of sections) await expect(page.locator('.sign', { hasText: section })).toBeVisible()
     if (spots.some((agent) => agent.spot === 'lounge')) await expect(page.locator('.sign', { hasText: 'Lounge' })).toBeVisible()
 

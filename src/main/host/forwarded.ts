@@ -13,7 +13,6 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   getSnapshot: true,
   startChat: true,
   continueOnAccount: true,
-  departmentRules: true,
   roomFor: true,
   sendMessage: true,
   interruptChat: true,

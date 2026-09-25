@@ -59,7 +59,7 @@ const inboxOf = (projection: ReturnType<typeof createProjection>) => {
 
 function view(id: string, fields: Partial<ChatView> = {}): ChatView {
   const now = Date.now()
-  return { id, accountId: 'main', cwd: '/Users/a/Documents/GitHub/monorepo/frontend/marketplace', title: id, archived: false, state: 'working', stateSince: now, unread: false, activity: 'Thinking', pending: [], pendingRequests: [], subagents: [], usage: emptyUsage(), partial: '', createdAt: now, lastActivityAt: now, rows: [], ...fields }
+  return { id, accountId: 'main', cwd: '/Users/a/Documents/GitHub/monorepo/frontend/marketplace', title: id, archived: false, state: 'working', stateSince: now, unread: false, activity: 'Thinking', pending: [], pendingRequests: [], subagents: [], usage: emptyUsage(), partial: '', createdAt: now, lastActivityAt: now, rows: [], department: 'mkt', ...fields }
 }
 
 describe('inbox', () => {
@@ -119,11 +119,11 @@ describe('inbox', () => {
   it('groups everyone else by department in floor order, with counts, time in state and a parked tally', () => {
     const now = Date.now()
     const chats = new Map([
-      ['side', view('side', { cwd: '/Users/a/Documents/GitHub/portfolio', createdAt: now - 10, activity: 'Editing DotField.tsx' })],
+      ['side', view('side', { cwd: '/Users/a/Documents/GitHub/portfolio', department: 'side', createdAt: now - 10, activity: 'Editing DotField.tsx' })],
       ['mkt-late', view('mkt-late', { state: 'done', createdAt: now - 5 })],
       ['mkt-early', view('mkt-early', { createdAt: now - 20, stateSince: now - 5 * 60_000 })],
       ['mkt-waiting', view('mkt-waiting', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })],
-      ['gym', view('gym', { accountId: 'research' })],
+      ['gym', view('gym', { accountId: 'research', department: 'gym' })],
       ['old', view('old', { state: 'idle', parked: true })],
     ])
     const agents = toAgents(chats.values(), accounts, now, new Map())
@@ -150,7 +150,7 @@ describe('inbox', () => {
       ['working', view('working')],
       ['unread', view('unread', { state: 'done', unread: true })],
       ['read', view('read', { state: 'idle', lastActivityAt: now - 2 * hour })],
-      ['gym-read', view('gym-read', { state: 'idle', accountId: 'research', lastActivityAt: now - hour })],
+      ['gym-read', view('gym-read', { state: 'idle', accountId: 'research', department: 'gym', lastActivityAt: now - hour })],
       ['old', view('old', { state: 'done', unread: true, parked: true, lastActivityAt: now - 30 * hour })],
       ['waiting', view('waiting', { state: 'needs-you', pending: [{ id: 'r', toolName: 'Bash' }] })],
     ])
@@ -170,11 +170,11 @@ describe('inbox', () => {
     const chats = new Map([
       ['live', view('live')],
       ['older', view('older', { state: 'idle', finished: now - 7_200_000 })],
-      ['newer', view('newer', { state: 'done', accountId: 'research', finished: now - 60_000, visitor: 'desktop' })],
+      ['newer', view('newer', { state: 'done', accountId: 'research', department: 'gym', finished: now - 60_000, visitor: 'desktop' })],
       ['gone', view('gone', { state: 'idle', finished: now, archived: true })],
     ])
     expect(toAgents(chats.values(), accounts, now, new Map()).map((agent) => agent.id)).toEqual(['live'])
-    expect(finishedOf(chats.values(), accounts)).toMatchObject([
+    expect(finishedOf(chats.values())).toMatchObject([
       { id: 'newer', dept: 'Research gym', at: now - 60_000, visitor: true },
       { id: 'older', dept: 'Marketplace', at: now - 7_200_000, visitor: false },
     ])

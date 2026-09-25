@@ -45,7 +45,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined
 const loose = shallowRef<AgentEntry>()
 const shownAgent = computed(() => ui.selected ?? loose.value)
 const openChat = computed(() => (tick.value, shownAgent.value ? projection.chats.get(shownAgent.value.id) : undefined))
-const finished = computed(() => finishedOf(chatList.value, props.accounts))
+const finished = computed(() => finishedOf(chatList.value))
 const removable = (chatId: string) => !!house.value?.removable.includes(chatId)
 const leaving = new Set<string>()
 let pendingSelect: string | undefined
@@ -810,7 +810,15 @@ kbd {
   letter-spacing: -0.01em;
 }
 
+.sign .sn b {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: inherit;
+}
+
 .sign .sn i {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 2px;

@@ -1,13 +1,15 @@
 import { Color } from 'three'
-import { ago, applyPatch, doingNow, usingSimulator, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type LoginItem, type StuckReason } from '../../shared/chat'
+import { ago, applyPatch, doingNow, usingSimulator, type ChatFields, type ChatPatch, type ChatPatchBatch, type ChatSnapshot, type ChatState, type ChatView, type ConfigErrors, type LoginItem, type RoomsUpdate, type StuckReason } from '../../shared/chat'
 import type { Finished, FinishedMany } from '../../shared/housekeeping'
 import type { AccountView } from '../../shared/ipc'
-import { showsAccountBadge } from '../../shared/departments'
-import { departmentOf, isResearch, palette, type DeptId } from '../../shared/office'
+import { legacyRooms, showsAccountBadge } from '../../shared/departments'
+import { palette, type DeptId } from '../../shared/office'
+import { dept as rooms, depts, setRooms, yardId } from '../office/layout'
 
 export interface ChatSource {
   getSnapshot(): Promise<ChatSnapshot>
   onChatPatches(listener: (batch: ChatPatchBatch) => void): () => void
+  onRooms?(listener: (update: RoomsUpdate) => void): () => void
   onWindowVisibility?(listener: (payload: { visible: boolean }) => void): () => void
   finishChat?(chatId: string, removeWorktree?: boolean): Promise<Finished | undefined>
   finishChats?(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>
@@ -24,7 +26,11 @@ export function createProjection(source: ChatSource) {
   let buffer: ChatPatchBatch[] | undefined = []
   let loading: Promise<void> | undefined
 
-  const state = { logins: [] as LoginItem[] }
+  const state = { logins: [] as LoginItem[], configErrors: { skipped: [] } as ConfigErrors }
+  const takeRooms = (update: Partial<RoomsUpdate>) => {
+    setRooms(update.rooms ?? legacyRooms)
+    state.configErrors = update.configErrors ?? { skipped: [] }
+  }
   const emit = () => listeners.forEach((listener) => listener())
 
   function applyBatch(batch: ChatPatchBatch) {
@@ -46,6 +52,7 @@ export function createProjection(source: ChatSource) {
         chats.clear()
         for (const chat of snapshot.chats) chats.set(chat.id, chat)
         state.logins = snapshot.logins
+        takeRooms(snapshot)
         seq = snapshot.seq
         const queued = buffer ?? []
         buffer = undefined
@@ -61,6 +68,10 @@ export function createProjection(source: ChatSource) {
     applyBatch(batch)
     emit()
   })
+  const offRooms = source.onRooms?.((update) => {
+    takeRooms(update)
+    emit()
+  })
   const offVisibility = source.onWindowVisibility?.(({ visible }) => {
     if (visible) void load()
   })
@@ -70,6 +81,9 @@ export function createProjection(source: ChatSource) {
     get logins() {
       return state.logins
     },
+    get configErrors() {
+      return state.configErrors
+    },
     ready: load(),
     resync: load,
     subscribe(listener: () => void) {
@@ -78,6 +92,7 @@ export function createProjection(source: ChatSource) {
     },
     stop() {
       offPatches()
+      offRooms?.()
       offVisibility?.()
       listeners.clear()
     },
@@ -156,10 +171,9 @@ export function assignColours(agents: readonly { id: string; dept: DeptId; creat
 const hexColour = (value: string | undefined) => (value && /^#[0-9a-f]{6}$/i.test(value) ? Number.parseInt(value.slice(1), 16) : undefined)
 
 export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountView[], now: number, prevColours: ReadonlyMap<string, number>): Agent[] {
-  const research = new Set(accounts.filter(isResearch).map((account) => account.id))
   const labels = new Map(accounts.map((account) => [account.id, account.label]))
   const live = [...chats].filter((chat) => !chat.archived && !chat.retained && chat.finished === undefined)
-  const placed = live.map((chat) => ({ chat, dept: departmentOf(chat, research.has(chat.accountId)) }))
+  const placed = live.map((chat) => ({ chat, dept: chat.department && rooms[chat.department] ? chat.department : yardId }))
   const colours = assignColours(
     placed.map(({ chat, dept }) => ({ id: chat.id, dept, createdAt: chat.createdAt, fixed: hexColour(chat.colour) })),
     prevColours,
@@ -186,7 +200,7 @@ export function toAgents(chats: Iterable<ChatView>, accounts: readonly AccountVi
       createdAt: chat.createdAt,
       colour: colours.get(chat.id)!,
       sim: usingSimulator(chat),
-      ...(chat.visitor ? { badge: 'Visitor' } : showsAccountBadge(dept, research.has(chat.accountId)) && labels.has(chat.accountId) ? { badge: labels.get(chat.accountId) } : {}),
+      ...(chat.visitor ? { badge: 'Visitor' } : labels.has(chat.accountId) && showsAccountBadge(depts, dept, labels.get(chat.accountId)) ? { badge: labels.get(chat.accountId) } : {}),
       ...(chat.state === 'needs-you' && tool ? { request: { tool, summary: first?.summary ?? tool, dangerous: first?.dangerous ?? false } } : {}),
     }
   })

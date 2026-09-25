@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { defaultEffort, defaultModel, effortLabels, efforts, modelLabels } from '../../shared/chat'
-import { accountHint, defaultAccount, defaultRules, deptIds, deptNames, homeDept, isResearch, ruleFor, showsAccountBadge, type DeptId, type DeptRule } from '../../shared/departments'
+import { accountHint, defaultAccountFor, showsAccountBadge, tiedRoomIn, type DeptId, type RoomDef } from '../../shared/departments'
 import { usageLine, type AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
 import { leadingTicket, type Ticket } from '../../shared/workflow'
-import { dept as deptDefs, kindOf } from '../office/layout'
+import { deptOf, depts, kindOf } from '../office/layout'
 import SlashInput from './chat/SlashInput.vue'
 
 const props = defineProps<{ accounts: AccountView[]; desk?: { dept: DeptId; slot: number } }>()
@@ -21,7 +21,7 @@ function recallWorktree(): boolean {
   }
 }
 
-const rules = ref<readonly DeptRule[]>(defaultRules)
+const preview = ref<RoomDef & { isNew?: true }>()
 const folders = ref<string[]>([])
 const promptEl = ref<InstanceType<typeof SlashInput>>()
 const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
@@ -31,19 +31,23 @@ const ticket = reactive({ text: '', note: '', busy: false })
 const lead = computed(() => leadingTicket(form.prompt))
 const found = ref<{ ticket: Ticket; notice?: string }>()
 let lookup: ReturnType<typeof setTimeout> | undefined
+let previewing: ReturnType<typeof setTimeout> | undefined
 
 const accountId = computed({
-  get: () => form.accountId || defaultAccount(props.accounts, props.desk?.dept) || '',
+  get: () => form.accountId || defaultAccountFor(props.accounts, (label) => tiedRoomIn(depts, label), props.desk?.dept) || '',
   set: (id: string) => (form.accountId = id),
 })
 const account = computed(() => props.accounts.find((candidate) => candidate.id === accountId.value))
-const research = computed(() => !!account.value && isResearch(account.value))
+const chosen = computed(() => form.section || props.desk?.dept || '')
 const section = computed<DeptId>({
-  get: () => form.section || props.desk?.dept || homeDept(form.folder, research.value, rules.value),
+  get: () => chosen.value || preview.value?.id || '',
   set: (id: DeptId) => (form.section = id),
 })
-const hint = computed(() => accountHint(props.accounts, accountId.value, section.value))
-const overflow = computed(() => !!account.value && showsAccountBadge(section.value, research.value))
+const room = computed(() => (chosen.value || !preview.value ? deptOf(section.value) : preview.value))
+const newRoom = computed(() => (!chosen.value && preview.value?.isNew ? preview.value : undefined))
+const rooms = computed(() => [...depts.map((d) => ({ id: d.id, name: d.name })), ...(newRoom.value ? [{ id: newRoom.value.id, name: `New room: ${newRoom.value.name}` }] : [])])
+const hint = computed(() => accountHint(props.accounts, accountId.value))
+const overflow = computed(() => !!account.value && showsAccountBadge(depts, section.value, account.value.label))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
 const ticketLine = computed(() => {
   const seen = found.value?.ticket
@@ -70,6 +74,18 @@ async function choose() {
 }
 
 watch(
+  () => [form.folder, accountId.value] as const,
+  ([folder, id]) => {
+    clearTimeout(previewing)
+    if (!folder) return void (preview.value = undefined)
+    previewing = setTimeout(async () => {
+      const found = await window.office.roomFor(folder, id).catch(() => undefined)
+      if (form.folder === folder) preview.value = found
+    }, 150)
+  },
+  { immediate: true },
+)
+watch(
   () => lead.value?.id,
   (id) => {
     clearTimeout(lookup)
@@ -80,7 +96,10 @@ watch(
     }, 300)
   },
 )
-onUnmounted(() => clearTimeout(lookup))
+onUnmounted(() => {
+  clearTimeout(lookup)
+  clearTimeout(previewing)
+})
 
 async function fromTicket() {
   if (!ticket.text.trim() || ticket.busy) return
@@ -99,7 +118,7 @@ async function start() {
   busy.value = true
   error.value = ''
   const dept = section.value
-  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept, worktree: form.worktree }).finally(() => (busy.value = false))
+  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { ...(chosen.value ? { dept: chosen.value } : {}), worktree: form.worktree }).finally(() => (busy.value = false))
   if ('error' in result) return void (error.value = result.error)
   try {
     localStorage.setItem(memoryKey, JSON.stringify({ worktree: form.worktree }))
@@ -109,11 +128,11 @@ async function start() {
 
 onMounted(async () => {
   promptEl.value?.focus()
-  const [recent, configured] = await Promise.all([window.office.recentFolders(), window.office.departmentRules()])
-  rules.value = configured
+  const recent = await window.office.recentFolders()
   folders.value = recent
   const wanted = props.desk?.dept
-  form.folder = (wanted && recent.find((folder) => ruleFor(folder, configured) === wanted)) || recent[0] || ''
+  const homes = wanted ? await Promise.all(recent.map((folder) => window.office.roomFor(folder).catch(() => undefined))) : []
+  form.folder = (wanted && recent.find((_, i) => homes[i]?.id === wanted)) || recent[0] || ''
 })
 </script>
 
@@ -122,7 +141,7 @@ onMounted(async () => {
     <span class="av new">+</span>
     <div>
       <h2>New agent</h2>
-      <p class="meta"><span class="dd" :style="{ background: hexOf(deptDefs[section].accent) }" />{{ deptNames[section] }} · {{ place }}</p>
+      <p class="meta"><span class="dd" :style="{ background: hexOf(room.accent) }" />{{ newRoom ? `New room: ${newRoom.name}` : room.name }} · {{ place }}</p>
     </div>
     <button type="button" class="ib" aria-label="Cancel" title="Cancel (Esc)" @click="emit('close')">×</button>
   </div>
@@ -158,7 +177,7 @@ onMounted(async () => {
       <label class="field">
         Section
         <select v-model="section" aria-label="Section">
-          <option v-for="id in deptIds" :key="id" :value="id">{{ deptNames[id] }}</option>
+          <option v-for="option in rooms" :key="option.id" :value="option.id">{{ option.name }}</option>
         </select>
       </label>
       <label class="field">
@@ -172,7 +191,7 @@ onMounted(async () => {
       <span>{{ hint.text }}</span>
       <button type="button" class="btn sm" @click="useSuggested">Use {{ accounts.find((candidate) => candidate.id === hint?.accountId)?.label }}</button>
     </p>
-    <p v-else-if="overflow" class="note">Runs on {{ account?.label }} in {{ deptNames[section] }}, with an account badge.</p>
+    <p v-else-if="overflow" class="note">Runs on {{ account?.label }} in {{ room.name }}, with an account badge.</p>
     <div class="fields">
       <label class="field">
         Model

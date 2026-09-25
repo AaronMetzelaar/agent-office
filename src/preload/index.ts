@@ -19,7 +19,6 @@ const office: OfficeApi = {
   getSnapshot: () => ipcRenderer.invoke('getSnapshot'),
   startChat: (accountId, cwd, prompt, model, effort, options) => ipcRenderer.invoke('startChat', accountId, cwd, prompt, model, effort, options),
   continueOnAccount: (chatId, accountId) => ipcRenderer.invoke('continueOnAccount', chatId, accountId),
-  departmentRules: () => ipcRenderer.invoke('departmentRules'),
   roomFor: (cwd, accountId) => ipcRenderer.invoke('roomFor', cwd, accountId),
   sendMessage: (chatId, text) => ipcRenderer.invoke('sendMessage', chatId, text),
   interruptChat: (chatId) => ipcRenderer.invoke('interruptChat', chatId),

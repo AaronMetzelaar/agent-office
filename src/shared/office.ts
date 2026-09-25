@@ -1,4 +1,4 @@
-export { departmentOf, deptIds, deptNames, isDeptId, isResearch, type DeptId } from './departments'
+export type { DeptId } from './departments'
 
 export const palette = [
   0xf0463c, 0x3b7bff, 0x2fb344, 0xffc21a, 0x8b5cf6, 0xff7a59, 0x14b8a6, 0xf25ca2, 0x38bdf8, 0x84cc16, 0xfb923c,

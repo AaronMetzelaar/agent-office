@@ -1,23 +1,4 @@
-export const deptIds = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'] as const
-export type DeptId = (typeof deptIds)[number]
-export const isDeptId = (value: unknown): value is DeptId => deptIds.includes(value as DeptId)
-
-export const deptNames: Record<DeptId, string> = {
-  mkt: 'Marketplace',
-  adm: 'Admin',
-  mob: 'Mobile',
-  plat: 'Backend / infra',
-  side: 'Side projects',
-  rev: 'PR reviews',
-  gym: 'Research gym',
-}
-
-export const isResearch = (account: { label: string }) => /research/i.test(account.label)
-
-export interface DeptRule {
-  path: string
-  dept: DeptId
-}
+export type DeptId = string
 
 export const looks = ['showroom', 'backoffice', 'devices', 'servers', 'reading', 'gym', 'playground', 'plain'] as const
 export type Look = (typeof looks)[number]
@@ -64,6 +45,17 @@ export const mwsRooms: readonly RoomDef[] = [
 ]
 export const reviewRoom: RoomDef = { id: 'rev', name: 'PR reviews', subtitle: 'your review requests', accent: 0x854d0e, look: 'reading' }
 export const playgroundRoom: RoomDef = { id: 'side', name: 'Side projects', subtitle: 'folders without a room', accent: 0xea580c, look: 'playground' }
+export const legacyRooms: readonly RoomDef[] = [...mwsRooms, playgroundRoom, reviewRoom, { id: 'gym', name: 'Research gym', subtitle: 'research account', accent: 0x0d9488, look: 'gym', account: 'research' }]
+
+const holds = (label: string, account: string) => label.toLowerCase().includes(account.toLowerCase())
+
+export const tiedRoomIn = (rooms: readonly Pick<RoomDef, 'id' | 'account'>[], label = '') =>
+  rooms.filter((room) => room.account && holds(label, room.account)).sort((a, b) => b.account!.length - a.account!.length)[0]?.id
+
+export function showsAccountBadge(rooms: readonly Pick<RoomDef, 'id' | 'account'>[], roomId: string, label = ''): boolean {
+  const account = rooms.find((room) => room.id === roomId)?.account
+  return account ? !holds(label, account) : !!tiedRoomIn(rooms, label)
+}
 
 export interface StartOptions {
   dept?: DeptId
@@ -72,44 +64,7 @@ export interface StartOptions {
   review?: boolean
 }
 
-export const defaultRules: readonly DeptRule[] = [
-  { path: 'monorepo/frontend/marketplace', dept: 'mkt' },
-  { path: 'monorepo/frontend/admin', dept: 'adm' },
-  { path: 'monorepo/frontend/mobile', dept: 'mob' },
-  { path: 'monorepo', dept: 'plat' },
-]
-
-export function validRules(value: unknown): DeptRule[] | undefined {
-  if (!Array.isArray(value)) return undefined
-  const rules = value.filter((rule): rule is DeptRule => typeof rule?.path === 'string' && !!rule.path.replace(/\//g, '') && isDeptId(rule.dept))
-  return rules.length ? rules.map(({ path, dept }) => ({ path, dept })) : undefined
-}
-
 export const repoPath = (path: string) => path.replaceAll('\\', '/').replace(/\/\.claude\/worktrees\/[^/]+/, '').replace(/\/+$/, '')
-
-const segments = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}/`
-
-export function ruleFor(path: string, rules: readonly DeptRule[] = defaultRules): DeptId | undefined {
-  const target = `${repoPath(path)}/`
-  return [...rules].sort((a, b) => b.path.length - a.path.length).find((rule) => target.includes(segments(rule.path)))?.dept
-}
-
-export function homeDept(cwd: string, research: boolean, rules: readonly DeptRule[] = defaultRules): DeptId {
-  return research ? 'gym' : (ruleFor(cwd, rules) ?? 'side')
-}
-
-export function departmentOf(chat: { cwd: string; department?: string }, research: boolean, rules: readonly DeptRule[] = defaultRules): DeptId {
-  return isDeptId(chat.department) ? chat.department : homeDept(chat.cwd, research, rules)
-}
-
-export function evidenceDept(file: string, cwd: string, rules: readonly DeptRule[] = defaultRules): DeptId | undefined {
-  const matched = ruleFor(file, rules)
-  if (matched) return matched
-  const [path, root] = [repoPath(file), repoPath(cwd)]
-  return path === root || path.startsWith(`${root}/`) ? 'side' : undefined
-}
-
-export const showsAccountBadge = (dept: DeptId, research: boolean) => research !== (dept === 'gym')
 
 interface AccountLike {
   id: string
@@ -118,25 +73,18 @@ interface AccountLike {
 }
 
 export const lowHeadroom = 80
-const monorepo = new Set<DeptId>(['mkt', 'adm', 'mob', 'plat'])
 const usable = (account: AccountLike) => account.health.status !== 'needs-login'
 export const usedPercent = (account: AccountLike) => Math.max(account.health.headroom?.fiveHour?.utilization ?? 0, account.health.headroom?.sevenDay?.utilization ?? 0)
-
-export function defaultAccount(accounts: readonly AccountLike[], dept?: DeptId): string | undefined {
-  const open = accounts.filter(usable)
-  return (open.find((account) => isResearch(account) === (dept === 'gym')) ?? open[0])?.id
-}
 
 export function defaultAccountFor(accounts: readonly AccountLike[], tiedRoom: (label: string) => string | undefined, room?: string): string | undefined {
   const open = accounts.filter(usable)
   return (open.find((account) => tiedRoom(account.label) === room) ?? open.find((account) => !tiedRoom(account.label)) ?? open[0])?.id
 }
 
-export function accountHint(accounts: readonly AccountLike[], chosenId: string, dept: DeptId): { accountId: string; text: string } | undefined {
+export function accountHint(accounts: readonly AccountLike[], chosenId: string): { accountId: string; text: string } | undefined {
   const chosen = accounts.find((account) => account.id === chosenId)
-  const research = accounts.find((account) => isResearch(account) && usable(account))
-  if (!chosen || !research || isResearch(chosen) || !monorepo.has(dept)) return undefined
-  const used = usedPercent(chosen)
-  if (used < lowHeadroom || usedPercent(research) >= used) return undefined
-  return { accountId: research.id, text: `${chosen.label} is at ${Math.round(used)}% of its limit. Run this on ${research.label}; it keeps its department.` }
+  if (!chosen || usedPercent(chosen) < lowHeadroom) return undefined
+  const other = accounts.filter((account) => account.id !== chosenId && usable(account)).sort((a, b) => usedPercent(a) - usedPercent(b))[0]
+  if (!other || usedPercent(other) >= usedPercent(chosen)) return undefined
+  return { accountId: other.id, text: `${chosen.label} is at ${Math.round(usedPercent(chosen))}% of its limit. Run this on ${other.label}; it keeps its room.` }
 }

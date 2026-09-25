@@ -69,7 +69,7 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
   const playgroundEntries = loaded.config.playground.map((folder) => ({ folder: realpath(folder), room: playgroundRoom.id }))
   const mwsEntries = () => roots.flatMap((root) => [...mwsApps.map(([app, room]) => ({ folder: join(root, 'frontend', app), room })), { folder: root, room: 'plat' }])
 
-  const list = (): RoomDef[] => [...(roots.length ? mwsRooms : []), reviewRoom, ...config, ...built, playgroundRoom]
+  const list = (): RoomDef[] => [...(roots.length ? mwsRooms : []), playgroundRoom, reviewRoom, ...config, ...built]
   const byId = (id: string) => list().find((room) => room.id === id)
   const tiedRoom = (label?: string) => tied.filter((room) => label?.toLowerCase().includes(room.account.toLowerCase())).sort((a, b) => b.account.length - a.account.length)[0]?.id
 

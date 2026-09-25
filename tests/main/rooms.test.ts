@@ -95,10 +95,10 @@ describe('a chat’s room', { timeout: 60_000 }, () => {
     const rooms = open()
     const changed = vi.fn()
     rooms.events.on('changed', changed)
-    expect(ids(rooms)).toEqual(['rev', 'side'])
+    expect(ids(rooms)).toEqual(['side', 'rev'])
     expect(rooms.resolve(folder(join(mono, 'frontend', 'admin', 'x')), 'main', { build: true })).toBe('adm')
     expect(rooms.resolve(mono, 'main', { build: true })).toBe('plat')
-    expect(ids(rooms)).toEqual(['mkt', 'adm', 'mob', 'plat', 'rev', 'side'])
+    expect(ids(rooms)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev'])
     expect(changed).toHaveBeenCalledOnce()
     expect(db.setting('mwsRoots')).toEqual([mono])
   })
@@ -118,7 +118,7 @@ describe('a chat’s room', { timeout: 60_000 }, () => {
     expect(rooms.resolve(join(mono, 'frontend', 'admin'), 'main', { build: true })).toBe('adm')
     expect(db.setting('mwsRoots')).toEqual([mono])
     expect(rooms.resolve(gitRepo(join(dir, 'shop')), 'main', { build: true })).toBe('side')
-    expect(ids(rooms)).toEqual(['mkt', 'adm', 'mob', 'plat', 'rev', 'side'])
+    expect(ids(rooms)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'rev'])
   })
 
   it('lets a config room for a monorepo folder beat its MWS room', () => {
@@ -157,7 +157,7 @@ describe('a chat’s room', { timeout: 60_000 }, () => {
   it('builds nothing while the config is unreadable', () => {
     const rooms = open(loaded({}, 'Unexpected token } in JSON'))
     expect(rooms.resolve(gitRepo(join(dir, 'shop')), 'main', { build: true })).toBe('side')
-    expect(ids(rooms)).toEqual(['rev', 'side'])
+    expect(ids(rooms)).toEqual(['side', 'rev'])
     expect(db.setting('rooms')).toBeUndefined()
   })
 
@@ -167,20 +167,20 @@ describe('a chat’s room', { timeout: 60_000 }, () => {
     expect(rooms.resolve(repo, 'main')).toBe('side')
     expect(rooms.resolve(repo, 'main', { build: false })).toBe('side')
     expect(rooms.roomFor(repo, 'main')).toMatchObject({ name: 'shop', look: 'plain', accent: palette[0], isNew: true })
-    expect(ids(rooms)).toEqual(['rev', 'side'])
+    expect(ids(rooms)).toEqual(['side', 'rev'])
     const id = rooms.resolve(repo, 'main', { build: true })
     expect(rooms.resolve(repo, 'main')).toBe(id)
     expect(rooms.roomFor(repo, 'main')).toEqual(rooms.byId(id))
   })
 
-  it('orders MWS rooms, PR reviews, config rooms, then built rooms oldest first, with the playground last', () => {
+  it('orders MWS rooms, the playground, PR reviews, config rooms, then built rooms oldest first, as the office does today', () => {
     const mono = mwsMonorepo(join(dir, 'monorepo'))
     const config = loaded({ rooms: [{ id: 'c-zoo', name: 'Zoo', folders: ['/zoo'] }, gym] })
     const rooms = open(config)
     const zeta = rooms.resolve(gitRepo(join(dir, 'zeta')), 'main', { build: true })
     const alpha = rooms.resolve(gitRepo(join(dir, 'alpha')), 'main', { build: true })
     rooms.resolve(mono, 'main')
-    const order = ['mkt', 'adm', 'mob', 'plat', 'rev', 'c-zoo', 'c-research-gym', zeta, alpha, 'side']
+    const order = ['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'c-zoo', 'c-research-gym', zeta, alpha]
     expect(ids(rooms)).toEqual(order)
     expect(ids(open(config))).toEqual(order)
   })
@@ -254,7 +254,7 @@ describe('revalidating stored chats', { timeout: 60_000 }, () => {
     expect(rooms.revalidate({ cwd: repo, department: 'c-lab' }, 'main')).toBe('side')
     expect(rooms.revalidate({ cwd: repo }, 'main')).toBe('side')
     expect(rooms.revalidate({ cwd: repo, department: 'c-lab', review: true }, 'main')).toBe('rev')
-    expect(ids(rooms)).toEqual(['rev', 'c-api', 'side'])
+    expect(ids(rooms)).toEqual(['side', 'rev', 'c-api'])
   })
 
   it('keeps chats on config room ids while the config is unreadable', () => {

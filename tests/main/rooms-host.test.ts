@@ -92,7 +92,7 @@ describe('rooms on the host', { timeout: 60_000 }, () => {
     reopen()
     expect(office.chat(id).department).toBe('side')
     expect(office.db.listChats().find((record) => record.id === id)?.department).toBe('side')
-    expect(office.rooms.list().map((room) => room.id)).toEqual(['rev', 'side'])
+    expect(office.rooms.list().map((room) => room.id)).toEqual(['side', 'rev'])
   })
 
   it('titles a notification with the name of the chat’s room', () => {

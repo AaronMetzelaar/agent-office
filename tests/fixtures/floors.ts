@@ -32,7 +32,7 @@ export interface Floor {
 export const onFloor = (chat: FloorChat) => !chat.archived && !chat.retained
 
 const home = '/Users/axxxx/Dxxxxxxxx/Gxxxxx'
-const cwds: Record<DeptId, string> = {
+const cwds: Record<string, string> = {
   mkt: `${home}/monorepo/frontend/marketplace`,
   adm: `${home}/monorepo/frontend/admin`,
   mob: `${home}/monorepo/frontend/mobile`,
@@ -51,7 +51,7 @@ function floor(specs: Spec[]): Floor {
       kind: 'office',
       account: department === 'gym' ? 'research' : 'main',
       title: `Chat ${index + 1}`.padEnd(24, ' lorem'),
-      cwd: cwds[department],
+      cwd: cwds[department]!,
       department,
       state,
       unread: state === 'done',

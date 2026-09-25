@@ -11,15 +11,16 @@ import { createDiscovery, inLinkedWorktree } from '../../src/main/outside/transc
 import { createVisitors } from '../../src/main/outside/visitors'
 import { transcriptRows } from '../../src/main/store/chats'
 import type { ChatState, Stuck } from '../../src/shared/chat'
-import { defaultRules, isDeptId, isResearch } from '../../src/shared/departments'
 import type { Floor, FloorChat } from '../fixtures/floors'
 
 vi.mock('electron', () => import('../fakes/electron'))
 
 const enabled = process.env.AGENT_OFFICE_CAPTURE_FLOOR === '1'
 const dataDir = join(homedir(), 'Library', 'Application Support', 'Agent Office')
-const kept = new Set(['', ...defaultRules.flatMap((rule) => rule.path.split('/')), '.claude', 'worktrees'])
-const legacyDept = (id?: string | null) => (isDeptId(id) ? id : id === 'c-research-gym' ? 'gym' : 'side')
+const kept = new Set(['', 'monorepo', 'frontend', 'marketplace', 'admin', 'mobile', '.claude', 'worktrees'])
+const legacy = new Set(['mkt', 'adm', 'mob', 'plat', 'side', 'rev', 'gym'])
+const legacyDept = (id?: string | null) => (id && legacy.has(id) ? id : id === 'c-research-gym' ? 'gym' : 'side')
+const isResearch = (account: { label: string }) => /research/i.test(account.label)
 
 interface OfficeRow {
   id: string

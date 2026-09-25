@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defaultEffort, defaultModel } from '../../src/shared/chat'
-import { accountHint, defaultAccount, defaultAccountFor } from '../../src/shared/departments'
+import { accountHint, defaultAccountFor } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
 import { gitRepo, mwsMonorepo } from '../fakes/repos'
@@ -16,14 +16,6 @@ describe('account defaults and headroom', () => {
   const main = account('m', 'main', 30)
   const research = account('r', 'research', 10)
 
-  it('defaults to main for main-account folders and to research for the gym', () => {
-    expect(defaultAccount([research, main], 'mkt')).toBe('m')
-    expect(defaultAccount([research, main], 'side')).toBe('m')
-    expect(defaultAccount([main, research], 'gym')).toBe('r')
-    expect(defaultAccount([main], 'gym')).toBe('m')
-    expect(defaultAccount([account('m', 'main', 0, 0, 'needs-login'), research], 'mkt')).toBe('r')
-  })
-
   it('defaults to the account tied to an account-tied room, and to the first usable untied account anywhere else', () => {
     const tiedRoom = (label: string) => (label.includes('research') ? 'c-research-gym' : undefined)
     expect(defaultAccountFor([research, main], tiedRoom, 'c-research-gym')).toBe('r')
@@ -35,18 +27,19 @@ describe('account defaults and headroom', () => {
     expect(defaultAccountFor([], tiedRoom, 'mkt')).toBeUndefined()
   })
 
-  it('suggests research for monorepo work when main is low on headroom in either window', () => {
-    expect(accountHint([main, research], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([account('m', 'main', 86), research], 'm', 'mob')).toEqual({ accountId: 'r', text: 'main is at 86% of its limit. Run this on research; it keeps its department.' })
-    expect(accountHint([account('m', 'main', 20, 93), research], 'm', 'plat')?.accountId).toBe('r')
+  it('suggests the usable account with the most room once the chosen one is low in either window, in any room', () => {
+    expect(accountHint([main, research], 'm')).toBeUndefined()
+    expect(accountHint([account('m', 'main', 86), research], 'm')).toEqual({ accountId: 'r', text: 'main is at 86% of its limit. Run this on research; it keeps its room.' })
+    expect(accountHint([account('m', 'main', 20, 93), research], 'm')?.accountId).toBe('r')
+    expect(accountHint([account('m', 'main', 90), account('w', 'work', 40), research], 'm')?.accountId).toBe('r')
   })
 
-  it('stays quiet for side projects, when research has no more room, or when research is already chosen', () => {
+  it('stays quiet with one account, when the others have no more room, or when they need login', () => {
     const tight = account('m', 'main', 90)
-    expect(accountHint([tight, research], 'm', 'side')).toBeUndefined()
-    expect(accountHint([tight, account('r', 'research', 95)], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([tight, account('r', 'research', 5, 0, 'needs-login')], 'm', 'mkt')).toBeUndefined()
-    expect(accountHint([tight, research], 'r', 'mkt')).toBeUndefined()
+    expect(accountHint([tight], 'm')).toBeUndefined()
+    expect(accountHint([tight, account('r', 'research', 95)], 'm')).toBeUndefined()
+    expect(accountHint([tight, account('r', 'research', 5, 0, 'needs-login')], 'm')).toBeUndefined()
+    expect(accountHint([tight, research], 'r')).toBeUndefined()
   })
 })
 

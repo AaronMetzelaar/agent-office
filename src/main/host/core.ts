@@ -1,6 +1,6 @@
 import { isAbsolute, join } from 'node:path'
 import { app } from 'electron'
-import { defaultRules, playgroundRoom } from '../../shared/departments'
+import { playgroundRoom } from '../../shared/departments'
 import type { SettingName } from '../../shared/ipc'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
@@ -59,7 +59,6 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   outside.rescan()
   const sync = wireChats(hub, store, outside.visitors, rooms)
   createPlacement(engine, store, rooms, (chatId) => sync.openChat() === chatId)
-  hub.handle('departmentRules', () => [...defaultRules])
   hub.handle('roomFor', (cwd, accountId) => (typeof cwd === 'string' && isAbsolute(cwd) ? rooms.roomFor(cwd, typeof accountId === 'string' ? accounts.label(accountId) : undefined) : playgroundRoom))
   sync.setAccounts(accounts.list())
   hub.handle('resolveRequest', windowResolver(broker, () => ui.state().focused))

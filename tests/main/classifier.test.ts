@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPlacement } from '../../src/main/departments/classifier'
-import { ruleFor, showsAccountBadge } from '../../src/shared/departments'
+import { showsAccountBadge } from '../../src/shared/departments'
 import { sdk } from '../fakes/fake-engine'
 import { openOffice } from '../fakes/office'
 import { claudeWorktree, gitRepo, mwsMonorepo } from '../fakes/repos'
@@ -146,9 +146,11 @@ describe('the research account', { timeout: 60_000 }, () => {
     expect(department(id)).toBe('mkt')
     repeat(6, () => touch(id, edit(mob())))
     expect(department(id)).toBe('mob')
-    expect(showsAccountBadge('mkt', true)).toBe(true)
-    expect(showsAccountBadge('gym', true)).toBe(false)
-    expect(showsAccountBadge('mkt', false)).toBe(false)
+    const rooms = [{ id: 'mkt' }, { id: 'c-research-gym', account: 'research' }]
+    expect(showsAccountBadge(rooms, 'mkt', 'research')).toBe(true)
+    expect(showsAccountBadge(rooms, 'c-research-gym', 'research')).toBe(false)
+    expect(showsAccountBadge(rooms, 'c-research-gym', 'main')).toBe(true)
+    expect(showsAccountBadge(rooms, 'mkt', 'main')).toBe(false)
   })
 })
 
@@ -167,14 +169,5 @@ describe('PR review agents', { timeout: 60_000 }, () => {
     if ('error' in result) throw new Error(result.error)
     expect(office.chat(result.chatId).department).toBe('plat')
     expect(office.chat(result.chatId).review).toBeUndefined()
-  })
-})
-
-describe('path rules', () => {
-  it('maps worktrees to their repository and prefers the most specific rule', () => {
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo/.claude/worktrees/auc-1302/frontend/mobile/App.tsx')).toBe('mob')
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo/services/api')).toBe('plat')
-    expect(ruleFor('/Users/a/Documents/GitHub/monorepo-tools/x')).toBeUndefined()
-    expect(ruleFor('/x/monorepo/frontend/admin', [{ path: 'monorepo', dept: 'plat' }, { path: 'monorepo/frontend/admin', dept: 'adm' }])).toBe('adm')
   })
 })
