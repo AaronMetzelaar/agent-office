@@ -83,6 +83,8 @@ export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors) {
   hub.handle('getSnapshot', sync.snapshot)
   hub.handle('sendMessage', store.sendMessage)
   hub.handle('interruptChat', store.interruptChat)
+  hub.handle('stopTask', store.stopTask)
+  hub.handle('rewindFiles', store.rewindFiles)
   hub.handle('stopChat', store.stopChat)
   hub.handle('setModel', store.setModel)
   hub.handle('setEffort', store.setEffort)

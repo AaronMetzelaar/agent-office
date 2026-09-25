@@ -31,7 +31,10 @@ describe('normalize', () => {
       { type: 'tool-use', id: 'agent-1', name: 'Agent', input: { description: 'Explore bids', run_in_background: true } },
       { type: 'subagent-start', id: 'agent-1', description: 'Explore bids' },
     ])
-    expect(normalize(sdk.taskStarted('agent-1'))).toEqual([{ type: 'subagent-background', id: 'agent-1' }])
+    expect(normalize(sdk.taskStarted('agent-1'))).toEqual([
+      { type: 'subagent-task', id: 'agent-1', taskId: 't' },
+      { type: 'subagent-background', id: 'agent-1' },
+    ])
     expect(normalize(sdk.toolUse([{ id: 't9', name: 'Read', input: {} }], 'agent-1'))).toEqual([{ type: 'tool-use', id: 't9', name: 'Read', input: {}, parentToolUseId: 'agent-1' }])
     expect(normalize(sdk.taskNotification('agent-1'))).toEqual([{ type: 'subagent-stop', id: 'agent-1' }])
   })
@@ -77,6 +80,15 @@ describe('normalize', () => {
   it('reads user text from transcripts but skips synthetic prompts', () => {
     expect(normalize(raw({ type: 'user', message: { role: 'user', content: 'Fix the bid flow' } }))).toEqual([{ type: 'user-text', id: 'u1', text: 'Fix the bid flow' }])
     expect(normalize(raw({ type: 'user', isSynthetic: true, message: { role: 'user', content: 'hook output' } }))).toEqual([])
+  })
+
+  it('marks compactions and denials the user didn’t make, and skips the ones they did', () => {
+    expect(normalize(raw({ type: 'system', subtype: 'compact_boundary', compact_metadata: { trigger: 'auto', pre_tokens: 181_400, post_tokens: 39_600 } }))).toEqual([{ type: 'other', label: 'Compacted the conversation (181k → 40k tokens)' }])
+    const denied = (fields: Record<string, unknown>) => normalize(raw({ type: 'system', subtype: 'permission_denied', tool_name: 'Bash', tool_use_id: 'b1', message: 'no', ...fields }))
+    expect(denied({ decision_reason_type: 'classifier', decision_reason: 'Deletes files outside the repo' })).toEqual([{ type: 'other', label: 'Blocked Bash: Deletes files outside the repo' }])
+    expect(denied({ decision_reason_type: 'rule' })).toEqual([{ type: 'other', label: 'Blocked Bash' }])
+    expect(denied({ decision_reason_type: 'permissionPromptTool' })).toEqual([])
+    expect(denied({ decision_reason_type: 'classifier', agent_id: 'sub-1' })).toEqual([])
   })
 
   it('turns unknown message types into a generic event and never throws', () => {

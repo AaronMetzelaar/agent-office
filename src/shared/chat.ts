@@ -35,6 +35,25 @@ export type ChatRow =
   | { kind: 'tool'; id: string; name: string; input: unknown; parentToolUseId?: string; result?: { text: string; isError: boolean } }
   | { kind: 'other'; id: string; label: string }
 
+export interface BackgroundJob {
+  id: string
+  description: string
+}
+
+export interface ContextUsage {
+  tokens: number
+  max: number
+  percent: number
+}
+
+export interface RewindPreview {
+  canRewind: boolean
+  error?: string
+  files?: number
+  insertions?: number
+  deletions?: number
+}
+
 export interface Answered {
   id: string
   source: RequestSource
@@ -78,8 +97,11 @@ export interface ChatFields {
   answered?: Answered[]
   earlier?: boolean
   subagents: { id: string; description: string; activity?: string }[]
+  backgroundJobs?: BackgroundJob[]
   usage: Usage
   partial: string
+  suggestion?: string
+  context?: ContextUsage
   createdAt: number
   lastActivityAt: number
 }

@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type StartChatResult, type Stuck } from '../../shared/chat'
+import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck } from '../../shared/chat'
 import { defaultRules, homeDept, isDeptId, repoPath, type DeptId, type DeptRule, type StartOptions } from '../../shared/departments'
 import { departmentOf, isResearch, pickColour } from '../../shared/office'
 import type { PendingRequestView } from '../../shared/permissions'
@@ -24,6 +24,7 @@ export interface AccountHooks {
 interface Chat {
   view: ChatView
   background: Set<string>
+  tasks: Map<string, string>
   backgroundTasks: number
   interrupting: boolean
   retryAt?: number
@@ -122,11 +123,11 @@ export async function olderRowsOf(sessionId: string, loaded: readonly ChatRow[],
 function fromRecord(record: ChatRecord): Chat {
   const { doneAt, readAt, ...fields } = record
   const view: ChatView = { ...fields, stateSince: record.lastActivityAt, activity: '', pending: [], pendingRequests: [], subagents: [], partial: '', rows: [] }
-  return { view, background: new Set(), backgroundTasks: 0, interrupting: false, doneAt, readAt }
+  return { view, background: new Set(), tasks: new Map(), backgroundTasks: 0, interrupting: false, doneAt, readAt }
 }
 
 function toRecord({ view, doneAt, readAt }: Chat): ChatRecord {
-  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, answered: _n, earlier: _e, ...fields } = view
+  const { stateSince: _s, activity: _a, pending: _p, pendingRequests: _q, oldestPendingAt: _o, subagents: _g, partial: _t, rows: _r, answered: _n, earlier: _e, suggestion: _x, context: _c, backgroundJobs: _j, ...fields } = view
   return { ...fields, doneAt, readAt }
 }
 
@@ -153,7 +154,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function stuck(chat: Chat, reason: Stuck) {
     if (chat.view.partial) addRow(chat, { kind: 'text', id: randomUUID(), text: chat.view.partial })
     chat.background.clear()
-    transition(chat, 'stuck', { stuck: reason, ...noPending, subagents: [], partial: '' })
+    transition(chat, 'stuck', { stuck: reason, ...noPending, subagents: [], backgroundJobs: [], partial: '' })
   }
 
   function fail(chat: Chat, error: string | undefined, fallback: 'crashed' | 'error') {
@@ -228,15 +229,20 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       case 'subagent-start':
         set(chat, { subagents: [...view.subagents, { id: event.id, description: event.description }] })
         break
+      case 'subagent-task':
+        chat.tasks.set(event.id, event.taskId)
+        break
       case 'subagent-progress':
         subagentDoing(chat, event.id, event.activity)
         break
       case 'subagent-stop':
         chat.background.delete(event.id)
+        chat.tasks.delete(event.id)
         dropSubagent(chat, event.id)
         break
       case 'background-tasks':
         chat.backgroundTasks = event.count
+        if (event.jobs.length || view.backgroundJobs?.length) set(chat, { backgroundJobs: event.jobs })
         break
       case 'turn-result': {
         const interrupted = chat.interrupting
@@ -244,8 +250,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         chat.interrupting = false
         chat.lastError = undefined
         set(chat, { usage: event.usage })
+        measureContext(chat)
         if (event.isError && !interrupted) fail(chat, [lastError, event.errorText].filter(Boolean).join(': '), 'error')
-        else if (!interrupted && (chat.background.size || chat.backgroundTasks) && midTurn.has(view.state)) set(chat, { activity: 'Waiting on background tasks', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
+        else if ((chat.background.size || chat.backgroundTasks) && midTurn.has(view.state)) set(chat, { activity: 'Waiting on background tasks', subagents: view.subagents.filter((agent) => chat.background.has(agent.id)) })
         else if (midTurn.has(view.state)) {
           chat.background.clear()
           chat.doneAt = Date.now()
@@ -262,6 +269,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       case 'api-error':
         chat.lastError = event.error
         break
+      case 'suggestion':
+        set(chat, { suggestion: event.text })
+        break
     }
   }
 
@@ -273,15 +283,29 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   engine.events.on('end', (chatId, error) =>
     guard(chatId, (chat) => {
       chat.backgroundTasks = 0
+      if (chat.view.backgroundJobs?.length) set(chat, { backgroundJobs: [] })
       if (midTurn.has(chat.view.state)) fail(chat, error ?? 'The Claude process exited mid-turn', 'crashed')
     }),
   )
 
-  function run(chat: Chat, text: string, fork = false) {
+  function measureContext(chat: Chat) {
+    const id = chat.view.id
+    engine.contextUsage(id).then(
+      (context) => guard(id, (current) => set(current, { context })),
+      () => {},
+    )
+  }
+
+  function ensureEngine({ view }: Chat, fork = false) {
+    if (engine.running(view.id)) return
+    engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork || view.forkPending ? { forkSession: true } : {}) })
+  }
+
+  function run(chat: Chat, text: string, messageId: string, fork = false) {
     const view = chat.view
     try {
-      if (!engine.running(view.id)) engine.start(view.id, { accountId: view.accountId, cwd: view.cwd, model: view.model || defaultModel, effort: view.effort, permissionMode: view.permissionMode, permissions: permissionsFor(view.id, view.accountId, view.cwd), resume: view.sessionId, ...(fork || view.forkPending ? { forkSession: true } : {}) })
-      engine.send(view.id, text)
+      ensureEngine(chat, fork)
+      engine.send(view.id, text, messageId)
     } catch (error) {
       fail(chat, errorText(error), 'crashed')
     }
@@ -289,10 +313,12 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
 
   function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false) {
     const view = chat.view
-    addRow(chat, { kind: 'user', id: randomUUID(), text })
+    const messageId = randomUUID()
+    addRow(chat, { kind: 'user', id: messageId, text })
+    if (view.suggestion) set(chat, { suggestion: undefined })
     if (view.parked || view.finished) set(chat, { parked: false, finished: undefined })
     if (view.state === 'idle' || view.state === 'done' || view.state === 'stuck') transition(chat, 'working', { unread: false, stuck: undefined, activity: 'Thinking', partial: '', ...fields })
-    run(chat, text, fork)
+    run(chat, text, messageId, fork)
   }
 
   const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
@@ -309,7 +335,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     )
   }
 
-  function setUpWorktree(chat: Chat, plan: WorktreePlan, prompt: string) {
+  function setUpWorktree(chat: Chat, plan: WorktreePlan, prompt: string, messageId = randomUUID()) {
     const id = chat.view.id
     transition(chat, 'starting', { worktree: plan.path, cwd: plan.cwd, setup: 'worktree', stuck: undefined })
     createWorktree(plan).then(
@@ -317,7 +343,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         guard(id, (current) => {
           const waiting = current.view.state === 'starting' && current.view.setup === 'worktree'
           set(current, { setup: undefined })
-          if (waiting) run(current, prompt)
+          if (waiting) run(current, prompt, messageId)
         }),
       (error: unknown) =>
         guard(id, (current) => {
@@ -364,7 +390,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       rows: [],
       ...init,
     }
-    const chat: Chat = { view, background: new Set(), backgroundTasks: 0, interrupting: false }
+    const chat: Chat = { view, background: new Set(), tasks: new Map(), backgroundTasks: 0, interrupting: false }
     chats.set(view.id, chat)
     save(chat)
     const { rows, ...fields } = view
@@ -463,8 +489,9 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const chat = create({ accountId, cwd, department, title, model: chosenModel, effort: chosenEffort as Effort, ...(review ? { review } : {}) })
       if (!named) nameTopic(chat.view.id, accountId, prompt)
       if (plan) {
-        addRow(chat, { kind: 'user', id: randomUUID(), text: prompt })
-        setUpWorktree(chat, plan, prompt)
+        const messageId = randomUUID()
+        addRow(chat, { kind: 'user', id: messageId, text: prompt })
+        setUpWorktree(chat, plan, prompt, messageId)
       } else send(chat, prompt)
       return { chatId: chat.view.id }
     },
@@ -558,6 +585,28 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (!chat || !engine.running(chat.view.id)) return
       chat.interrupting = true
       await engine.interrupt(chat.view.id).catch(() => (chat.interrupting = false))
+    },
+
+    async stopTask(chatId: unknown, id: unknown): Promise<void> {
+      const chat = find(chatId)
+      const taskId = typeof id === 'string' ? (chat?.tasks.get(id) ?? chat?.view.backgroundJobs?.find((job) => job.id === id)?.id) : undefined
+      if (!chat || !taskId || !engine.running(chat.view.id)) return
+      await engine.stopTask(chat.view.id, taskId)
+    },
+
+    async rewindFiles(chatId: unknown, messageId: unknown, dryRun: unknown): Promise<RewindPreview> {
+      const chat = find(chatId)
+      if (!chat || typeof messageId !== 'string' || !chat.view.rows.some((row) => row.kind === 'user' && row.id === messageId)) return { canRewind: false, error: 'That message isn’t in this chat.' }
+      if (midTurn.has(chat.view.state)) return { canRewind: false, error: 'Wait for Claude to finish, or stop it first.' }
+      if (chat.view.forkPending) return { canRewind: false, error: 'This chat has no file checkpoints yet.' }
+      try {
+        ensureEngine(chat)
+        const result = await engine.rewindFiles(chat.view.id, messageId, dryRun !== false)
+        if (dryRun === false && result.canRewind) addRow(chat, { kind: 'other', id: randomUUID(), label: 'Restored the files to how they were before an earlier message' })
+        return { canRewind: result.canRewind, ...(result.error ? { error: result.error } : {}), ...(result.filesChanged ? { files: result.filesChanged.length } : {}), ...(result.insertions === undefined ? {} : { insertions: result.insertions }), ...(result.deletions === undefined ? {} : { deletions: result.deletions }) }
+      } catch (error) {
+        return { canRewind: false, error: errorText(error) }
+      }
     },
 
     stopChat(chatId: unknown): void {

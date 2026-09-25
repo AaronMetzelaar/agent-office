@@ -61,6 +61,66 @@ describe('chat store', () => {
     expect(engine.sent.at(-1)).toEqual({ chatId: id, text: 'Now add a test' })
   })
 
+  it('holds the predicted next prompt until the user sends something', () => {
+    const { engine, store, chat } = office
+    const id = working('Fix the bid flow')
+    engine.emit(id, sdk.result())
+    engine.emit(id, { type: 'prompt_suggestion', suggestion: 'Run the tests', uuid: 'u', session_id: 's' } as unknown as SDKMessage)
+    expect(chat(id).suggestion).toBe('Run the tests')
+    store.sendMessage(id, 'Ship it')
+    expect(chat(id).suggestion).toBeUndefined()
+  })
+
+  it('sends each message under its row id, so file checkpoints line up with the transcript', () => {
+    const { engine, store, chat } = office
+    const id = working('Fix the bid flow')
+    engine.emit(id, sdk.result())
+    store.sendMessage(id, 'Now add a test')
+    const userRows = chat(id).rows.filter((row) => row.kind === 'user').map((row) => row.id)
+    expect(engine.sentIds).toEqual(userRows)
+  })
+
+  it('stops one subagent by its task, and keeps background subagents running when the turn is interrupted', async () => {
+    const { engine, store, chat } = office
+    const id = working()
+    engine.emit(id, sdk.toolUse([{ id: 'b1', name: 'Agent', input: { description: 'Scan bids' } }]))
+    engine.emit(id, sdk.taskStarted('b1'))
+    engine.emit(id, sdk.toolResult('b1', 'Async agent launched'))
+    await store.stopTask(id, 'b1')
+    await store.stopTask(id, 'nobody')
+    expect(engine.calls.filter((call) => call.startsWith('stopTask'))).toEqual([`stopTask:${id}:t`])
+
+    await store.interruptChat(id)
+    engine.emit(id, sdk.errorResult('[Request interrupted by user]'))
+    expect(chat(id)).toMatchObject({ state: 'working', subagents: [{ id: 'b1', description: 'Scan bids' }] })
+    engine.emit(id, sdk.taskNotification('b1'))
+    await store.stopTask(id, 'b1')
+    expect(engine.calls.filter((call) => call.startsWith('stopTask'))).toHaveLength(1)
+  })
+
+  it('measures the context window after each turn, and keeps it out of the saved chat', async () => {
+    const { engine, chat } = office
+    const id = working()
+    engine.emit(id, sdk.result())
+    await vi.waitFor(() => expect(chat(id).context).toEqual({ tokens: 42_000, max: 200_000, percent: 21 }))
+    expect(office.db.listChats()[0]).not.toHaveProperty('context')
+  })
+
+  it('previews and restores files from before a message, but not mid-turn or for a message elsewhere', async () => {
+    const { engine, store, chat } = office
+    const id = working('Fix the bid flow')
+    const first = chat(id).rows[0]!.id
+    expect(await store.rewindFiles(id, first, true)).toMatchObject({ canRewind: false, error: expect.stringContaining('finish') })
+    engine.emit(id, sdk.result())
+    expect(await store.rewindFiles(id, 'elsewhere', true)).toMatchObject({ canRewind: false })
+
+    expect(await store.rewindFiles(id, first, true)).toEqual({ canRewind: true, files: 2, insertions: 3, deletions: 7 })
+    expect(chat(id).rows.at(-1)?.kind).not.toBe('other')
+    await store.rewindFiles(id, first, false)
+    expect(engine.calls.filter((call) => call.startsWith('rewind'))).toEqual([`rewind:${id}:${first}:dry`, `rewind:${id}:${first}:real`])
+    expect(chat(id).rows.at(-1)).toMatchObject({ kind: 'other', label: expect.stringContaining('Restored') })
+  })
+
   it('titles a chat by its topic once the model names it, and keeps a title it was given', async () => {
     const { engine, store, chat } = office
     engine.topics.push('Bid flow rounding bug', 'Ignored')
@@ -166,6 +226,20 @@ describe('chat store', () => {
     engine.emit(id, sdk.backgroundTasks({ ambient: true }))
     engine.emit(id, sdk.result())
     expect(chat(id).state).toBe('done')
+  })
+
+  it('lists background commands, but not subagents, so each can be stopped on its own', async () => {
+    const { engine, store, chat } = office
+    const id = working()
+    engine.emit(id, sdk.backgroundTasks({ description: 'pnpm dev' }, { task_type: 'local_agent', description: 'Scan bids' }, { ambient: true }))
+    expect(chat(id).backgroundJobs).toEqual([{ id: 't0', description: 'pnpm dev' }])
+    await store.stopTask(id, 't0')
+    await store.stopTask(id, 't1')
+    expect(engine.calls.filter((call) => call.startsWith('stopTask'))).toEqual([`stopTask:${id}:t0`])
+
+    engine.emit(id, sdk.backgroundTasks())
+    expect(chat(id).backgroundJobs).toEqual([])
+    expect(office.db.listChats()[0]).not.toHaveProperty('backgroundJobs')
   })
 
   it('wakes a Done agent back to Working when it resumes on its own', () => {

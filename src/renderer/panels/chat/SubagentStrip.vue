@@ -12,22 +12,41 @@ const agents = computed(() => {
   return props.chat.subagents.map((agent) => ({ ...agent, steps: byId.get(agent.id)?.items.slice(-8) ?? [] }))
 })
 const toggle = (id: string) => (open.value = open.value === id ? undefined : id)
+const jobs = computed(() => props.chat.backgroundJobs ?? [])
+const summary = computed(() => {
+  const parts = [agents.value.length && `${agents.value.length} subagent${agents.value.length === 1 ? '' : 's'}`, jobs.value.length && `${jobs.value.length} background command${jobs.value.length === 1 ? '' : 's'}`]
+  return `${parts.filter(Boolean).join(' and ')} running`
+})
+const stop = (id: string) => window.office.stopTask(props.chat.id, id)
 </script>
 
 <template>
-  <section v-if="agents.length" class="subs" aria-label="Running subagents">
-    <p class="sc">{{ agents.length }} subagent{{ agents.length === 1 ? '' : 's' }} running</p>
+  <section v-if="agents.length || jobs.length" class="subs" aria-label="Running in the background">
+    <p class="sc">{{ summary }}</p>
     <ul>
       <li v-for="agent in agents" :key="agent.id" :class="{ open: open === agent.id }">
-        <button type="button" :aria-expanded="open === agent.id" @click="toggle(agent.id)">
-          <span class="dot" />
-          <b>{{ agent.description }}</b>
-          <span class="act">{{ agent.activity ?? 'Starting' }}</span>
-        </button>
+        <div class="sr">
+          <button type="button" class="sat" :aria-expanded="open === agent.id" @click="toggle(agent.id)">
+            <span class="dot" />
+            <b>{{ agent.description }}</b>
+            <span class="act">{{ agent.activity ?? 'Starting' }}</span>
+          </button>
+          <button type="button" class="btn sm" :aria-label="`Stop ${agent.description}`" title="Stop this subagent only" @click="stop(agent.id)">Stop</button>
+        </div>
         <template v-if="open === agent.id">
           <SubagentSteps v-if="agent.steps.length" :items="agent.steps" />
           <p v-else class="none">No steps yet</p>
         </template>
+      </li>
+      <li v-for="job in jobs" :key="job.id">
+        <div class="sr">
+          <span class="sat">
+            <span class="dot" />
+            <b>{{ job.description || 'Background command' }}</b>
+            <span class="act">Background command</span>
+          </span>
+          <button type="button" class="btn sm" :aria-label="`Stop ${job.description || 'background command'}`" title="Stop this command only" @click="stop(job.id)">Stop</button>
+        </div>
       </li>
     </ul>
   </section>
@@ -66,26 +85,37 @@ const toggle = (id: string) => (open.value = open.value === id ? undefined : id)
   padding-bottom: 6px;
 }
 
-.subs li > button {
+.subs .sat {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
   padding: 6px 10px;
   font-size: 12.5px;
   min-width: 0;
 }
 
-.subs li > button:hover {
+.subs button.sat:hover {
   background: var(--soft);
 }
 
-.subs li > button:focus-visible {
+.subs span.sat {
+  cursor: default;
+}
+
+.subs .sat:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+.subs .sr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
 }
 
 .subs .dot {

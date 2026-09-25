@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRenderer, h, nextTick, shallowRef } from 'vue'
 import Transcript from '../../src/renderer/panels/chat/Transcript.vue'
 import type { ChatRow, ChatView } from '../../src/shared/chat'
@@ -112,5 +112,28 @@ describe('transcript groups', () => {
     await click(groupButtons(root)[0]!)
     expect(textOf(root)).toContain(payload)
     expect(find(root, (candidate) => candidate.tag === 'img' || candidate.tag === 'script')).toHaveLength(0)
+  })
+})
+
+describe('undo file changes', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('previews what a rewind restores and only restores after a confirm, never while Claude is working', async () => {
+    const rewindFiles = vi.fn(async (_chatId: string, _messageId: string, dryRun: boolean) => (dryRun ? { canRewind: true, files: 2, insertions: 3, deletions: 7 } : { canRewind: true }))
+    vi.stubGlobal('window', { office: { rewindFiles } })
+    const { root, update } = mount(sessionChat({ state: 'idle', sessionId: 's1' }))
+    const first = byClass(root, 'rwb')[0]!
+    await click(first)
+    await vi.waitFor(() => expect(textOf(root)).toContain('Restore 2 files to how they were before this message (+3 −7)?'))
+    expect(rewindFiles).toHaveBeenCalledTimes(1)
+    expect(rewindFiles).toHaveBeenLastCalledWith('c1', expect.any(String), true)
+
+    const restore = find(byClass(root, 'rw')[0]!, (candidate) => candidate.tag === 'button' && textOf(candidate) === 'Restore')[0]!
+    await click(restore)
+    await vi.waitFor(() => expect(byClass(root, 'rw')).toHaveLength(0))
+    expect(rewindFiles).toHaveBeenLastCalledWith('c1', rewindFiles.mock.calls[0]![1], false)
+
+    await update(sessionChat({ state: 'working', sessionId: 's1' }))
+    expect(byClass(root, 'rwb')).toHaveLength(0)
   })
 })

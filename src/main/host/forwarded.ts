@@ -16,6 +16,8 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   departmentRules: true,
   sendMessage: true,
   interruptChat: true,
+  stopTask: true,
+  rewindFiles: true,
   stopChat: true,
   setModel: true,
   setEffort: true,

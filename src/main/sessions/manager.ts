@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import type { CanUseTool, PermissionMode, Query, SDKMessage, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk'
-import type { Effort } from '../../shared/chat'
+import type { CanUseTool, PermissionMode, Query, RewindFilesResult, SDKMessage, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk'
+import type { ContextUsage, Effort } from '../../shared/chat'
 
 export const outsideAsar = (path: string) => path.replace(/\bapp\.asar(?=[/\\])/, 'app.asar.unpacked')
 
@@ -23,13 +23,16 @@ export type EngineEvents = { message: [chatId: string, message: SDKMessage]; end
 export interface Engine {
   events: EventEmitter<EngineEvents>
   start(chatId: string, options: StartOptions): void
-  send(chatId: string, text: string): void
+  send(chatId: string, text: string, id: string): void
   interrupt(chatId: string): Promise<void>
   stop(chatId: string): void
   setModel(chatId: string, model: string): Promise<void>
   setEffort(chatId: string, effort: Effort): Promise<void>
   setPermissionMode(chatId: string, mode: PermissionMode): Promise<void>
   setPermissions(chatId: string, permissions: SessionPermissions): Promise<void>
+  stopTask(chatId: string, taskId: string): Promise<void>
+  contextUsage(chatId: string): Promise<ContextUsage>
+  rewindFiles(chatId: string, messageId: string, dryRun: boolean): Promise<RewindFilesResult>
   running(chatId: string): boolean
   pid(chatId: string): number | undefined
   commands(chatId: string): SlashCommand[] | undefined
@@ -73,8 +76,8 @@ function inputQueue() {
   }
   return {
     messages: messages(),
-    push(text: string) {
-      pending.push({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null })
+    push(text: string, id: string) {
+      pending.push({ type: 'user', uuid: id as SDKUserMessage['uuid'], message: { role: 'user', content: text }, parent_tool_use_id: null })
       wake()
     },
     end() {
@@ -149,6 +152,9 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
             includePartialMessages: true,
             forwardSubagentText: true,
             agentProgressSummaries: true,
+            promptSuggestions: true,
+            enableFileCheckpointing: true,
+            perTaskStopAffordance: true,
             canUseTool: (...args) => canUseTool(chatId, ...args),
             spawnClaudeCodeProcess: ({ command, args, cwd, env, signal }) => {
               const child = spawn(outsideAsar(command), args, { cwd, env, signal, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -163,10 +169,10 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
       sessions.set(chatId, session)
       void consume(chatId, session, token)
     },
-    send(chatId, text) {
+    send(chatId, text, id) {
       const session = sessions.get(chatId)
       if (!session) throw new Error('This chat has no running session')
-      session.input.push(text)
+      session.input.push(text, id)
     },
     async interrupt(chatId) {
       await (await live(chatId)).interrupt()
@@ -183,6 +189,16 @@ export function createSessionManager(tokenFor: (accountId: string) => string | u
     },
     async setPermissions(chatId, permissions) {
       await (await live(chatId)).applyFlagSettings({ permissions })
+    },
+    async stopTask(chatId, taskId) {
+      await (await live(chatId)).stopTask(taskId)
+    },
+    async contextUsage(chatId) {
+      const usage = await (await live(chatId)).getContextUsage({ detail: 'summary' })
+      return { tokens: usage.totalTokens, max: usage.maxTokens, percent: Math.round(usage.percentage) }
+    },
+    async rewindFiles(chatId, messageId, dryRun) {
+      return (await live(chatId)).rewindFiles(messageId, { dryRun })
     },
     running: (chatId) => sessions.has(chatId),
     pid: (chatId) => sessions.get(chatId)?.spawned.pid,

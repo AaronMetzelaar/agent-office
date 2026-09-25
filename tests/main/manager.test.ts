@@ -9,7 +9,7 @@ const sdk = vi.hoisted(() => ({
   messages: [] as unknown[],
   thrown: undefined as Error | undefined,
   hold: undefined as Promise<void> | undefined,
-  control: { interrupt: vi.fn(), setModel: vi.fn(), applyFlagSettings: vi.fn(), setPermissionMode: vi.fn(), close: vi.fn(), supportedCommands: vi.fn(async () => [{ name: 'compact' }, { name: 'mws-pr' }]) },
+  control: { interrupt: vi.fn(), stopTask: vi.fn(), getContextUsage: vi.fn(async () => ({ totalTokens: 42_000, maxTokens: 200_000, percentage: 21.4 })), rewindFiles: vi.fn(async () => ({ canRewind: true })), setModel: vi.fn(), applyFlagSettings: vi.fn(), setPermissionMode: vi.fn(), close: vi.fn(), supportedCommands: vi.fn(async () => [{ name: 'compact' }, { name: 'mws-pr' }]) },
 }))
 
 vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
@@ -71,17 +71,22 @@ describe('session manager', () => {
     sdk.hold = new Promise((resolve) => (release = resolve))
     const { engine } = manager()
     engine.start('c1', { accountId: 'main', cwd: tmpdir() })
-    engine.send('c1', 'hello')
+    engine.send('c1', 'hello', 'm1')
     await vi.waitFor(() => expect(sdk.prompt).toBeDefined())
 
     const first = await sdk.prompt![Symbol.asyncIterator]().next()
-    expect(first.value).toEqual({ type: 'user', message: { role: 'user', content: 'hello' }, parent_tool_use_id: null })
+    expect(first.value).toEqual({ type: 'user', uuid: 'm1', message: { role: 'user', content: 'hello' }, parent_tool_use_id: null })
 
     await engine.interrupt('c1')
     await engine.setModel('c1', 'sonnet')
     await engine.setEffort('c1', 'high')
     await engine.setPermissionMode('c1', 'plan')
     await engine.setPermissions('c1', { allow: [], ask: ['WebFetch'] })
+    await engine.stopTask('c1', 't1')
+    expect(await engine.contextUsage('c1')).toEqual({ tokens: 42_000, max: 200_000, percent: 21 })
+    expect(await engine.rewindFiles('c1', 'm1', true)).toEqual({ canRewind: true })
+    expect(sdk.control.stopTask).toHaveBeenCalledWith('t1')
+    expect(sdk.control.rewindFiles).toHaveBeenCalledWith('m1', { dryRun: true })
     expect(sdk.control.interrupt).toHaveBeenCalled()
     expect(sdk.control.setModel).toHaveBeenCalledWith('sonnet')
     expect(sdk.control.applyFlagSettings).toHaveBeenCalledWith({ effortLevel: 'high' })

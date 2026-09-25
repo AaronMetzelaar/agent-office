@@ -1,5 +1,5 @@
 import type { CommandList, CommandTarget } from './commands'
-import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, SimulatorShot, StartChatResult } from './chat'
+import type { ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
@@ -74,6 +74,8 @@ export interface Commands {
   departmentRules(): DeptRule[]
   sendMessage(chatId: string, text: string): Refusal | undefined
   interruptChat(chatId: string): Promise<void>
+  stopTask(chatId: string, id: string): Promise<void>
+  rewindFiles(chatId: string, messageId: string, dryRun: boolean): Promise<RewindPreview>
   stopChat(chatId: string): void
   setModel(chatId: string, model: string): Promise<void>
   setEffort(chatId: string, effort: Effort): Promise<void>

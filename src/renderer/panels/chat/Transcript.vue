@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { maxRows, type ChatRow, type ChatView } from '../../../shared/chat'
+import { isBusy, maxRows, type ChatRow, type ChatView, type RewindPreview } from '../../../shared/chat'
 import { items } from './groups'
 import { Markdown } from './markdown'
 import { plainLabel, subagentState } from './rows'
@@ -14,6 +14,8 @@ const scroller = ref<HTMLElement>()
 const older = ref<ChatRow[]>([])
 const more = ref<boolean>()
 const loading = ref(false)
+const rewind = ref<{ id: string; preview?: RewindPreview; busy?: boolean }>()
+const canRewind = computed(() => !props.chat.visitor && !!props.chat.sessionId && !isBusy(props.chat.state))
 let pinned = true
 
 const list = computed(() => items([...older.value, ...props.chat.rows]))
@@ -50,6 +52,24 @@ function onScroll() {
   if (el) pinned = el.scrollHeight - el.scrollTop - el.clientHeight < 48
 }
 
+async function previewRewind(messageId: string) {
+  rewind.value = { id: messageId, busy: true }
+  const preview = await window.office.rewindFiles(props.chat.id, messageId, true)
+  if (rewind.value?.id === messageId) rewind.value = { id: messageId, preview }
+}
+
+async function confirmRewind(messageId: string) {
+  rewind.value = { id: messageId, busy: true }
+  const result = await window.office.rewindFiles(props.chat.id, messageId, false)
+  rewind.value = result.canRewind ? undefined : { id: messageId, preview: result }
+}
+
+const previewText = ({ canRewind, error, files = 0, insertions = 0, deletions = 0 }: RewindPreview) => {
+  if (!canRewind) return error ?? 'Can’t undo the file changes from here.'
+  if (!files) return 'No file changes since this message.'
+  return `Restore ${files} file${files === 1 ? '' : 's'} to how they were before this message (+${insertions} −${deletions})?`
+}
+
 async function loadOlder() {
   const chatId = props.chat.id
   loading.value = true
@@ -69,6 +89,7 @@ watch(
   () => {
     older.value = []
     more.value = undefined
+    rewind.value = undefined
     pinned = true
     void stick()
   },
@@ -88,7 +109,18 @@ watch(
     <template v-for="item in list" :key="item.kind === 'group' ? `g:${item.id}` : item.row.id">
       <ToolGroup v-if="item.kind === 'group'" :rows="item.rows" :summary="item.summary" :live="item === live" />
       <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" />
-      <div v-else-if="item.row.kind === 'user'" class="ur">{{ item.row.text }}</div>
+      <div v-else-if="item.row.kind === 'user'" class="uw">
+        <div class="ur">{{ item.row.text }}</div>
+        <div v-if="rewind?.id === item.row.id" class="rw" role="status">
+          <template v-if="rewind.busy">Checking…</template>
+          <template v-else-if="rewind.preview">
+            <span>{{ previewText(rewind.preview) }}</span>
+            <button v-if="rewind.preview.canRewind && rewind.preview.files" type="button" class="btn sm danger" @click="confirmRewind(item.row.id)">Restore</button>
+            <button type="button" class="btn sm" @click="rewind = undefined">{{ rewind.preview.canRewind && rewind.preview.files ? 'Cancel' : 'OK' }}</button>
+          </template>
+        </div>
+        <button v-else-if="canRewind" type="button" class="rwb" title="Put the files back to how they were before this message. The conversation stays." @click="previewRewind(item.row.id)">Undo file changes from here</button>
+      </div>
       <Markdown v-else-if="item.row.kind === 'text'" class="ar" :source="item.row.text" />
       <p v-else class="or">{{ plainLabel(item.row) }}</p>
     </template>
@@ -121,9 +153,43 @@ watch(
   align-self: center;
 }
 
-.ts .ur {
+.ts .uw {
   align-self: flex-end;
   max-width: 85%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.ts .rwb {
+  all: unset;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--faint);
+  opacity: 0;
+}
+
+.ts .uw:hover .rwb,
+.ts .rwb:focus-visible {
+  opacity: 1;
+}
+
+.ts .rwb:hover {
+  color: var(--ink2);
+}
+
+.ts .rw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+
+.ts .ur {
   background: var(--accent-soft);
   color: var(--ink);
   border-radius: 12px 12px 4px 12px;

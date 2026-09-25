@@ -29,7 +29,7 @@ export const sdk = {
   rateLimit: (info: SDKRateLimitInfo) => message({ type: 'rate_limit_event', rate_limit_info: info }),
   taskStarted: (toolUseId: string) => message({ type: 'system', subtype: 'task_started', task_id: 't', tool_use_id: toolUseId, description: '', is_backgrounded: true }),
   taskProgress: (toolUseId: string, summary: string) => message({ type: 'system', subtype: 'task_progress', task_id: 't', tool_use_id: toolUseId, description: '', usage: { total_tokens: 0, tool_uses: 0, duration_ms: 0 }, summary }),
-  backgroundTasks: (...tasks: { ambient?: boolean }[]) => message({ type: 'system', subtype: 'background_tasks_changed', tasks: tasks.map((task, index) => ({ task_id: `t${index}`, task_type: 'local_bash', description: '', ...task })) }),
+  backgroundTasks: (...tasks: { ambient?: boolean; task_type?: string; description?: string }[]) => message({ type: 'system', subtype: 'background_tasks_changed', tasks: tasks.map((task, index) => ({ task_id: `t${index}`, task_type: 'local_bash', description: '', ...task })) }),
   taskNotification: (toolUseId: string) => message({ type: 'system', subtype: 'task_notification', task_id: 't', tool_use_id: toolUseId, status: 'completed', output_file: '', summary: '' }),
 }
 
@@ -65,6 +65,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const live = new Map<string, FakeSession>()
   const starts: { chatId: string; options: StartOptions }[] = []
   const sent: { chatId: string; text: string }[] = []
+  const sentIds: string[] = []
   const calls: string[] = []
   const topics: (string | undefined)[] = []
   const table = new Map<number, FakeProcess>()
@@ -72,6 +73,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const ignoresTerm = new Set<number>()
   let nextPid = 70_000
   let supported = ['compact', 'review', 'mws-test-cases', 'mws-verify', 'mws-review', 'mws-pr', 'pr-comment-rundown', 'gh-fix-ci', 'pr-review-rundown']
+  const context = { tokens: 42_000, max: 200_000, percent: 21 }
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
   const listed = () => supported.map((name) => ({ name, description: '', argumentHint: '' }))
 
@@ -132,9 +134,10 @@ export function createFakeEngine({ auto = false } = {}) {
       table.set(pid + 1, { ppid: pid, kb: 300_000, args: 'node /fake/node_modules/.bin/vite --port 5173' })
       live.set(chatId, { options, sessionId: options.resume && !options.forkSession ? options.resume : randomUUID(), initialized: false, permissions: options.permissions, pid })
     },
-    send(chatId, text) {
+    send(chatId, text, id) {
       if (!live.has(chatId)) throw new Error('This chat has no running session')
       sent.push({ chatId, text })
+      sentIds.push(id)
       if (auto) void play(chatId, text)
     },
     async interrupt(chatId) {
@@ -163,6 +166,14 @@ export function createFakeEngine({ auto = false } = {}) {
       session.permissions = permissions
       calls.push(`setPermissions:${chatId}:${permissions.allow.join(',')}`)
     },
+    async stopTask(chatId, taskId) {
+      calls.push(`stopTask:${chatId}:${taskId}`)
+    },
+    contextUsage: async () => context,
+    async rewindFiles(chatId, messageId, dryRun) {
+      calls.push(`rewind:${chatId}:${messageId}:${dryRun ? 'dry' : 'real'}`)
+      return { canRewind: true, filesChanged: ['a.ts', 'b.ts'], insertions: 3, deletions: 7 }
+    },
     running: (chatId) => live.has(chatId),
     pid: (chatId) => live.get(chatId)?.pid,
     commands: (chatId) => (starts.some((start) => start.chatId === chatId) ? listed() : undefined),
@@ -188,6 +199,7 @@ export function createFakeEngine({ auto = false } = {}) {
     permissions: (chatId: string) => live.get(chatId)?.permissions,
     starts,
     sent,
+    sentIds,
     calls,
     topics,
     emit,

@@ -17,6 +17,7 @@ const sending = ref(false)
 const slash = ref<InstanceType<typeof SlashInput>>()
 const mode = computed(() => props.chat.permissionMode ?? 'auto')
 const busy = computed(() => ['starting', 'working', 'needs-you'].includes(props.chat.state))
+const suggestion = computed(() => (props.waiting ? undefined : props.chat.suggestion))
 
 watch(
   () => props.chat.id,
@@ -40,6 +41,12 @@ const loadCommands = () => window.office.getCommands({ chatId: props.chat.id })
 function edit(value: string) {
   text.value = value
   store.set(props.chat.id, value)
+}
+
+function acceptSuggestion(event: KeyboardEvent) {
+  if (text.value || !suggestion.value) return
+  event.preventDefault()
+  edit(suggestion.value)
 }
 
 async function send() {
@@ -71,10 +78,11 @@ async function send() {
       :load="loadCommands"
       rows="3"
       aria-label="Message"
-      :placeholder="waiting ? 'Tell Claude what to do instead…' : `Reply to ${chat.title}… (/ for commands)`"
+      :placeholder="waiting ? 'Tell Claude what to do instead…' : suggestion ? `${suggestion}   (Tab to use)` : `Reply to ${chat.title}… (/ for commands)`"
       @update:model-value="edit"
       @blur="store.flush(chat.id)"
       @keydown.meta.enter.prevent="send"
+      @keydown.tab.exact="acceptSuggestion"
     />
     <div v-if="error" class="cerr" role="alert">
       <span>{{ error }}</span>
@@ -82,6 +90,7 @@ async function send() {
     </div>
     <div class="crow">
       <span :class="['mode', mode]" :title="mode === 'auto' ? 'Auto mode asks you only before risky actions' : undefined">{{ modeLabels[mode] }}</span>
+      <span v-if="chat.context" :class="['ctx', { full: chat.context.percent >= 80 }]" :title="`${chat.context.tokens.toLocaleString()} of ${chat.context.max.toLocaleString()} tokens in context`">Context {{ chat.context.percent }}%</span>
       <button type="button" class="btn sm" title="Commands & skills" @click="slash?.browse()">/ Commands</button>
       <button type="button" class="btn sm" :aria-pressed="mode === 'plan'" title="Plan first: Claude proposes a plan and waits for your approval before editing" @click="togglePlan">Plan</button>
       <span class="sp" />
@@ -118,6 +127,15 @@ async function send() {
 .comp .mode.plan {
   color: var(--needs-ink);
   background: var(--needs-bg);
+}
+
+.comp .ctx {
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.comp .ctx.full {
+  color: var(--needs-ink);
 }
 
 .comp .btn[aria-pressed='true'] {

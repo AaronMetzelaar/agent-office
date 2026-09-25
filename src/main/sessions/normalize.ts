@@ -1,5 +1,5 @@
 import type { PermissionMode, SDKAssistantMessageError, SDKMessage, SDKRateLimitInfo, SDKResultMessage } from '@anthropic-ai/claude-agent-sdk'
-import { emptyUsage, type Usage } from '../../shared/chat'
+import { emptyUsage, type BackgroundJob, type Usage } from '../../shared/chat'
 
 export type ChatEvent =
   | { type: 'session'; sessionId: string; model: string }
@@ -11,18 +11,20 @@ export type ChatEvent =
   | { type: 'user-text'; id: string; text: string }
   | { type: 'subagent-start'; id: string; description: string }
   | { type: 'subagent-background'; id: string }
+  | { type: 'subagent-task'; id: string; taskId: string }
   | { type: 'subagent-progress'; id: string; activity: string }
   | { type: 'subagent-stop'; id: string }
-  | { type: 'background-tasks'; count: number }
+  | { type: 'background-tasks'; count: number; jobs: BackgroundJob[] }
   | { type: 'turn-result'; usage: Usage; isError: boolean; errorText?: string }
   | { type: 'headroom'; info: SDKRateLimitInfo }
   | { type: 'retry-at'; at: number }
   | { type: 'api-error'; error: SDKAssistantMessageError }
+  | { type: 'suggestion'; text: string }
   | { type: 'other'; label: string }
 
 type Block = { type?: string; id?: string; name?: string; input?: unknown; text?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }
 
-const quietTypes = new Set(['tool_progress', 'auth_status', 'tool_use_summary', 'prompt_suggestion'])
+const quietTypes = new Set(['tool_progress', 'auth_status', 'tool_use_summary'])
 const quietSystem = new Set([
   'hook_started',
   'hook_progress',
@@ -41,6 +43,10 @@ const quietSystem = new Set([
 ])
 const subagentTools = new Set(['Agent', 'Task'])
 const maxResultText = 4000
+const promptedDenial = 'permissionPromptTool'
+const subagentTask = 'local_agent'
+
+const kilo = (tokens: number) => `${Math.round(tokens / 1000)}k`
 
 export function errorReason(error: unknown): 'needs-login' | 'rate-limited' | undefined {
   const text = String(error)
@@ -113,15 +119,33 @@ export function normalize(message: SDKMessage): ChatEvent[] {
       if (info.status === 'rejected' && info.resetsAt) events.push({ type: 'retry-at', at: info.resetsAt * 1000 })
       return events
     }
+    case 'prompt_suggestion':
+      return [{ type: 'suggestion', text: message.suggestion }]
     case 'system':
       if (message.subtype === 'init') return [{ type: 'session', sessionId: message.session_id, model: message.model }, ...(message.permissionMode ? [{ type: 'mode' as const, mode: message.permissionMode }] : [])]
       if (message.subtype === 'status') return message.permissionMode ? [{ type: 'mode', mode: message.permissionMode }] : []
-      if (message.subtype === 'task_started') return message.tool_use_id && message.is_backgrounded ? [{ type: 'subagent-background', id: message.tool_use_id }] : []
+      if (message.subtype === 'task_started') {
+        const id = message.tool_use_id
+        if (!id) return []
+        return [{ type: 'subagent-task', id, taskId: message.task_id }, ...(message.is_backgrounded ? [{ type: 'subagent-background' as const, id }] : [])]
+      }
+      if (message.subtype === 'permission_denied') {
+        if (message.agent_id || !message.decision_reason_type || message.decision_reason_type === promptedDenial) return []
+        return [{ type: 'other', label: `Blocked ${message.tool_name}${message.decision_reason ? `: ${message.decision_reason}` : ''}` }]
+      }
+      if (message.subtype === 'compact_boundary' && message.compact_metadata) {
+        const { pre_tokens: before, post_tokens: after } = message.compact_metadata
+        return [{ type: 'other', label: `Compacted the conversation (${kilo(before)}${after === undefined ? '' : ` → ${kilo(after)}`} tokens)` }]
+      }
       if (message.subtype === 'task_progress') {
         return message.tool_use_id && message.summary ? [{ type: 'subagent-progress', id: message.tool_use_id, activity: message.summary }] : []
       }
       if (message.subtype === 'task_notification') return message.tool_use_id ? [{ type: 'subagent-stop', id: message.tool_use_id }] : []
-      if (message.subtype === 'background_tasks_changed') return [{ type: 'background-tasks', count: message.tasks.filter((task) => !task.ambient).length }]
+      if (message.subtype === 'background_tasks_changed') {
+        const tasks = message.tasks.filter((task) => !task.ambient)
+        const jobs = tasks.filter((task) => task.task_type !== subagentTask).map((task) => ({ id: task.task_id, description: task.description }))
+        return [{ type: 'background-tasks', count: tasks.length, jobs }]
+      }
       if (message.subtype === 'api_retry') return message.error === 'rate_limit' ? [{ type: 'retry-at', at: Date.now() + message.retry_delay_ms }] : []
       return quietSystem.has(message.subtype) ? [] : [{ type: 'other', label: `system:${message.subtype}` }]
     default:
