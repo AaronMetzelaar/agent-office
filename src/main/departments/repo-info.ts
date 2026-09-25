@@ -6,7 +6,7 @@ import { remoteSlug } from '../workflow/review-requests'
 
 const mws = /(?<![a-z\d])mws(?![a-z\d])|matchwornshirt/i
 
-const memo = <T>(fn: (key: string) => T) => {
+export const memo = <T>(fn: (key: string) => T) => {
   const cache = new Map<string, T>()
   return (key: string): T => (cache.has(key) ? (cache.get(key) as T) : cache.set(key, fn(key)).get(key)!)
 }

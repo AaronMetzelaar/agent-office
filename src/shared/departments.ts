@@ -44,6 +44,27 @@ export interface DeptConfig {
   commands: ConfigCommands
 }
 
+export interface RoomDef {
+  id: string
+  name: string
+  subtitle: string
+  accent: number
+  look: Look
+  account?: string
+  root?: string
+  parent?: string
+  createdAt?: number
+}
+
+export const mwsRooms: readonly RoomDef[] = [
+  { id: 'mkt', name: 'Marketplace', subtitle: 'monorepo/frontend/marketplace', accent: 0x1b34ff, look: 'showroom' },
+  { id: 'adm', name: 'Admin', subtitle: 'monorepo/frontend/admin', accent: 0xdb2777, look: 'backoffice' },
+  { id: 'mob', name: 'Mobile', subtitle: 'monorepo/frontend/mobile', accent: 0x16a34a, look: 'devices' },
+  { id: 'plat', name: 'Backend / infra', subtitle: 'services · api · workers · infra', accent: 0x7c3aed, look: 'servers' },
+]
+export const reviewRoom: RoomDef = { id: 'rev', name: 'PR reviews', subtitle: 'your review requests', accent: 0x854d0e, look: 'reading' }
+export const playgroundRoom: RoomDef = { id: 'side', name: 'Side projects', subtitle: 'folders without a room', accent: 0xea580c, look: 'playground' }
+
 export interface StartOptions {
   dept?: DeptId
   worktree?: boolean
