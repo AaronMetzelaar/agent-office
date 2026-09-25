@@ -37,14 +37,15 @@ describe('starting a chat', () => {
     expect(office.starts).toEqual([{ dept: 'adm' }])
   })
 
-  it('keeps the picked section when Jev has no answer, and skips Jev for reviews and research accounts', async () => {
+  it('keeps the picked section when Jev has no answer, and skips Jev only for reviews', async () => {
     const office = wire(undefined)
     await office.start({ dept: 'mob' })
     expect(office.starts).toEqual([{ dept: 'mob' }])
     const skipped = wire('adm')
     await skipped.start({ review: true })
-    await skipped.start({}, 'lab')
     expect(skipped.jev).not.toHaveBeenCalled()
+    await skipped.start({}, 'lab')
+    expect(skipped.starts.at(-1)).toEqual({ dept: 'adm' })
   })
 
   it('starts the chat right away and walks it into the new room once Claude has named it', async () => {

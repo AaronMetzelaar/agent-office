@@ -1,5 +1,5 @@
 import type { StartChatResult } from '../../shared/chat'
-import { defaultAccount, isResearch, type DeptRule, type StartOptions } from '../../shared/departments'
+import { defaultAccount, type DeptRule, type StartOptions } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import type { TicketLookup } from '../../shared/workflow'
 import type { Jev } from '../departments/jev'
@@ -35,9 +35,8 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
   hub.handle('startChat', async (accountId, cwd, prompt, model, effort, options) => {
     const seeded = typeof prompt === 'string' ? await withTicket(linear, prompt, options) : { prompt, options }
     const wanted = (typeof seeded.options === 'object' && seeded.options ? seeded.options : {}) as StartOptions
-    const research = accounts().some((account) => account.id === accountId && isResearch(account))
     const task = seeded.prompt
-    const pick = wanted.review || research || typeof cwd !== 'string' || typeof task !== 'string' ? undefined : await jev(cwd, task)
+    const pick = wanted.review || typeof cwd !== 'string' || typeof task !== 'string' ? undefined : await jev(cwd, task)
     const dept = pick === 'new' ? undefined : pick
     const result = store.start(accountId, cwd, task, model, effort, dept ? { ...wanted, dept } : seeded.options)
     if (pick === 'new' && 'chatId' in result && typeof accountId === 'string') void moveToNewRoom(result.chatId, accountId, cwd as string, task as string)

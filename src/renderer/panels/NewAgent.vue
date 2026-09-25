@@ -40,7 +40,6 @@ const accountId = computed({
 const account = computed(() => props.accounts.find((candidate) => candidate.id === accountId.value))
 const research = computed(() => !!account.value && isResearch(account.value))
 const section = computed<DeptId>(() => form.section || props.desk?.dept || homeDept(form.folder, research.value, rules.value))
-const jevPicks = computed(() => hasJev.value && !research.value)
 const hint = computed(() => accountHint(props.accounts, accountId.value, section.value))
 const overflow = computed(() => !!account.value && showsAccountBadge(section.value, research.value))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
@@ -123,7 +122,7 @@ onMounted(async () => {
     <span class="av new">+</span>
     <div>
       <h2>New agent</h2>
-      <p class="meta"><span class="dd" :style="{ background: hexOf(deptDefs[section].accent) }" />{{ jevPicks ? 'Jev picks the room' : deptNames[section] }} · {{ place }}</p>
+      <p class="meta"><span class="dd" :style="{ background: hexOf(deptDefs[section].accent) }" />{{ hasJev ? 'Jev picks the room' : deptNames[section] }} · {{ place }}</p>
     </div>
     <button type="button" class="ib" aria-label="Cancel" title="Cancel (Esc)" @click="emit('close')">×</button>
   </div>
