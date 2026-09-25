@@ -63,7 +63,7 @@ function unavailable(error: unknown): string {
   return 'Couldn’t reach GitHub, so review requests may be out of date.'
 }
 
-const remoteSlug = (url: string) => /[/:]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]?.toLowerCase()
+export const remoteSlug = (url: string) => /[/:]([^/:]+\/[^/]+?)(?:\.git)?\/?$/.exec(url.trim())?.[1]?.toLowerCase()
 
 export async function localClone(repo: string, folders: readonly string[], git: Run = run): Promise<string | undefined> {
   for (const folder of folders) {
