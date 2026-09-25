@@ -18,7 +18,9 @@ interface RawNode {
   id: string
   additions?: number
   deletions?: number
-  commits?: { nodes?: { commit?: { statusCheckRollup?: { state?: string } | null } }[] }
+  commits?: { nodes?: { commit?: { committedDate?: string; statusCheckRollup?: { state?: string } | null } }[] }
+  comments?: { nodes?: { createdAt?: string; author?: { login?: string } | null }[] }
+  reviews?: { nodes?: { submittedAt?: string | null; author?: { login?: string } | null }[] }
   timelineItems?: { nodes?: { createdAt?: string; requestedReviewer?: { login?: string } | null }[] }
 }
 
@@ -29,19 +31,29 @@ interface RawDetails {
 
 export const searchArgs = ['search', 'prs', '--review-requested=@me', '--state=open', '--json', 'id,number,title,url,repository,author,createdAt,isDraft', '--limit', '100']
 const detailsQuery =
-  'query($ids:[ID!]!){viewer{login} nodes(ids:$ids){... on PullRequest{id additions deletions commits(last:1){nodes{commit{statusCheckRollup{state}}}} timelineItems(itemTypes:[REVIEW_REQUESTED_EVENT],last:20){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on User{login}}}}}}}}'
+  'query($ids:[ID!]!){viewer{login} nodes(ids:$ids){... on PullRequest{id additions deletions commits(last:1){nodes{commit{committedDate statusCheckRollup{state}}}} comments(last:50){nodes{createdAt author{login}}} reviews(last:50){nodes{submittedAt author{login}}} timelineItems(itemTypes:[REVIEW_REQUESTED_EVENT],last:20){nodes{... on ReviewRequestedEvent{createdAt requestedReviewer{... on User{login}}}}}}}}'
 const ciStates: Record<string, CiSummary> = { SUCCESS: 'pass', FAILURE: 'fail', ERROR: 'fail', PENDING: 'pending', EXPECTED: 'pending' }
 const pollMs = 5 * 60_000
 const focusGapMs = 60_000
 
+function answered(node: RawNode, me: string): boolean {
+  const mine = [
+    ...(node.comments?.nodes ?? []).filter((comment) => comment.author?.login === me).map((comment) => comment.createdAt),
+    ...(node.reviews?.nodes ?? []).filter((review) => review.author?.login === me).map((review) => review.submittedAt),
+  ].flatMap((at) => (at ? [Date.parse(at)] : []))
+  const pushed = Date.parse(node.commits?.nodes?.[0]?.commit?.committedDate ?? '')
+  return mine.length > 0 && !(pushed > Math.max(...mine))
+}
+
 export function toRequests(search: RawSearch[], details: RawDetails | undefined): ReviewRequest[] {
   const nodes = new Map((details?.nodes ?? []).flatMap((node) => (node ? [[node.id, node] as const] : [])))
   const me = details?.viewer?.login
-  return search.map((pr) => {
+  return search.flatMap((pr) => {
     const node = nodes.get(pr.id)
+    if (node && me && answered(node, me)) return []
     const events = node?.timelineItems?.nodes ?? []
     const asked = events.findLast((event) => !!me && event.requestedReviewer?.login === me) ?? events.at(-1)
-    return {
+    return [{
       url: pr.url,
       repo: pr.repository.nameWithOwner,
       number: pr.number,
@@ -51,7 +63,7 @@ export function toRequests(search: RawSearch[], details: RawDetails | undefined)
       draft: pr.isDraft === true,
       ...(typeof node?.additions === 'number' ? { additions: node.additions, deletions: node.deletions ?? 0 } : {}),
       ...(node?.commits ? { ci: ciStates[node.commits.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ''] ?? 'none' } : {}),
-    }
+    }]
   })
 }
 

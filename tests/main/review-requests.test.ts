@@ -65,6 +65,20 @@ describe('review requests', () => {
     expect(state.calls[1]!.join(' ')).not.toContain('files(')
   })
 
+  it('hides a PR I already commented on until a newer commit lands', async () => {
+    const { gh, state } = fakeGh()
+    const mine = { comments: { nodes: [{ createdAt: '2026-09-23T10:00:00Z', author: { login: 'aaron' } }] }, reviews: { nodes: [{ submittedAt: '2026-09-22T10:00:00Z', author: { login: 'jan' } }] } }
+    const commit = (committedDate: string) => ({ nodes: [{ commit: { committedDate, statusCheckRollup: { state: 'SUCCESS' } } }] })
+    state.nodes = [{ ...nodes[0], ...mine, commits: commit('2026-09-23T09:00:00Z') }, nodes[1]]
+    const queue = createReviewQueue(gh)
+    await queue.poll()
+    expect(queue.view().requests.map((request) => request.number)).toEqual([9])
+
+    state.nodes = [{ ...nodes[0], ...mine, commits: commit('2026-09-23T11:00:00Z') }, nodes[1]]
+    await queue.poll()
+    expect(queue.view().requests.map((request) => request.number)).toEqual([7, 9])
+  })
+
   it('drops a request once gh stops listing it', async () => {
     const { gh, state } = fakeGh()
     const queue = createReviewQueue(gh)
