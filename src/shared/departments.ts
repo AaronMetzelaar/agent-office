@@ -19,6 +19,31 @@ export interface DeptRule {
   dept: DeptId
 }
 
+export const looks = ['showroom', 'backoffice', 'devices', 'servers', 'reading', 'gym', 'playground', 'plain'] as const
+export type Look = (typeof looks)[number]
+
+export interface ConfigRoom {
+  id: string
+  name: string
+  folders?: string[]
+  account?: string
+  accent?: string
+  look?: Look
+}
+
+export interface ConfigCommands {
+  ship?: string[]
+  fixCi?: string
+  answerComments?: string
+  review?: string
+}
+
+export interface DeptConfig {
+  rooms: ConfigRoom[]
+  playground: string[]
+  commands: ConfigCommands
+}
+
 export interface StartOptions {
   dept?: DeptId
   worktree?: boolean
