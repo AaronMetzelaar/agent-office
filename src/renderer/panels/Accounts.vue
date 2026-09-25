@@ -13,6 +13,8 @@ const relogin = ref<string>()
 const formKey = ref(0)
 const hasLinearKey = ref(false)
 const linearKey = ref('')
+const hasJevKey = ref(false)
+const jevKey = ref('')
 
 const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
 const dayTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
@@ -55,6 +57,18 @@ async function clearLinearKey() {
   hasLinearKey.value = false
 }
 
+async function saveJevKey() {
+  const key = jevKey.value
+  jevKey.value = ''
+  await window.office.setJevKey(key)
+  hasJevKey.value = await window.office.hasJevKey()
+}
+
+async function clearJevKey() {
+  await window.office.clearJevKey()
+  hasJevKey.value = false
+}
+
 const onKey = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')
 }
@@ -62,6 +76,7 @@ const onKey = (event: KeyboardEvent) => {
 onMounted(async () => {
   addEventListener('keydown', onKey)
   hasLinearKey.value = await window.office.hasLinearKey()
+  hasJevKey.value = await window.office.hasJevKey()
 })
 onUnmounted(() => removeEventListener('keydown', onKey))
 </script>
@@ -113,6 +128,22 @@ onUnmounted(() => removeEventListener('keydown', onKey))
           <label class="field">
             <span>Personal API key (optional)</span>
             <input v-model="linearKey" type="password" required autocomplete="off" spellcheck="false" placeholder="lin_api_…" />
+          </label>
+          <button class="btn">Save key</button>
+        </form>
+      </section>
+
+      <section class="section">
+        <h3 class="sec">Jev</h3>
+        <p class="meta">Picks the section for a new agent started in the monorepo root, from its prompt.</p>
+        <template v-if="hasJevKey">
+          <p class="meta">A TypeSafe API key is stored, encrypted.</p>
+          <button class="btn danger" @click="clearJevKey">Remove key</button>
+        </template>
+        <form v-else class="linear" @submit.prevent="saveJevKey">
+          <label class="field">
+            <span>TypeSafe API key (optional)</span>
+            <input v-model="jevKey" type="password" required autocomplete="off" spellcheck="false" />
           </label>
           <button class="btn">Save key</button>
         </form>

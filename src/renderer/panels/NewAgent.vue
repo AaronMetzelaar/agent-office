@@ -99,7 +99,8 @@ async function start() {
   busy.value = true
   error.value = ''
   const dept = section.value
-  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept, worktree: form.worktree }).finally(() => (busy.value = false))
+  const chosen = form.section || props.desk?.dept || undefined
+  const result = await window.office.startChat(accountId.value, form.folder, form.prompt, form.model, form.effort, { dept: chosen, worktree: form.worktree }).finally(() => (busy.value = false))
   if ('error' in result) return void (error.value = result.error)
   try {
     localStorage.setItem(memoryKey, JSON.stringify({ worktree: form.worktree }))

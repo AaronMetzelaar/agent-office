@@ -76,6 +76,9 @@ export interface Commands {
   setLinearKey(key: string): void
   clearLinearKey(): void
   hasLinearKey(): boolean
+  setJevKey(key: string): void
+  clearJevKey(): void
+  hasJevKey(): boolean
   getSnapshot(): ChatSnapshot
   startChat(accountId: string, cwd: string, prompt: string, model?: string, effort?: Effort, options?: StartOptions): Promise<StartChatResult>
   continueOnAccount(chatId: string, accountId: string): { chatId: string } | Refusal | undefined

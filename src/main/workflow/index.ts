@@ -1,7 +1,8 @@
 import type { StartChatResult } from '../../shared/chat'
-import { defaultAccount } from '../../shared/departments'
+import { defaultAccount, isResearch, type StartOptions } from '../../shared/departments'
 import type { AccountView } from '../../shared/ipc'
 import type { TicketLookup } from '../../shared/workflow'
+import type { Jev } from '../departments/jev'
 import type { Hub } from '../ipc'
 import { repoRoot } from '../permissions/repo-root'
 import { gitStatus, toplevel, type Run } from '../review/git'
@@ -15,11 +16,12 @@ export interface WorkflowDeps {
   commandNames(chatId: string): string[]
   accounts: () => AccountView[]
   linear: Linear
+  jev: Jev
   gh: Run
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, jev, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
@@ -29,7 +31,10 @@ export function wireWorkflow(hub: Hub, { store, commandNames, accounts, linear, 
 
   hub.handle('startChat', async (accountId, cwd, prompt, model, effort, options) => {
     const seeded = typeof prompt === 'string' ? await withTicket(linear, prompt, options) : { prompt, options }
-    return store.start(accountId, cwd, seeded.prompt, model, effort, seeded.options)
+    const wanted = (typeof seeded.options === 'object' && seeded.options ? seeded.options : {}) as StartOptions
+    const research = accounts().some((account) => account.id === accountId && isResearch(account))
+    const dept = wanted.dept || wanted.review || research || typeof cwd !== 'string' || typeof seeded.prompt !== 'string' ? undefined : await jev(cwd, seeded.prompt)
+    return store.start(accountId, cwd, seeded.prompt, model, effort, dept ? { ...wanted, dept } : seeded.options)
   })
 
   hub.handle('getShipIt', (chatId) => loadShipIt(cwdOf(chatId), commandNames(String(chatId)), linear, gh))

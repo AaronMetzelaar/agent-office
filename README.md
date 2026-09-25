@@ -54,7 +54,7 @@ The menu bar icon is a live strip. The ring fills and a number appears next to i
 
 The app keeps its data in `~/Library/Application Support/Agent Office`:
 - `accounts.json` lists accounts (id, label, created at).
-- `secrets/` holds each account token, the optional Linear key and the ntfy signing key, each as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
+- `secrets/` holds each account token, the optional Linear and Jev keys and the ntfy signing key, each as its own file, encrypted with Electron `safeStorage` under a key held in the macOS Keychain.
 - `host.sock`, `host.secret` (mode 0600), `host.pid` and `host.log` belong to the agent host, and `host/` holds its Chromium profile.
 - `office.db` is the metadata database (SQLite in WAL mode): chats (session id, account, folder, title, colour, state, read state, usage, wait timestamps), Always allow rules per account and repository, wait metrics, composer drafts encrypted with `safeStorage`, each account's last health, and settings (phone push, whether you've seen the Alerts hint). It never holds message text.
 
@@ -115,6 +115,8 @@ Clicking an agent in the office, a chip, or a board row opens that chat in the d
 ## Quick start
 
 ⌘N (File → New Agent…) or the New agent button opens a form in the drawer: a recent folder or one from the folder picker, the account with its 5-hour and weekly usage, the prompt, the model and the effort. Every new agent starts on Opus 5.5 at medium effort unless you change it, for that agent only. A Linear ticket id or link on its own is enough of a prompt. It warns when the chosen account is past 80% of its 5-hour window and the other one has room. Sessions always start in Auto mode. Worktrees come with the full new-agent flow in Unit 9.
+
+With a Jev key saved in Accounts (a TypeSafe API key), an agent started in the monorepo root without a section picked gets its section from Jev, based on its prompt and any Linear ticket. Jev picks Marketplace, Admin, Mobile or Backend / infra. The agent stays in Backend / infra when Jev is under 50% confident, fails or takes longer than 3 seconds. A folder that already matches a section, a section you pick yourself, a clicked desk, a review or a research account all skip Jev. File activity can still move the agent afterwards.
 
 Each chat gets a colour from a 22-colour palette when it starts, never one already used in its department. The colour lives in `office.db`, so a reload never reshuffles it.
 

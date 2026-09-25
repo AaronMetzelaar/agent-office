@@ -61,6 +61,9 @@ export function openVault(dir: string) {
     linearKey: () => read('linear'),
     setLinearKey: (key: string) => write('linear', key),
     clearLinearKey: () => erase('linear'),
+    jevKey: () => read('jev'),
+    setJevKey: (key: string) => write('jev', key),
+    clearJevKey: () => erase('jev'),
     ntfyKey: () => read('ntfy-hmac'),
     setNtfyKey: (key: string) => write('ntfy-hmac', key),
   }

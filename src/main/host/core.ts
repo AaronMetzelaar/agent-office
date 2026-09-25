@@ -7,6 +7,7 @@ import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
 import { wireCommands } from '../commands'
 import { createPlacement, loadRules } from '../departments/classifier'
+import { createJev } from '../departments/jev'
 import { createHousekeeping, realSystem, wireHousekeeping } from '../housekeeping'
 import type { Hub } from '../ipc'
 import { loginShellPath } from '../login-path'
@@ -67,6 +68,11 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   })
   hub.handle('clearLinearKey', vault.clearLinearKey)
   hub.handle('hasLinearKey', () => vault.linearKey() !== undefined)
+  hub.handle('setJevKey', (key) => {
+    if (typeof key === 'string' && key.trim()) vault.setJevKey(key.trim())
+  })
+  hub.handle('clearJevKey', vault.clearJevKey)
+  hub.handle('hasJevKey', () => vault.jevKey() !== undefined)
   hub.handle('recentFolders', () => [...new Set([...store.recentFolders(), ...pinnedFolders()])])
 
   const phone = createPhonePush({ dir: configDir(), vault, settings: db, resolve: broker.resolveRequest, onOpen: () => console.info('[ntfy] listening for phone decisions') })
@@ -79,7 +85,7 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
