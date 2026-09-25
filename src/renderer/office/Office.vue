@@ -132,9 +132,12 @@ function toLounge(chatId: string) {
 async function finish(chatIds: string[]) {
   const { finishChat, finishChats } = props.source
   if (!chatIds.length || !finishChat || !finishChats) return
+  const focused = ui.selected?.id
+  const next = focused && chatIds.includes(focused) ? [...inbox.value.waiting.map((item) => item.chatId), ...ui.agents.map((agent) => agent.id)].find((id) => id && !chatIds.includes(id) && !leaving.has(id)) : undefined
   world.value?.finishing(chatIds, true)
   for (const id of chatIds) leaving.add(id)
   push()
+  if (next) select(next)
   const restore = (ids: string[]) => {
     world.value?.finishing(ids, false)
     for (const id of ids) leaving.delete(id)
