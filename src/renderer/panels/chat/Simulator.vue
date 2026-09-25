@@ -7,6 +7,8 @@ const screen = ref<string>()
 const problem = ref<string>()
 let timer: ReturnType<typeof setTimeout> | undefined
 let alive = true
+let away = false
+const offVisibility = window.office.onWindowVisibility(({ visible }) => (away = !visible))
 
 async function shoot(): Promise<SimulatorShot> {
   try {
@@ -17,7 +19,7 @@ async function shoot(): Promise<SimulatorShot> {
 }
 
 async function capture() {
-  if (document.hidden) return void (timer = setTimeout(capture, 1000))
+  if (away) return void (timer = setTimeout(capture, 1000))
   const shot = await shoot()
   if (!alive) return
   if ('image' in shot) screen.value = shot.image
@@ -29,6 +31,7 @@ void capture()
 onUnmounted(() => {
   alive = false
   clearTimeout(timer)
+  offVisibility()
 })
 </script>
 
