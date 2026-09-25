@@ -65,7 +65,7 @@ Chosen layout: the **Open floor**, plus the door queue from the **Corner office*
   | Working | Typing at the desk | Running on a treadmill |
   | Needs you | Gets up, walks to your office door, waits in the queue with a "!" | Same: gym agents queue at your door too |
   | Done, unread | Leans back with a done mark until you read the reply | Stands by the water cooler with a done mark |
-  | Idle, or done and read | Walks to the Lounge and sits back in an armchair, a mug on the armrest | Same: the Lounge |
+  | Idle, or done and read | Walks to the Lounge and settles into its own seat, reading, sipping a mug, on its phone or gazing out | Same: the Lounge |
   | Parked (quiet for a day) | Dozes in the Lounge, eyes closed and dimmed | Same |
   | Stuck (crashed, logged out, rate-limited) | Walks to your door and queues with a warning bubble instead of "!" | Same |
 

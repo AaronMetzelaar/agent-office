@@ -44,7 +44,10 @@ export const kindOf = (id: DeptId): SlotKind => (id === 'gym' ? 'gym' : 'desk')
 export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }
 export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, relax: 1.5, front: 0.5 }
 export const yardGrid = { cw: 2.7, cd: 2.5, left: 0.4, right: 0.4, back: 1.6, front: 0.8, side: 1.6 }
-export const loungeGrid = { pitchX: 1, pitchZ: 1.15, left: 0.5, right: 1.1, back: 0.7, front: 0.6 }
+export const loungeGrid = { pitchX: 1, pair: 0.5, pitchZ: 1.15, left: 0.6, right: 1.1, back: 0.85, front: 0.6 }
+
+const colX = (c: number) => loungeGrid.left + loungeGrid.pitchX * (c + 0.5) + loungeGrid.pair * Math.floor(c / 2)
+const colsWidth = (cols: number) => cols * loungeGrid.pitchX + loungeGrid.pair * Math.floor((cols - 1) / 2)
 
 export type Demand = Partial<Record<DeptId, number>>
 
@@ -127,12 +130,39 @@ export function loungeShape(seats: number, depth: number) {
   const g = loungeGrid
   const rows = loungeRowsIn(depth)
   const cols = Math.max(1, Math.ceil(seats / rows))
-  return { rows, cols, w: g.left + cols * g.pitchX + g.right, d: g.back + (rows - 1) * g.pitchZ + g.front }
+  return { rows, cols, w: g.left + colsWidth(cols) + g.right, d: g.back + (rows - 1) * g.pitchZ + g.front }
 }
 
 export function loungeSeat(i: number, rows: number): readonly [number, number] {
   const g = loungeGrid
-  return [g.left + g.pitchX * (Math.floor(i / rows) + 0.5), g.back + g.pitchZ * (rows - 1 - (i % rows))]
+  return [colX(Math.floor(i / rows)), g.back + g.pitchZ * (rows - 1 - (i % rows))]
+}
+
+export type DecorKind = 'table' | 'plant' | 'lamp' | 'shelf'
+
+export interface Decor {
+  kind: DecorKind
+  x: number
+  z: number
+  w: number
+  d: number
+  v: number
+}
+
+export const coffeeFootprint = { dx0: -0.72, dx1: -0.18, z0: 0.43, z1: 1.57 }
+
+export function loungeDecor(seats: number, rows: number): Decor[] {
+  const g = loungeGrid
+  const cols = Math.max(1, Math.ceil(seats / rows))
+  const rowZ = (r: number) => g.back + g.pitchZ * r
+  const out: Decor[] = [
+    { kind: 'plant', x: g.left / 2, z: rowZ(0) - (rows === 1 ? 0.3 : 0), w: 0.4, d: 0.4, v: 0 },
+    { kind: 'lamp', x: g.left / 2, z: rowZ(rows - 1) + (rows === 1 ? 0.3 : 0), w: 0.3, d: 0.3, v: 0 },
+  ]
+  for (let c = 0; c < cols; c += 2) out.push({ kind: 'shelf', x: (colX(c) + colX(c + 1)) / 2, z: 0.2, w: 1.5, d: 0.28, v: c / 2 })
+  for (let c = 1; c + 1 < cols; c += 2)
+    for (let r = 0; r < rows; r++) out.push({ kind: 'table', x: (colX(c) + colX(c + 1)) / 2, z: rowZ(r), w: 0.36, d: 0.36, v: (c * 3 + r) % 3 })
+  return out
 }
 
 export interface Bounds {

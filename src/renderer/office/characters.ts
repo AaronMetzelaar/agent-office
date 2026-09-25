@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { canvasTex, lighten } from './props'
+import { activityAt, type Activity } from './lounge'
 import { stepWalker, type Walker } from './nav'
 import type { PoseName } from './pose'
 
@@ -41,6 +42,19 @@ const pose: Record<PoseName, Joints> = {
   wait: { legs: 0, a0: -0.42, a1: -0.42, z0: -0.1, z1: 0.1, head: -0.1, lean: -0.03, eye: 1, tilt: 0 },
   smoke: { legs: 0, a0: 0.3, a1: -0.95, z0: -0.72, z1: -0.3, head: -0.06, lean: -0.05, eye: 0.8, tilt: 0.06 },
 }
+export const seated: Record<Activity, Joints> = {
+  read: { legs: -1.4, a0: -1.05, a1: -1.05, z0: 0.3, z1: -0.3, head: 0.2, lean: -0.1, eye: 0.72, tilt: 0 },
+  sip: { legs: -1.4, a0: -0.35, a1: -1.85, z0: -0.32, z1: -0.5, head: -0.06, lean: -0.14, eye: 0.8, tilt: 0.04 },
+  phone: { legs: -1.4, a0: -0.85, a1: -0.85, z0: 0.22, z1: -0.22, head: 0.32, lean: -0.08, eye: 0.8, tilt: 0 },
+  gaze: { legs: -1.4, a0: -0.3, a1: -0.3, z0: -0.34, z1: 0.34, head: -0.36, lean: -0.2, eye: 0.95, tilt: -0.08 },
+}
+
+export const dozes: readonly Joints[] = [
+  pose.sleep,
+  { ...pose.sleep, tilt: -0.26 },
+  { ...pose.sleep, head: 0.12, lean: -0.26, tilt: 0.08 },
+]
+
 const jointKeys = Object.keys(pose.stand) as (keyof Joints)[]
 
 export interface Anim extends Joints {
@@ -88,6 +102,7 @@ export interface Character {
   born: number
   out: number
   rr: number
+  props?: Partial<Record<Activity, THREE.Object3D>>
 }
 
 export interface Target {
@@ -101,6 +116,7 @@ export interface Target {
   needs: boolean
   folder: boolean
   subs: number
+  doze?: number
   miniCentre?: THREE.Vector3
 }
 
@@ -289,6 +305,34 @@ export function createKit(scene: THREE.Scene) {
     }
   }
 
+  const heldGeo = {
+    read: new THREE.BoxGeometry(0.2, 0.15, 0.035),
+    phone: new THREE.BoxGeometry(0.075, 0.13, 0.015),
+    sip: new THREE.CylinderGeometry(0.04, 0.035, 0.08, 12),
+  }
+  const heldM = {
+    read: new THREE.MeshStandardMaterial({ color: 0x9a7b62, roughness: 0.85 }),
+    phone: new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.5 }),
+    sip: new THREE.MeshStandardMaterial({ color: 0xf1ede6, roughness: 0.6 }),
+  }
+  const heldAt: Record<'read' | 'phone' | 'sip', [number, number, number, number]> = {
+    read: [-0.12, -0.2, 0.06, 1.05],
+    phone: [-0.1, -0.2, 0.05, 0.85],
+    sip: [-0.02, -0.21, 0.02, 1.85],
+  }
+
+  function hold(c: Character, act: Activity | undefined) {
+    for (const [k, o] of Object.entries(c.props ?? {})) o.visible = k === act
+    if (!act || act === 'gaze' || c.props?.[act]) return
+    const [x, y, z, rx] = heldAt[act]
+    const o = new THREE.Mesh(heldGeo[act], heldM[act])
+    o.position.set(x, y, z)
+    o.rotation.x = rx
+    o.castShadow = true
+    c.body.arms[1]!.add(o)
+    ;(c.props ??= {})[act] = o
+  }
+
   function settle(c: Character, t: Target) {
     Object.assign(c.anim, pose[t.pose])
     c.anim.y = t.y
@@ -315,7 +359,7 @@ export function createKit(scene: THREE.Scene) {
     c.ring.material.dispose()
   }
 
-  return { create, settle, tint, dispose, blob, cig, colourMini: (color: number) => lighten(color, 0.4).getHex() }
+  return { create, settle, tint, dispose, blob, cig, hold, colourMini: (color: number) => lighten(color, 0.4).getHex() }
 }
 
 export interface Frame {
@@ -338,7 +382,10 @@ export function animate(c: Character, T: Target, kit: Kit, colour: number, f: Fr
   const walking = stepWalker(w, T.p, dt, f.route, !rising)
   if (!w.path.length) w.face += wrap((T.face ?? f.faceCamera(w.pos)) - w.face) * (1 - Math.exp(-dt * 6))
   const name: PoseName = walking || rising ? 'stand' : T.pose
-  const J = pose[name]
+  const sat = name === 'lounge' && !T.folder && !w.path.length && w.pos.distanceTo(T.p) < 0.1
+  const act = sat ? activityAt(t, c.ph) : undefined
+  const J = act ? seated[act] : name === 'sleep' ? (dozes[T.doze ?? 0] ?? pose.sleep) : pose[name]
+  if (act || c.props) kit.hold(c, act)
   const sdt = Math.min(dt, 0.033)
   spring(a, 'y', walking || rising ? 0 : T.y, sdt, 13)
   for (const k of jointKeys) spring(a, k, J[k], sdt, 9.5)

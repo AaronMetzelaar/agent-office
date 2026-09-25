@@ -12,6 +12,7 @@ import { createGuard } from './guard'
 import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, stateKey, type Chip, type ChipAction, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
 import { dept, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, minWidth, queueSpots, ZF, type Bounds, type Box, type DeptId, type Floor, type YardSide } from './layout'
 import { createIntray } from './intray'
+import { dozeFor, lookFor, type SeatLook } from './lounge'
 import { createNav, newWalker } from './nav'
 import { placementFor } from './pose'
 import { createMovers } from './movers'
@@ -134,6 +135,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   let seating: Seating = noSeating
   const queueVecs = queueSpots.map(([x, z]) => new THREE.Vector3(x, 0, z))
   const seatVecs: THREE.Vector3[] = []
+  const seatLooks: SeatLook[] = []
   const coolerVecs: THREE.Vector3[] = []
   const doorVec = new THREE.Vector3(door[0], 0, door[1])
   const smokeVecs: THREE.Vector3[] = []
@@ -210,7 +212,14 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     signs.get('lounge')!.obj.position.set(ox + 0.25, 0.62, oz + d)
   }
 
+  function loungeLooks(n: number): SeatLook[] {
+    for (const [id, i] of seating.seats) seatLooks[i] = lookFor(id)
+    for (let i = 0; i < n; i++) seatLooks[i] ??= lookFor(`seat:${i}`)
+    return seatLooks.slice(0, n)
+  }
+
   function offsetOf(owner: string): readonly [number, number] | undefined {
+    if (owner === 'lounge') return lounge.want ? [lounge.to[0], lounge.to[1]] : undefined
     if (owner === 'lounge:corner') return lounge.want ? [lounge.to[0] + lounge.to[2], lounge.to[1]] : undefined
     const [id, part] = owner.split(':') as [DeptId, string | undefined]
     const a = anims[id]
@@ -254,7 +263,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       const [x0, z0, x1, z1] = lz.box
       lounge.to = [x0, z0, x1 - x0, z1 - z0]
       lounge.rows = lz.rows
-      office.lounge.seats(lz.seats, lz.rows)
+      office.lounge.seats(loungeLooks(lz.seats), lz.rows)
       if (lounge.sc < 0.01) placeLounge(lounge.to)
     } else lounge.to = [lounge.ox, lounge.oz, lounge.w, lounge.d]
     lounge.from = [lounge.ox, lounge.oz, lounge.w, lounge.d]
@@ -320,7 +329,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     seating = next
     pendingLayout = next.pending
     for (const id of claims.keys()) if (next.desks.has(id)) claims.delete(id)
-    if (booted && !next.repack) return
+    if (booted && !next.repack) {
+      if (lounge.want) office.lounge.seats(loungeLooks(floor.lounge.seats), lounge.rows)
+      return
+    }
     applyLayout(layoutFloor(next.size, next.lounge, floor), !booted)
     for (const l of sitting) {
       const v = seatVecs[next.seats.get(l.facts.id)!]
@@ -404,8 +416,9 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       : place.anchor === 'stand' ? l.slot.stand
       : l.slot.seat
     const seated = place.anchor === 'seat' && !!l.slot
+    const turn = place.anchor === 'lounge' ? (seatLooks[seating.seats.get(f.id) ?? -1]?.turn ?? 0) : 0
     return {
-      p, face: place.faceCamera ? null : 0, pose: place.pose, y: place.y, home: seated, homeKind: l.slot?.kind ?? 'none', parked: f.parked, needs: f.state === 'needs-you', folder: f.artifact,
+      p, face: place.faceCamera ? null : turn, doze: dozeFor(f.id), pose: place.pose, y: place.y, home: seated, homeKind: l.slot?.kind ?? 'none', parked: f.parked, needs: f.state === 'needs-you', folder: f.artifact,
       subs: seated && f.state === 'working' ? f.subagents.length : 0, miniCentre: seated ? l.slot!.mini : undefined,
     }
   }
@@ -854,6 +867,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
 
   return {
     probe,
+    lounge: () => ({ seats: Object.fromEntries(seating.seats), looks: loungeLooks(floor.lounge.seats) }),
     sync,
     select,
     claimDesk(chatId: string, slot: number) {

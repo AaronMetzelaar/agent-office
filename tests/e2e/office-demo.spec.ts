@@ -3,9 +3,11 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { lookFor, type SeatLook } from '../../src/renderer/office/lounge'
 
 declare global {
   interface Window {
+    __lounge: () => { seats: Record<string, number>; looks: SeatLook[] }
     __fps: { sample(ms?: number, uncapped?: boolean): Promise<{ fps: number; size: [number, number] }> }
   }
 }
@@ -46,6 +48,13 @@ test('the demo office renders its sections, signs and door queue', async () => {
 
 test('Admin unfolds when its first agent starts', async () => {
   await expect(page.locator('.sign', { hasText: 'Admin' })).toBeVisible({ timeout: 15_000 })
+})
+
+test('each Lounge occupant sits in a chair that follows its chat', async () => {
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__lounge().seats).length), { timeout: 15_000 }).toBeGreaterThanOrEqual(3)
+  const { seats, looks } = await page.evaluate(() => window.__lounge())
+  for (const [id, seat] of Object.entries(seats)) expect(looks[seat]).toEqual(lookFor(id))
+  expect(new Set(Object.values(seats).map((seat) => looks[seat]!.type)).size).toBeGreaterThanOrEqual(2)
 })
 
 test('the scene holds at least 50fps at 1440×900 without console errors', async () => {

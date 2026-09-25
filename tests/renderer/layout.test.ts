@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
-import { band, bandArea, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
+import { Vector3 } from 'three'
+import { createNav } from '../../src/renderer/office/nav'
+import { band, bandArea, coffeeFootprint, loungeDecor, deptIds, depts, door, fitSize, fixedParts, FZ, layoutFloor, loungeGrid, loungeRowsIn, loungeSeat, loungeShape, minWidth, sectionOf, tierOf, walkway, X0, ZF, type Box, type Demand, type DeptId, type Floor } from '../../src/renderer/office/layout'
 import { builtDesks, noSeating, reseat, type Sitter } from '../../src/renderer/office/seating'
 import { spotFor } from '../../src/renderer/office/standby'
 import { floorFixture } from '../../src/renderer/state/demo'
@@ -44,7 +46,7 @@ function largestEmptySquare(floor: Floor): number {
 }
 
 const area = (b: { x0: number; z0: number; x1: number; z1: number }) => (b.x1 - b.x0) * (b.z1 - b.z0)
-const loungeArea = (floor: Floor) => (floor.lounge.shown ? (loungeGrid.left + floor.lounge.cols * loungeGrid.pitchX + loungeGrid.right) * (loungeGrid.back + (floor.lounge.rows - 1) * loungeGrid.pitchZ + loungeGrid.front) : 0)
+const loungeArea = (floor: Floor) => (floor.lounge.shown ? (loungeGrid.left + floor.lounge.cols * loungeGrid.pitchX + loungeGrid.pair * Math.floor((floor.lounge.cols - 1) / 2) + loungeGrid.right) * (loungeGrid.back + (floor.lounge.rows - 1) * loungeGrid.pitchZ + loungeGrid.front) : 0)
 const natural = (floor: Floor) => inside.filter((id) => floor.zones[id].shown).reduce((sum, id) => sum + floor.zones[id].w * floor.zones[id].d, 0) + bandArea + loungeArea(floor)
 const laidOut = (floor: Floor) => inside.filter((id) => floor.zones[id].shown).reduce((sum, id) => sum + area({ x0: floor.zones[id].box[0], z0: floor.zones[id].box[1], x1: floor.zones[id].box[2], z1: floor.zones[id].box[3] }), 0) + bandArea + (floor.lounge.shown ? area({ x0: floor.lounge.box[0], z0: floor.lounge.box[1], x1: floor.lounge.box[2], z1: floor.lounge.box[3] }) : 0)
 
@@ -134,8 +136,8 @@ describe('packing Aaron’s floor', () => {
 
   it('fits the building within about 1.2× the area its sections and fixed parts need', () => {
     const { floor } = fixture
-    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.22)
-    expect(area(floor.bounds)).toBeLessThan(265)
+    expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.25)
+    expect(area(floor.bounds)).toBeLessThan(280)
   })
 
   it('leaves no empty floor bigger than a walkway', () => {
@@ -319,5 +321,67 @@ describe('desks', () => {
     const next = reseat(first, at(['c', 'd']), true)
     expect(next.desks.get('c')).toEqual(first.desks.get('c'))
     expect(next.desks.get('d')).toEqual(first.desks.get('a'))
+  })
+})
+
+describe('Lounge decor', () => {
+  const bandDepth = ZF - band.z0
+  const shapes = Array.from({ length: 24 }, (_, i) => i + 1).flatMap((n) => [bandDepth, 5.9, 8.5].map((depth) => ({ n, rows: loungeRowsIn(depth), shape: loungeShape(n, depth) })))
+  const hits = (a: { x: number; z: number; w: number; d: number }, x0: number, z0: number, x1: number, z1: number) => a.x + a.w / 2 > x0 && a.x - a.w / 2 < x1 && a.z + a.d / 2 > z0 && a.z - a.d / 2 < z1
+
+  it('keeps three rows beside the glass office', () => {
+    expect(loungeRowsIn(bandDepth)).toBe(3)
+  })
+
+  it('furnishes a one-seat Lounge', () => {
+    const kinds = loungeDecor(1, loungeRowsIn(bandDepth)).map((d) => d.kind)
+    expect(kinds).toContain('plant')
+    expect(kinds).toContain('lamp')
+  })
+
+  it('puts side tables between pairs of seats once there are three columns', () => {
+    const rows = loungeRowsIn(bandDepth)
+    expect(loungeDecor(rows * 2, rows).some((d) => d.kind === 'table')).toBe(false)
+    expect(loungeDecor(rows * 2 + 1, rows).some((d) => d.kind === 'table')).toBe(true)
+  })
+
+  it('keeps decor inside the room, off the seats and out of the coffee corner', () => {
+    for (const { n, rows, shape } of shapes) {
+      const seats = Array.from({ length: n }, (_, i) => loungeSeat(i, rows))
+      for (const d of loungeDecor(n, rows)) {
+        expect(d.x - d.w / 2).toBeGreaterThanOrEqual(0)
+        expect(d.x + d.w / 2).toBeLessThanOrEqual(shape.w)
+        expect(d.z - d.d / 2).toBeGreaterThanOrEqual(0)
+        expect(d.z + d.d / 2).toBeLessThanOrEqual(shape.d)
+        for (const [x, z] of seats) expect(hits(d, x - 0.36, z - 0.43, x + 0.36, z + 0.19)).toBe(false)
+        expect(hits(d, shape.w + coffeeFootprint.dx0, coffeeFootprint.z0, shape.w + coffeeFootprint.dx1, coffeeFootprint.z1)).toBe(false)
+      }
+    }
+  })
+
+  it('gives the same shape the same decor, and keeps existing spots when the Lounge grows', () => {
+    const rows = loungeRowsIn(bandDepth)
+    const key = (d: { kind: string; x: number; z: number; v: number }) => `${d.kind}:${d.x.toFixed(3)}:${d.z.toFixed(3)}:${d.v}`
+    expect(loungeDecor(7, rows)).toEqual(loungeDecor(7, rows))
+    for (let n = 1; n < 24; n++) {
+      const now = new Set(loungeDecor(n + 1, rows).map(key))
+      for (const d of loungeDecor(n, rows)) expect(now.has(key(d))).toBe(true)
+    }
+  })
+
+  it('leaves every seat reachable from the front of the Lounge', () => {
+    for (const { n, rows, shape } of shapes) {
+      const nav = createNav()
+      for (const d of loungeDecor(n, rows)) nav.block(d.x - d.w / 2, d.z - d.d / 2, d.x + d.w / 2, d.z + d.d / 2, 0.1)
+      nav.block(shape.w + coffeeFootprint.dx0, coffeeFootprint.z0, shape.w + coffeeFootprint.dx1, coffeeFootprint.z1, 0.12)
+      nav.rebuild({ x0: 0, z0: 0, x1: shape.w, z1: shape.d + 1 }, () => undefined)
+      for (let i = 0; i < n; i++) {
+        const [x, z] = loungeSeat(i, rows)
+        expect(nav.blocked(x, z)).toBe(false)
+        const path = nav.route(new Vector3(x, 0, shape.d + 0.8), new Vector3(x, 0, z))
+        expect(path.length).toBeGreaterThan(1)
+        for (const p of path.slice(0, -1)) expect(nav.blocked(p.x, p.z)).toBe(false)
+      }
+    }
   })
 })

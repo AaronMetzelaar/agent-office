@@ -201,6 +201,7 @@ const Scene = defineComponent({
     if (probeEnabled) {
       const probe = w.probe
       Object.assign(window, {
+        __lounge: () => w.lounge(),
         __fps: {
           sample(ms = 4000, uncapped = false) {
             probe.awake = true

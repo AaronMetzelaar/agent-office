@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { anchorsFor, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
+import { anchorsFor, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
+import { lookKey, type SeatLook } from './lounge'
 import type { Nav } from './nav'
 
 type V3 = THREE.Vector3
@@ -56,7 +57,7 @@ export interface LoungeScene {
   gi: THREE.Group
   corner: THREE.Group
   resize(w: number, d: number): void
-  seats(count: number, rows: number): void
+  seats(looks: readonly SeatLook[], rows: number): void
 }
 
 const refW = 27
@@ -134,7 +135,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     black: M(0x25282e, 0.55), chair: M(0x4a5260, 0.85), fabric: M(0x93a0ae, 0.95), fabric2: M(0xa3afbc, 0.95), leafA: M(0x3f9a55, 0.62), leafB: M(0x2e7d45, 0.66),
     leafC: M(0x5db36b, 0.6), snake: M(0x2f6b43, 0.6), snakeL: M(0x7fa85a, 0.6), sage: M(0x8db59a, 0.7), trunk: M(0x7a5a3e, 0.8), soil: M(0x3b2f28, 1), pot: M(0xefece6, 0.7),
     potD: M(0x3a3f47, 0.6), terra: M(0xc9714b, 0.8), screenOff: M(0x1e232c, 0.3), mat1: M(0x2dd4bf, 0.85), mat2: M(0xa78bfa, 0.85), mat3: M(0xfb923c, 0.85),
-    teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1), fabric3: M(0xc9d3e0, 0.95), cushion: M(0xe7dccb, 0.95),
+    teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1),
     grassD: M(0x5e9a52, 0.85), sand: M(0xe8d5a3, 1), rope: M(0x8a6a4a, 0.9),
   }
   const leaves = [mat.leafA, mat.leafB, mat.leafC]
@@ -185,7 +186,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     p.add(o)
     return o
   }
-  const block = (x0: number, z0: number, x1: number, z1: number, pad = 0.3) => nav.block(x0, z0, x1, z1, pad, owner, tag)
+  let padCap = Infinity
+  const block = (x0: number, z0: number, x1: number, z1: number, pad = 0.3) => nav.block(x0, z0, x1, z1, Math.min(pad, padCap), owner, tag)
   const blockAt = (x: number, z: number, hx: number, hz: number, pad?: number) => block(x - hx, z - hz, x + hx, z + hz, pad)
 
   function concreteTex() {
@@ -964,13 +966,74 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     ms(RB(0.3, 0.14, 0.24, 0.05), M(0x3b7bff, 0.8), x0 + 4.1, 1.09, z)
     block(x0, z - 0.19, x0 + n * w, z + 0.19, 0.1)
   }
-  function loungeChair(x: number, z: number) {
-    const g = grp(x, z - 0.12)
-    mesh(RB(0.72, 0.18, 0.62, 0.06), mat.fabric3, 0, 0.28, 0, g)
-    mesh(RB(0.72, 0.5, 0.16, 0.07), mat.fabric3, 0, 0.6, -0.24, g)
-    for (const sx of [-0.31, 0.31]) mesh(RB(0.12, 0.3, 0.62, 0.05), mat.fabric3, sx, 0.42, 0, g)
-    mesh(RB(0.48, 0.09, 0.44, 0.04), mat.cushion, 0, 0.41, 0.05, g)
-    ms(CY(0.035, 0.03, 0.08, 10), mat.white, 0.31, 0.61, 0.12, g)
+  function loungeSeatOf(x: number, z: number, look: SeatLook) {
+    const g = grp(x, z - 0.12, look.turn), f = M(look.fabric, 0.95), trim = M(lighten(look.fabric, 0.45).getHex(), 0.95)
+    if (look.type === 'armchair') {
+      mesh(RB(0.72, 0.18, 0.62, 0.06), f, 0, 0.28, 0, g)
+      mesh(RB(0.72, 0.5, 0.16, 0.07), f, 0, 0.6, -0.24, g)
+      for (const sx of [-0.31, 0.31]) mesh(RB(0.12, 0.3, 0.62, 0.05), f, sx, 0.42, 0, g)
+      mesh(RB(0.48, 0.09, 0.44, 0.04), trim, 0, 0.41, 0.05, g)
+    } else if (look.type === 'beanbag') {
+      mesh(SP(0.4, 18, 12), f, 0, 0.2, 0.04, g).scale.set(1, 0.52, 0.95)
+      mesh(SP(0.34, 18, 12), f, 0, 0.42, -0.2, g).scale.set(1, 0.7, 0.5)
+    } else if (look.type === 'tub') {
+      mesh(CY(0.36, 0.3, 0.3, 24), f, 0, 0.17, 0, g)
+      mesh(CY(0.3, 0.3, 0.08, 24), trim, 0, 0.36, 0.02, g)
+      for (const a of [-0.9, -0.45, 0, 0.45, 0.9]) {
+        const b = mesh(RB(0.24, 0.36, 0.1, 0.04), f, Math.sin(a) * 0.3, 0.5, -Math.cos(a) * 0.3, g)
+        b.rotation.y = -a
+      }
+    } else {
+      mesh(CY(0.32, 0.32, 0.3, 24), f, 0, 0.15, 0, g)
+      mesh(CY(0.3, 0.3, 0.06, 24), trim, 0, 0.33, 0, g)
+      mesh(RB(0.56, 0.34, 0.08, 0.04), f, 0, 0.56, -0.26, g).rotation.x = -0.12
+      for (const sx of [-0.2, 0.2]) mesh(CY(0.015, 0.015, 0.3, 6), mat.woodD, sx, 0.4, -0.3, g)
+    }
+  }
+  function sideTable(x: number, z: number, v: number) {
+    mesh(CY(0.17, 0.17, 0.03, 20), mat.wood, x, 0.46, z)
+    mesh(CY(0.02, 0.02, 0.44, 8), mat.woodD, x, 0.23, z)
+    ms(CY(0.11, 0.12, 0.02, 16), mat.woodD, x, 0.01, z)
+    if (v === 0) ms(CY(0.035, 0.03, 0.08, 10), mat.white, x + 0.04, 0.515, z)
+    else if (v === 1) for (let k = 0; k < 3; k++) ms(BX(0.16, 0.03, 0.12), M(bookColours[k * 2]!, 0.8), x, 0.49 + k * 0.03, z).rotation.y = k * 0.3
+    else succ(x, 0.475, z)
+    blockAt(x, z, 0.17, 0.17)
+  }
+  function lowShelf(x: number, z: number, w: number, v: number) {
+    const g = grp(x, z)
+    mesh(RB(w, 0.62, 0.28, 0.02), mat.wood, 0, 0.31, 0, g)
+    for (const y of [0.3, 0.6]) {
+      ms(BX(w - 0.06, 0.02, 0.24), mat.woodD, 0, y - 0.27, 0.01, g)
+      const n = Math.floor((w - 0.2) / 0.1)
+      for (let k = 0; k < n; k++) {
+        if ((k + v) % 7 === 3) continue
+        const h = 0.18 + ((k * 7 + v * 3 + y * 10) % 5) * 0.02
+        ms(BX(0.08, h, 0.2), M(bookColours[(k + v * 2 + y * 10) % bookColours.length]!, 0.8), -w / 2 + 0.12 + k * 0.1, y - 0.26 + h / 2, 0.02, g)
+      }
+    }
+    succ(w / 2 - 0.18, 0.62, 0, g)
+    block(x - w / 2, z - 0.14, x + w / 2, z + 0.14)
+  }
+  function warmRugTex() {
+    const { x, t } = canvasTex(256, 256)
+    x.fillStyle = '#E9D8BF'
+    x.fillRect(0, 0, 256, 256)
+    x.fillStyle = '#D9B48C'
+    for (const [cx, cy] of [[64, 64], [192, 192], [64, 192], [192, 64]] as const) {
+      x.beginPath()
+      x.moveTo(cx, cy - 44)
+      x.lineTo(cx + 44, cy)
+      x.lineTo(cx, cy + 44)
+      x.lineTo(cx - 44, cy)
+      x.fill()
+    }
+    x.fillStyle = '#C8835E'
+    for (const [cx, cy] of [[64, 64], [192, 192], [64, 192], [192, 64]] as const) x.fillRect(cx - 8, cy - 8, 16, 16)
+    x.strokeStyle = 'rgba(160,110,80,.35)'
+    x.lineWidth = 3
+    x.strokeRect(0, 0, 256, 256)
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    return t
   }
   function coffeeCorner() {
     mesh(RB(0.5, 0.9, 1.1, 0.02), mat.wood, -0.45, 0.45, 1.0)
@@ -1409,7 +1472,8 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   snake(-13.05, 11.1, 0.85)
   const lounge: LoungeScene = (() => {
     const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), corner = grp(0, 0, 0, gi)
-    const rug = ms(BX(1, 0.012, 1), M(0xe3e5e9, 1), 0, 0.006, 0, gi)
+    const rugTex = warmRugTex()
+    const rug = ms(BX(1, 0.012, 1), keep(new THREE.MeshStandardMaterial({ map: rugTex, roughness: 1 })), 0, 0.006, 0, gi)
     rug.receiveShadow = true
     cur = corner
     owner = 'lounge:corner'
@@ -1419,26 +1483,56 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     owner = tag = undefined
     bake(corner, new Set())
     let chairs: THREE.Group | undefined
-    let shape = ''
+    let decor: THREE.Group | undefined
+    let chairKey = ''
+    let decorKey = ''
     g.visible = false
     g.scale.setScalar(0.001)
+    const build = (into: THREE.Group, f: () => void) => {
+      const prev = cur
+      cur = into
+      f()
+      cur = prev
+      bake(into, new Set())
+    }
     return {
       g, gi, corner,
       resize(w, dd) {
         rug.scale.set(Math.max(0.1, w - 0.3), 1, Math.max(0.1, dd - 0.3))
         rug.position.set(w / 2, 0.006, dd / 2)
+        rugTex.repeat.set(Math.max(1, (w - 0.3) / 1.4), Math.max(1, (dd - 0.3) / 1.4))
         corner.position.x = w
       },
-      seats(count, rows) {
-        if (shape === `${count}x${rows}`) return
-        shape = `${count}x${rows}`
-        if (chairs) dispose(chairs)
-        chairs = grp(0, 0, 0, gi)
-        const prev = cur
-        cur = chairs
-        for (let i = 0; i < count; i++) loungeChair(...loungeSeat(i, rows))
-        cur = prev
-        bake(chairs, new Set())
+      seats(looks, rows) {
+        const nextChairs = `${rows}|${looks.map(lookKey).join(',')}`
+        if (nextChairs !== chairKey) {
+          chairKey = nextChairs
+          if (chairs) dispose(chairs)
+          chairs = grp(0, 0, 0, gi)
+          build(chairs, () => looks.forEach((look, i) => loungeSeatOf(...loungeSeat(i, rows), look)))
+        }
+        const nextDecor = `${looks.length}x${rows}`
+        if (nextDecor === decorKey) return
+        decorKey = nextDecor
+        if (decor) dispose(decor)
+        decor = grp(0, 0, 0, gi)
+        nav.unblock('lounge:decor')
+        owner = 'lounge'
+        tag = 'lounge:decor'
+        padCap = 0.1
+        const s0 = seed
+        seed = 4242
+        build(decor, () => {
+          for (const d of loungeDecor(looks.length, rows)) {
+            if (d.kind === 'table') sideTable(d.x, d.z, d.v)
+            else if (d.kind === 'shelf') lowShelf(d.x, d.z, d.w, d.v)
+            else if (d.kind === 'lamp') floorLamp(d.x, d.z)
+            else leafy(d.x, d.z, 0.8)
+          }
+        })
+        seed = s0
+        padCap = Infinity
+        owner = tag = undefined
       },
     }
   })()
