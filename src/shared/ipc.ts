@@ -1,7 +1,6 @@
 import type { CommandList, CommandTarget } from './commands'
 import type { Attachment, ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, SimulatorShot, StartChatResult } from './chat'
 import type { DeptRule, StartOptions } from './departments'
-import type { Limits } from './guardrails'
 import type { SearchHit } from './history'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
 import type { Decision, ResolveResult, RuleView, WindowSource } from './permissions'
@@ -64,11 +63,9 @@ export interface Settings {
   quietHoursEnabled: boolean
   quietHoursStart: string
   quietHoursEnd: string
-  paused: boolean
-  limits: Limits
 }
 
-export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'quietHoursEnabled' | 'quietHoursStart' | 'quietHoursEnd' | 'limits'
+export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'quietHoursEnabled' | 'quietHoursStart' | 'quietHoursEnd'
 
 export interface HostStatus {
   connected: boolean
@@ -111,7 +108,7 @@ export interface Commands {
   recentFolders(): string[]
   pickFolder(): Promise<string | undefined>
   getSettings(): Settings
-  setSetting(name: SettingName, value: boolean | string | Limits): Settings
+  setSetting(name: SettingName, value: boolean | string): Settings
   openNotificationSettings(): void
   simulatorScreenshot(device: string): Promise<SimulatorShot>
   openArtifact(path: string, url: string): Promise<void>
@@ -145,8 +142,6 @@ export interface Commands {
   installAppUpdate(): void
   restartHost(): void
   stopHost(): Promise<void>
-  setPaused(on: boolean): Settings
-  setLimits(chatId: string, limits: Limits): void
   searchChats(query: string): Promise<SearchHit[]>
   openTranscript(sessionId: string): { chatId: string } | { error: string }
   renameChat(chatId: string, title: string): void

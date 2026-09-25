@@ -1,4 +1,3 @@
-import type { Limits } from './guardrails'
 import type { Decision, PendingRequestView, RequestSource } from './permissions'
 
 export const efforts = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -94,9 +93,6 @@ export interface ChatFields {
   finished?: number
   state: ChatState
   stuck?: Stuck
-  halt?: string
-  paused?: boolean
-  limits?: Limits
   stateSince: number
   unread: boolean
   activity: string
@@ -202,7 +198,7 @@ export function doingNow(chat: ChatFields, now: number): string {
     case 'starting':
       return chat.setup === 'worktree' ? 'Setting up worktree…' : 'Starting…'
     case 'needs-you':
-      return `Waiting for you · ${chat.halt ?? chat.pending[0]?.toolName ?? 'a decision'}`
+      return `Waiting for you · ${chat.pending[0]?.toolName ?? 'a decision'}`
     case 'done':
       return 'Done · ready to review'
     case 'idle':

@@ -191,18 +191,11 @@ describe('notifications', () => {
     expect(opened).toEqual([{ to: 'housekeeping' }])
   })
 
-  it('an agent stopped by its limit notifies once with the reason, and a headroom warning is quiet and withdrawn when it eases', () => {
-    const id = office.start('Loop')
-    office.store.setLimits(id, { turns: 1 })
-    office.engine.init(id)
-    for (const tool of ['t1', 't2', 't3']) office.engine.emit(id, sdk.toolUse([{ id: tool, name: 'Read', input: {} }]))
-    expect(notes.map((note) => note.options.body)).toEqual(['Stopped at its 1-turn limit'])
-    expect(pushes).toEqual([{ kind: 'needs', title: 'Loop needs you', message: 'Side projects · Stopped at its 1-turn limit' }])
-
+  it('a headroom warning is quiet and withdrawn when it eases', () => {
     notifier.headroom({ id: 'main', label: 'Main' }, { window: 'fiveHour', utilization: 86.4, resetsAt: Date.now() + 2 * 3600_000 + 30_000 })
-    expect(notes[1]!.options).toMatchObject({ title: 'Main is at 86% of its 5-hour limit', body: 'Resets in 2h', silent: true })
+    expect(notes[0]!.options).toMatchObject({ title: 'Main is at 86% of its 5-hour limit', body: 'Resets in 2h', silent: true })
     notifier.headroom({ id: 'main', label: 'Main' }, undefined)
-    expect(notes[1]!.closed).toBe(true)
+    expect(notes[0]!.closed).toBe(true)
   })
 
   it('summaries stay short and never carry whole commands, secrets or file contents', () => {

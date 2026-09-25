@@ -145,13 +145,6 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
     void push({ kind: 'done', title: clip(`${chat.title} is done`, 60), message: `${dept} · ready to review`, agent: chat.title })
   }
 
-  function halted(chat: Readonly<ChatView>) {
-    const dept = department(chat)
-    const openChat = () => open({ to: 'chat', chatId: chat.id })
-    show(`halt:${chat.id}`, { title: `${chat.title} needs you`, subtitle: dept, body: chat.halt, groupId: chat.id, replyPlaceholder: `Reply to ${chat.title}` }, [['Open', openChat]], openChat, (text) => sendMessage(chat.id, text))
-    void push({ kind: 'needs', title: clip(`${chat.title} needs you`, 60), message: `${dept} · ${chat.halt}` })
-  }
-
   function onPatch(patch: ChatPatch) {
     const fields = patch.fields
     const chat = fields && store.view(patch.id)
@@ -172,8 +165,6 @@ export function createNotifier({ store, department, resolve, sendMessage, open, 
     if (!fields.state) return
     if (fields.state !== 'done') close(`done:${chat.id}`)
     if (fields.state !== 'stuck') close(`stuck:${chat.id}`)
-    if (fields.state !== 'needs-you') close(`halt:${chat.id}`)
-    if (fields.state === 'needs-you' && chat.halt) halted(chat)
     if (fields.state === 'done') done(chat)
     if (fields.state === 'stuck' && chat.stuck?.reason !== 'needs-login') stuck(chat)
   }

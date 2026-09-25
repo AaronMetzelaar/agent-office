@@ -4,7 +4,6 @@ import { ACESFilmicToneMapping, type WebGLRenderer } from 'three'
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, reactive, ref, shallowRef, watch } from 'vue'
 import { ago } from '../../shared/chat'
 import type { DeptId } from '../../shared/departments'
-import { isWarning, tightest } from '../../shared/guardrails'
 import type { SearchHit } from '../../shared/history'
 import { gb, plural, type Finished, type HousekeepingView } from '../../shared/housekeeping'
 import { usageLine, type AccountView, type Navigate } from '../../shared/ipc'
@@ -163,23 +162,6 @@ function demoFinish() {
 }
 
 const usable = computed(() => props.accounts.filter((account) => account.health.status !== 'needs-login'))
-const headroom = computed(() => {
-  const now = (tick.value, Date.now())
-  return props.accounts.map((account) => {
-    const window = tightest(account.health.headroom, now)
-    const kind = window?.window === 'sevenDay' ? 'week' : '5h'
-    const resets = window?.resetsAt ? ago(window.resetsAt - now) : ''
-    return {
-      id: account.id,
-      label: account.label,
-      used: window ? Math.round(window.utilization) : undefined,
-      resets: resets && `${kind === 'week' ? 'week · ' : ''}${resets}`,
-      warn: isWarning(window),
-      title: window ? `${account.label}: ${Math.round(window.utilization)}% of the ${kind === 'week' ? 'weekly' : '5-hour'} limit used${resets ? `, resets in ${resets}` : ''}` : `${account.label}: no usage yet`,
-    }
-  })
-})
-
 async function continueElsewhere(chatId: string) {
   const other = usable.value.find((account) => account.id !== projection.chats.get(chatId)?.accountId)
   const result = other && (await window.office.continueOnAccount(chatId, other.id))
@@ -375,11 +357,6 @@ onUnmounted(() => {
     >
       <span class="rg"><i :style="{ width: house ? `${Math.min(100, (house.bytes / house.totalMemory) * 100).toFixed(1)}%` : '0%' }" /></span>
       <span class="rl">RAM</span><b>{{ house ? gb(house.bytes) : '–' }}</b> · <b>{{ worktreeCount }}</b><span class="rl">{{ worktreeCount === 1 ? 'worktree' : 'worktrees' }}</span>
-    </button>
-    <button type="button" :class="['tbtn', 'res', { hot: headroom.some((h) => h.warn) }]" :title="headroom.map((h) => h.title).join('\n')" aria-label="Account headroom. Open Accounts" @click="emit('accounts')">
-      <template v-for="(h, index) in headroom" :key="h.id">
-        <template v-if="index"> · </template><span class="rl">{{ h.label }}</span><span class="rg"><i :style="{ width: `${Math.min(100, h.used ?? 0)}%` }" /></span><b>{{ h.used === undefined ? '–' : `${h.used}%` }}</b><span v-if="h.resets" class="rl">{{ h.resets }}</span>
-      </template>
     </button>
     <button v-if="demoMode" type="button" class="tbtn" title="Demo: finish two resting agents at once" @click="demoFinish">Demo Done ×2</button>
     <slot />

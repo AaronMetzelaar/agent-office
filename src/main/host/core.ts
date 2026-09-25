@@ -2,7 +2,6 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { departmentOf, deptNames, isResearch } from '../../shared/office'
 import type { SettingName } from '../../shared/ipc'
-import { limitsOf } from '../../shared/guardrails'
 import { isEditor } from '../../shared/review'
 import { createAccounts, fakeValidator, validate } from '../accounts/health'
 import { openVault } from '../accounts/tokens'
@@ -95,8 +94,6 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     quietHoursEnabled: db.setting('quietHoursEnabled') === true,
     quietHoursStart: (db.setting('quietHoursStart') as string) || defaultQuietStart,
     quietHoursEnd: (db.setting('quietHoursEnd') as string) || defaultQuietEnd,
-    paused: store.paused(),
-    limits: limitsOf(db.setting('limits')),
   })
   hub.handle('getSettings', settings)
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
@@ -105,15 +102,9 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   const reviews = wireWorkflow(hub, { store, commandNames: commands.names, accounts: accounts.list, linear, jev: createJev(() => vault.jevKey(), deptRules), gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rules: deptRules, settings, confirm: ui.confirm })
   wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
-  hub.handle('setPaused', (on) => {
-    store.setPaused(on)
-    return settings()
-  })
-  hub.handle('setLimits', store.setLimits)
-  hub.handle('setSetting', (name: SettingName, value: boolean | string | object) => {
+  hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if ((name === 'quietHoursStart' || name === 'quietHoursEnd') && typeof value === 'string') db.saveSetting(name, value)
-    if (name === 'limits') db.saveSetting(name, limitsOf(value))
     if (typeof value !== 'boolean') return settings()
     if (name === 'phonePush') phone.set(value)
     if (name === 'alertsHintSeen') db.saveSetting(name, value)

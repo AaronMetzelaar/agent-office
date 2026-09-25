@@ -2,7 +2,6 @@ import type { SlashCommand } from '@anthropic-ai/claude-agent-sdk'
 import Database from 'better-sqlite3'
 import { safeStorage } from 'electron'
 import type { ChatMode, ChatState, Effort, Stuck, Usage } from '../../shared/chat'
-import type { Limits } from '../../shared/guardrails'
 import type { AccountHealth } from '../../shared/ipc'
 
 export interface ChatRecord {
@@ -20,8 +19,6 @@ export interface ChatRecord {
   permissionMode?: ChatMode
   state: ChatState
   stuck?: Stuck
-  halt?: string
-  limits?: Limits
   archived: boolean
   parked?: boolean
   finished?: number
@@ -70,8 +67,6 @@ const addedColumns: [string, string][] = [
   ['review', 'integer not null default 0'],
   ['fork_pending', 'integer not null default 0'],
   ['finished_at', 'integer'],
-  ['halt', 'text'],
-  ['limits', 'text'],
 ]
 
 const columns: [keyof ChatRecord, string][] = [
@@ -89,8 +84,6 @@ const columns: [keyof ChatRecord, string][] = [
   ['permissionMode', 'permission_mode'],
   ['state', 'state'],
   ['stuck', 'stuck'],
-  ['halt', 'halt'],
-  ['limits', 'limits'],
   ['archived', 'archived'],
   ['parked', 'parked'],
   ['finished', 'finished_at'],
@@ -102,7 +95,7 @@ const columns: [keyof ChatRecord, string][] = [
   ['readAt', 'read_at'],
   ['usage', 'usage'],
 ]
-const json = new Set<keyof ChatRecord>(['stuck', 'usage', 'limits'])
+const json = new Set<keyof ChatRecord>(['stuck', 'usage'])
 const flags = new Set<keyof ChatRecord>(['archived', 'parked', 'forkPending', 'review', 'unread'])
 
 function toRow(record: ChatRecord): Row {

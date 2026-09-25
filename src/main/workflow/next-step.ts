@@ -14,7 +14,6 @@ const ship: NextStep[] = [
   { id: 'test-cases', label: 'Test cases', command: '/mws-test-cases' },
   { id: 'verify', label: 'Verify', command: '/mws-verify' },
   { id: 'review', label: 'Code review', command: '/mws-review' },
-  { id: 'pr', label: 'Ship', command: '/mws-pr' },
 ]
 const fixCi: NextStep = { id: 'fix-ci', label: 'Fix CI', command: '/gh-fix-ci' }
 const comments: NextStep = { id: 'comments', label: 'Answer comments', command: '/pr-comment-rundown' }

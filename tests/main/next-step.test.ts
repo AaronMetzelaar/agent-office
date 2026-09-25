@@ -18,11 +18,11 @@ const pr = (fields: Partial<PullRequest> = {}): PullRequest => ({ number: 42, ti
 const commands = (state: ReturnType<typeof nextSteps>) => state.steps.map((step) => step.command ?? step.id)
 
 describe('next step', () => {
-  it('offers test cases, verify, review and ship for changes without a PR, then waits on CI once the PR exists', () => {
+  it('offers test cases, verify and review for changes without a PR, then waits on CI once the PR exists', () => {
     const before = nextSteps({ uncommitted: 2, unpushed: 0 }, mws)
-    expect(before.steps.map((step) => step.label)).toEqual(['Test cases', 'Verify', 'Code review', 'Ship'])
-    expect(commands(before)).toEqual(['/mws-test-cases', '/mws-verify', '/mws-review', '/mws-pr'])
-    expect(commands(nextSteps({ uncommitted: 0, unpushed: 3 }, mws))).toHaveLength(4)
+    expect(before.steps.map((step) => step.label)).toEqual(['Test cases', 'Verify', 'Code review'])
+    expect(commands(before)).toEqual(['/mws-test-cases', '/mws-verify', '/mws-review'])
+    expect(commands(nextSteps({ uncommitted: 0, unpushed: 3 }, mws))).toHaveLength(3)
 
     const after = nextSteps({ uncommitted: 0, unpushed: 0, pr: pr({ checks: [check('pending'), check('pass')] }) }, mws)
     expect(after).toEqual({ steps: [], waiting: 'Waiting on CI' })
@@ -98,7 +98,7 @@ describe('ship-it for a chat', () => {
     writeFileSync(join(dir, 'BidFlow.vue'), 'two\n')
     const ship = await loadShipIt(dir, mws, noLinear, ghMissing)
     expect(ship.notice).toMatch(/gh\) isn’t installed/)
-    expect(ship.steps.map((step) => step.command)).toEqual(['/mws-test-cases', '/mws-verify', '/mws-review', '/mws-pr'])
+    expect(ship.steps.map((step) => step.command)).toEqual(['/mws-test-cases', '/mws-verify', '/mws-review'])
   })
 
   it('shows the branch’s ticket with its Linear title and status, and offers moving it once the PR is merged', async () => {

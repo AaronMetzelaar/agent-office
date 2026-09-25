@@ -1054,12 +1054,8 @@ Gaps reported by the unit builders. Each is assigned to the unit that will close
 - [ ] `tests/e2e/search.spec.ts` failed its last run because the worker path pointed into `out/main/chunks`; the fix (resolve from `require.main`) wasn't re-run under Playwright. Run it once. The spec drops `ELECTRON_RENDERER_URL` from the inherited env: a shell started from `pnpm dev` passes it on, and the other specs then load the dev server's renderer instead of the build.
 - [ ] Search hits for desktop chats show the first prompt, not the desktop title, until the chat is opened. Summoned old chats leave the Finished group when the host restarts. Unit 12.
 - [ ] A `claude` process that uses a visitor's worktree blocks removal, but the row only explains it after you press Remove worktree. Unit 15.
-- [ ] Guardrails: the cost limit is checked only when a result message arrives, since `total_cost_usd` only comes with results. It can't stop a runaway mid-turn; the turn limit (top-level tool calls since Aaron's last message) does that.
-- [ ] Guardrails: Pause all lives in memory. A host crash or Stop agent host forgets it and drops held messages, though their rows still show. The host doesn't auto-restart for an update while paused. Messages already sent to a working chat before the pause stay queued in the SDK and run after the interrupt.
-- [ ] Guardrails: Pause all leaves chats that wait on a permission request alone. Answering one while paused lets that chat carry on.
-- [ ] Guardrails: a per-chat limit left blank uses the default from Settings, so a single chat can't opt out of a default. Headroom only reads the 5-hour and weekly windows, not the Opus/Sonnet sub-limits or overage.
+- [ ] Guardrails: headroom only reads the 5-hour and weekly windows, not the Opus/Sonnet sub-limits or overage.
 - [ ] Guardrails: the headroom warning goes to the phone as the `housekeeping` push kind (low priority), because `ntfy.ts` has no headroom kind. Add one there if it should be louder.
-- [ ] Guardrails: `tests/e2e/guardrails.spec.ts` never passed. Its only run loaded the main checkout's dev-server renderer through an inherited `ELECTRON_RENDERER_URL`. The spec now strips that variable. Run it once.
 
 ## System-Wide Impact
 

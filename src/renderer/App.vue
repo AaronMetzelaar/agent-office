@@ -67,16 +67,6 @@ async function toggleOutsideChats() {
   else settings.value = result
 }
 
-async function togglePaused() {
-  if (settings.value) settings.value = await window.office.setPaused(!settings.value.paused)
-}
-
-async function setLimit(key: 'turns' | 'costUsd', event: Event) {
-  if (!settings.value) return
-  const value = Number((event.target as HTMLInputElement).value)
-  settings.value = await window.office.setSetting('limits', { ...settings.value.limits, [key]: value })
-}
-
 async function setEditor(event: Event) {
   settings.value = await window.office.setSetting('editor', (event.target as HTMLSelectElement).value)
 }
@@ -125,13 +115,6 @@ onUnmounted(() => {
     <Onboarding v-if="accounts.length === 0" />
     <template v-else>
       <Office ref="office" :accounts="accounts" :source="source" @accounts="openAccounts">
-        <button
-          :class="['tbtn', 'res', { hot: settings?.paused }]"
-          :title="settings?.paused ? 'Resume every paused agent and send held messages' : 'Interrupt every working agent and hold new messages. Sessions stay alive.'"
-          @click="togglePaused"
-        >
-          {{ settings?.paused ? 'Paused · Resume all' : 'Pause all' }}
-        </button>
         <div class="settings">
           <button class="tbtn" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen" @keydown.esc="menuOpen = false">
             Settings<span v-if="needsLogin" class="alert" aria-label="An account needs login" />
@@ -139,8 +122,6 @@ onUnmounted(() => {
           <div v-if="menuOpen" class="menu" role="menu">
             <button role="menuitem" @click="openAccounts">Accounts</button>
             <button role="menuitem" @click="openHousekeeping">Housekeeping</button>
-            <button role="menuitem" disabled>Permissions</button>
-            <button role="menuitem" disabled>Stats</button>
             <button
               role="menuitemcheckbox"
               :aria-checked="!!settings?.phonePush"
@@ -179,13 +160,6 @@ onUnmounted(() => {
               <select :value="settings?.editor ?? 'code'" @change="setEditor">
                 <option v-for="(label, id) in editors" :key="id" :value="id">{{ label }}</option>
               </select>
-            </label>
-            <label class="pick" title="Default per-agent limits. When one is hit, the agent stops and waits for you. Blank is off.">
-              Limits
-              <span>
-                <input type="number" min="1" step="1" placeholder="off" aria-label="Default turn limit" :value="settings?.limits.turns" @change="setLimit('turns', $event)" /> turns
-                <input type="number" min="0" step="0.5" placeholder="off" aria-label="Default cost limit in dollars" :value="settings?.limits.costUsd" @change="setLimit('costUsd', $event)" /> $
-              </span>
             </label>
             <button role="menuitem" title="Stops every agent and quits Agent Office" @click="stopHost">Stop agent host</button>
           </div>
@@ -251,11 +225,6 @@ onUnmounted(() => {
   padding: 5px 6px 5px 10px;
   font-size: 13px;
   color: var(--ink);
-}
-
-.menu .pick span {
-  font: 11px var(--mono);
-  color: var(--muted);
 }
 
 .menu .pick input {
