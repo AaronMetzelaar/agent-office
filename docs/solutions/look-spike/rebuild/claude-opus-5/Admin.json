@@ -5,7 +5,7 @@
    "design": {
     "props": [
      {
-      "name": "Match Control Desk",
+      "name": "Back-Office Control Desk",
       "zone": "back",
       "tiers": [
        1,
@@ -17,152 +17,104 @@
        {
         "shape": "box",
         "size": [
-         2.4,
+         2.1,
          0.12,
+         1.2
+        ],
+        "at": [
+         0,
+         0.74,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.74,
          1.1
         ],
         "at": [
-         0,
-         0.74,
-         0
-        ],
-        "color": "#c9a882",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.74,
-         1
-        ],
-        "at": [
-         -1,
+         -0.75,
          0.37,
          0
         ],
-        "color": "#8e6f52"
+        "color": "#7e8f7c"
        },
        {
         "shape": "box",
         "size": [
-         0.3,
-         0.74,
-         1
-        ],
-        "at": [
-         1,
-         0.37,
-         0
-        ],
-        "color": "#8e6f52"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.7,
          0.5,
-         0.9
+         0.74,
+         1.1
         ],
         "at": [
-         0,
-         0.25,
-         0.05
+         0.75,
+         0.37,
+         0
         ],
-        "color": "#7d8f7a"
+        "color": "#7e8f7c"
        },
        {
         "shape": "box",
         "size": [
-         2.3,
+         2.1,
          0.18,
-         0.3
+         0.12
         ],
         "at": [
          0,
-         0.89,
-         -0.3
+         0.45,
+         -0.58
         ],
-        "color": "#6d7f8c",
-        "finish": "satin"
+        "color": "#5d6b7a"
        },
        {
         "shape": "panel",
         "size": [
-         1,
-         0.62,
+         0.95,
+         0.6,
          0.03
         ],
         "at": [
-         -0.62,
-         1.32,
-         -0.4
+         -0.6,
+         1.18,
+         -0.25
         ],
         "rot": [
          -8,
          12,
          0
         ],
-        "color": "#3f4f5c",
-        "text": "QUEUE",
-        "textColor": "#e8d38a"
+        "color": "#3f4a58",
+        "picture": "dashboard",
+        "accent": "#7fa8d6",
+        "textColor": "#f2e9d8",
+        "text": "Ops"
        },
        {
         "shape": "panel",
         "size": [
-         1,
-         0.62,
+         0.95,
+         0.6,
          0.03
         ],
         "at": [
-         0.62,
-         1.32,
-         -0.4
+         0.6,
+         1.18,
+         -0.25
         ],
         "rot": [
          -8,
          -12,
          0
         ],
-        "color": "#3f4f5c",
-        "text": "USERS",
-        "textColor": "#9fd8c0"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.78,
-         0.5,
-         0.03
-        ],
-        "at": [
-         0,
-         1.95,
-         -0.38
-        ],
-        "rot": [
-         -6,
-         0,
-         0
-        ],
-        "color": "#c46a52",
-        "text": "ADMIN",
-        "textColor": "#f6efe2"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         1.25,
-         0.1
-        ],
-        "at": [
-         0,
-         1.3,
-         -0.3
-        ],
-        "color": "#6d7f8c",
-        "finish": "metal"
+        "color": "#3f4a58",
+        "picture": "chart",
+        "accent": "#d98b62",
+        "textColor": "#f2e9d8",
+        "text": "Queue"
        },
        {
         "shape": "box",
@@ -172,338 +124,243 @@
          0.28
         ],
         "at": [
-         -0.62,
-         0.83,
-         0.3
-        ],
-        "rot": [
-         -6,
          0,
-         0
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.7,
-         0.05,
-         0.28
-        ],
-        "at": [
-         0.62,
          0.83,
-         0.3
+         0.35
         ],
-        "rot": [
-         -6,
-         0,
-         0
-        ],
-        "color": "#e5ddcd"
+        "color": "#e8e0d0"
        },
        {
         "shape": "cylinder",
         "size": [
          0.14,
-         0.1,
+         0.5,
          0.14
         ],
         "at": [
          0,
-         0.85,
-         0.34
-        ],
-        "color": "#c46a52"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.08,
-         0.1
-        ],
-        "at": [
-         0.24,
-         0.84,
-         0.36
-        ],
-        "color": "#7fae8e"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.08,
-         0.1
-        ],
-        "at": [
-         -0.24,
-         0.84,
-         0.36
-        ],
-        "color": "#e8c46a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.26,
-         0.3,
-         0.26
-        ],
-        "at": [
-         -1.05,
-         0.95,
-         -0.1
-        ],
-        "color": "#a8b6a2"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.22,
-         0.16,
-         0.22
-        ],
-        "at": [
-         -1.05,
-         1.18,
-         -0.1
+         1.05,
+         -0.5
         ],
         "taper": 0.4,
-        "color": "#c46a52"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.22,
-         0.3
-        ],
-        "at": [
-         1.05,
-         0.96,
-         -0.1
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.26,
-         0.04,
-         0.26
-        ],
-        "at": [
-         1.05,
-         1.1,
-         -0.1
-        ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         1.05,
-         1.22,
-         -0.1
-        ],
-        "color": "#7fae8e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         2.4,
-         0.06,
-         0.2
-        ],
-        "at": [
-         0,
-         0.06,
-         0.5
-        ],
-        "color": "#8e6f52"
-       }
-      ]
-     },
-     {
-      "name": "Verification Shirt Frame Wall",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "panel",
-        "size": [
-         0.8,
-         1,
-         0.03
-        ],
-        "at": [
-         -0.9,
-         1.75,
-         0
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.62,
-         0.78,
-         0.06
-        ],
-        "at": [
-         -0.9,
-         1.75,
-         0.03
-        ],
-        "color": "#6d8aa8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.16,
-         0.07
-        ],
-        "at": [
-         -0.9,
-         2.05,
-         0.05
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.8,
-         1,
-         0.03
-        ],
-        "at": [
-         0,
-         1.75,
-         0
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.62,
-         0.78,
-         0.06
-        ],
-        "at": [
-         0,
-         1.75,
-         0.03
-        ],
-        "color": "#c46a52"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.16,
-         0.07
-        ],
-        "at": [
-         0,
-         2.05,
-         0.05
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.8,
-         1,
-         0.03
-        ],
-        "at": [
-         0.9,
-         1.75,
-         0
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.62,
-         0.78,
-         0.06
-        ],
-        "at": [
-         0.9,
-         1.75,
-         0.03
-        ],
-        "color": "#7fae8e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.16,
-         0.07
-        ],
-        "at": [
-         0.9,
-         2.05,
-         0.05
-        ],
-        "color": "#e8e0d0"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.26,
-         0.26,
-         0.05
-        ],
-        "at": [
-         0.9,
-         1.5,
-         0.08
-        ],
-        "rot": [
-         90,
-         0,
-         0
-        ],
-        "color": "#e8c46a",
+        "color": "#b7c4cf",
         "finish": "metal"
        },
        {
         "shape": "box",
         "size": [
-         2.7,
-         0.08,
-         0.12
+         2.4,
+         0.1,
+         0.14
         ],
         "at": [
          0,
-         1.12,
-         0.02
+         2,
+         -0.55
         ],
-        "color": "#8e6f52"
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.5,
+         0.95,
+         0.03
+        ],
+        "at": [
+         0,
+         2.55,
+         -0.55
+        ],
+        "color": "#3a4450",
+        "picture": "pitch",
+        "accent": "#6f9c67",
+        "textColor": "#eef2e6"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.55,
+         0.75,
+         0.03
+        ],
+        "at": [
+         -1,
+         2.5,
+         -0.55
+        ],
+        "color": "#43505e",
+        "picture": "shirt",
+        "accent": "#c4553f",
+        "textColor": "#f0e7d6",
+        "text": "7"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.55,
+         0.75,
+         0.03
+        ],
+        "at": [
+         1,
+         2.5,
+         -0.55
+        ],
+        "color": "#43505e",
+        "picture": "shirt",
+        "accent": "#4f6f9c",
+        "textColor": "#f0e7d6",
+        "text": "9"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         1.05,
+         0.16
+        ],
+        "at": [
+         -1.25,
+         0.52,
+         -0.5
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         1.05,
+         0.16
+        ],
+        "at": [
+         1.25,
+         0.52,
+         -0.5
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -0.95,
+         0.88,
+         0.3
+        ],
+        "color": "#d4604a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         0.95,
+         0.88,
+         0.3
+        ],
+        "color": "#79a86b"
        }
       ]
      },
      {
-      "name": "Approval Stamp Station",
+      "name": "Moderation Queue Board",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "panel",
+        "size": [
+         1.7,
+         1.1,
+         0.03
+        ],
+        "at": [
+         0,
+         1.75,
+         0
+        ],
+        "color": "#e6dcc8",
+        "picture": "app",
+        "accent": "#7fa8d6",
+        "textColor": "#3f4a58",
+        "text": "Review"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0,
+         1.15,
+         0.02
+        ],
+        "color": "#a8825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.34,
+         0.06
+        ],
+        "at": [
+         -0.55,
+         2.5,
+         0
+        ],
+        "color": "#d98b62"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.34,
+         0.06
+        ],
+        "at": [
+         0.05,
+         2.5,
+         0
+        ],
+        "color": "#79a86b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.34,
+         0.06
+        ],
+        "at": [
+         0.65,
+         2.5,
+         0
+        ],
+        "color": "#c4553f"
+       }
+      ]
+     },
+     {
+      "name": "Kit Room Intake Bench",
       "zone": "back",
       "tiers": [
        1,
@@ -514,404 +371,354 @@
        {
         "shape": "box",
         "size": [
-         0.9,
+         1.9,
+         0.14,
+         1
+        ],
+        "at": [
+         0,
+         0.78,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.8,
          0.7,
-         0.5
+         0.9
         ],
         "at": [
          0,
          0.35,
          0
         ],
-        "color": "#c9a882"
+        "color": "#9aa9b5"
        },
        {
         "shape": "box",
         "size": [
-         0.96,
-         0.08,
-         0.56
+         0.7,
+         0.16,
+         0.5
         ],
         "at": [
-         0,
-         0.74,
+         -0.5,
+         0.93,
          0
         ],
-        "color": "#8e6f52"
+        "color": "#e8e0d0"
        },
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.22,
-         0.26,
-         0.22
+         0.6,
+         0.4,
+         0.45
         ],
         "at": [
-         -0.22,
-         0.91,
+         0.55,
+         1.05,
          0
         ],
-        "color": "#7fae8e"
+        "color": "#d98b62"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.62,
+         0.03
+        ],
+        "at": [
+         0.55,
+         1.6,
+         -0.2
+        ],
+        "color": "#43505e",
+        "picture": "shirt",
+        "accent": "#e0d6c2",
+        "textColor": "#4f6f9c",
+        "text": "3"
        },
        {
         "shape": "cylinder",
         "size": [
          0.1,
-         0.16,
+         0.45,
          0.1
         ],
         "at": [
-         -0.22,
-         1.12,
-         0
+         -0.85,
+         1.08,
+         -0.3
         ],
-        "color": "#5d6f66"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.22,
-         0.26,
-         0.22
-        ],
-        "at": [
-         0.22,
-         0.91,
-         0
-        ],
-        "color": "#c46a52"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.16,
-         0.1
-        ],
-        "at": [
-         0.22,
-         1.12,
-         0
-        ],
-        "color": "#7a4a3c"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.34,
-         0.1,
-         0.26
-        ],
-        "at": [
-         0,
-         0.83,
-         0.16
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.06,
-         0.22
-        ],
-        "at": [
-         0.02,
-         0.91,
-         0.15
-        ],
-        "rot": [
-         0,
-         6,
-         3
-        ],
-        "color": "#f2ebda"
+        "color": "#8b95a1",
+        "finish": "metal"
        }
       ]
      },
      {
-      "name": "Ops Ticket Board",
+      "name": "Staff Roles Locker Wall",
       "zone": "back",
       "tiers": [
+       1,
        2,
        3
       ],
       "parts": [
        {
-        "shape": "panel",
+        "shape": "box",
         "size": [
-         1.6,
-         1,
-         0.03
+         1.8,
+         1.9,
+         0.5
         ],
         "at": [
          0,
-         1.8,
+         0.95,
          0
         ],
-        "color": "#7d8f7a"
+        "color": "#7e8f7c"
        },
        {
         "shape": "box",
         "size": [
-         1.7,
-         0.08,
-         0.08
+         0.56,
+         1.8,
+         0.06
+        ],
+        "at": [
+         -0.6,
+         0.95,
+         0.26
+        ],
+        "color": "#e6dcc8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.56,
+         1.8,
+         0.06
         ],
         "at": [
          0,
-         2.34,
-         0.02
+         0.95,
+         0.26
         ],
-        "color": "#8e6f52"
+        "color": "#dcd0b8"
        },
        {
-        "shape": "panel",
+        "shape": "box",
         "size": [
-         0.32,
-         0.24,
-         0.03
+         0.56,
+         1.8,
+         0.06
         ],
         "at": [
-         -0.5,
-         2.05,
-         0.04
+         0.6,
+         0.95,
+         0.26
         ],
-        "color": "#e8c46a"
+        "color": "#e6dcc8"
        },
        {
-        "shape": "panel",
+        "shape": "sphere",
         "size": [
-         0.32,
-         0.24,
-         0.03
+         0.12,
+         0.12,
+         0.12
         ],
         "at": [
-         -0.05,
-         2.05,
-         0.04
+         -0.38,
+         1,
+         0.32
         ],
-        "color": "#e5ddcd"
+        "color": "#c4553f"
        },
        {
-        "shape": "panel",
+        "shape": "sphere",
         "size": [
-         0.32,
-         0.24,
-         0.03
+         0.12,
+         0.12,
+         0.12
         ],
         "at": [
-         0.42,
-         2.05,
-         0.04
+         0.22,
+         1,
+         0.32
         ],
-        "color": "#c46a52"
+        "color": "#4f6f9c"
        },
        {
-        "shape": "panel",
+        "shape": "sphere",
         "size": [
-         0.32,
-         0.24,
-         0.03
+         0.12,
+         0.12,
+         0.12
         ],
         "at": [
-         -0.5,
-         1.72,
-         0.04
+         0.82,
+         1,
+         0.32
         ],
-        "color": "#e5ddcd"
+        "color": "#79a86b"
        },
        {
-        "shape": "panel",
+        "shape": "box",
         "size": [
-         0.32,
-         0.24,
-         0.03
+         1.9,
+         0.16,
+         0.6
         ],
         "at": [
-         -0.05,
-         1.72,
-         0.04
+         0,
+         1.98,
+         0
         ],
-        "color": "#7fae8e"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.32,
-         0.24,
-         0.03
-        ],
-        "at": [
-         0.42,
-         1.72,
-         0.04
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.5,
-         0.2,
-         0.03
-        ],
-        "at": [
-         0.55,
-         1.42,
-         0.04
-        ],
-        "color": "#3f4f5c",
-        "text": "TRIAGE",
-        "textColor": "#f2ebda"
+        "color": "#a8825f"
        }
       ]
      },
      {
-      "name": "Kit Room Intake Rail",
+      "name": "Payouts & Disputes Cart",
       "zone": "back",
       "tiers": [
+       1,
+       2,
        3
       ],
       "parts": [
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.09,
-         1.4,
-         0.09
-        ],
-        "at": [
-         -1,
-         0.7,
-         0
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.09,
-         1.4,
-         0.09
-        ],
-        "at": [
-         1,
-         0.7,
-         0
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         2.1,
-         0.07,
-         0.07
+         1.2,
+         0.12,
+         0.7
         ],
         "at": [
          0,
-         1.38,
+         0.85,
          0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.1,
+         0.12,
+         0.6
+        ],
+        "at": [
+         0,
+         0.45,
+         0
+        ],
+        "color": "#a8825f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.85,
+         0.1
+        ],
+        "at": [
+         -0.5,
+         0.43,
+         -0.25
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.85,
+         0.1
+        ],
+        "at": [
+         0.5,
+         0.43,
+         -0.25
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.85,
+         0.1
+        ],
+        "at": [
+         -0.5,
+         0.43,
+         0.25
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.85,
+         0.1
+        ],
+        "at": [
+         0.5,
+         0.43,
+         0.25
+        ],
+        "color": "#8b95a1",
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.8,
+         0.5,
+         0.03
+        ],
+        "at": [
+         0,
+         1.18,
+         -0.15
         ],
         "rot": [
+         -12,
          0,
-         0,
-         90
-        ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "box",
-        "size": [
-         2.2,
-         0.1,
-         0.55
-        ],
-        "at": [
-         0,
-         0.08,
          0
         ],
-        "color": "#8e6f52"
+        "color": "#3f4a58",
+        "picture": "chart",
+        "accent": "#79a86b",
+        "textColor": "#f0e7d6"
        },
        {
         "shape": "box",
         "size": [
-         0.44,
-         0.55,
-         0.12
-        ],
-        "at": [
-         -0.6,
-         1.05,
-         0
-        ],
-        "color": "#6d8aa8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.44,
-         0.55,
-         0.12
-        ],
-        "at": [
-         -0.1,
-         1.05,
-         0
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.44,
-         0.55,
-         0.12
-        ],
-        "at": [
-         0.4,
-         1.05,
-         0
-        ],
-        "color": "#c46a52"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
          0.3,
-         0.4
+         0.2,
+         0.3
         ],
         "at": [
-         0.75,
-         0.28,
-         0
+         0.42,
+         1.01,
+         0.15
         ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.3,
-         0.4
-        ],
-        "at": [
-         -0.75,
-         0.28,
-         0
-        ],
-        "color": "#c9a882"
+        "color": "#d98b62"
        }
       ]
      },
      {
-      "name": "Role Key Tower",
+      "name": "Flagged Listings Tower",
       "zone": "side",
       "tiers": [
        2,
@@ -921,103 +728,90 @@
        {
         "shape": "box",
         "size": [
-         0.5,
-         0.12,
-         0.5
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#8e6f52"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.34,
-         1.6,
-         0.34
-        ],
-        "at": [
-         0,
-         0.92,
-         0
-        ],
-        "taper": 0.25,
-        "color": "#7d8f7a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.06,
-         0.16
-        ],
-        "at": [
-         0.14,
          0.7,
-         0
-        ],
-        "color": "#e8c46a",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.06,
-         0.16
+         0.25,
+         0.7
         ],
         "at": [
-         -0.14,
-         1.05,
+         0,
+         0.12,
          0
         ],
-        "color": "#e8c46a",
-        "finish": "metal"
+        "color": "#5d6b7a"
        },
        {
         "shape": "box",
         "size": [
+         0.6,
+         2.1,
+         0.6
+        ],
+        "at": [
+         0,
+         1.2,
+         0
+        ],
+        "color": "#e6dcc8"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.45,
+         0.03
+        ],
+        "at": [
+         0,
+         1.9,
+         0.32
+        ],
+        "color": "#3f4a58",
+        "picture": "code",
+        "accent": "#7fa8d6",
+        "textColor": "#f0e7d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
          0.16,
-         0.06,
-         0.3
+         0.1
         ],
         "at": [
          0,
-         1.4,
-         0.14
+         1.3,
+         0.3
         ],
-        "color": "#c46a52"
+        "color": "#c4553f"
        },
        {
-        "shape": "sphere",
+        "shape": "box",
         "size": [
-         0.3,
-         0.26,
-         0.3
+         0.5,
+         0.16,
+         0.1
         ],
         "at": [
          0,
-         1.82,
-         0
+         1.05,
+         0.3
         ],
-        "color": "#6d8aa8"
+        "color": "#d98b62"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.12,
-         0.1,
-         0.12
+         0.4,
+         0.3,
+         0.4
         ],
         "at": [
          0,
-         1.99,
+         2.4,
          0
         ],
-        "color": "#e8c46a",
+        "taper": 0.3,
+        "color": "#8b95a1",
         "finish": "metal"
        }
       ]
@@ -1030,109 +824,80 @@
       ],
       "parts": [
        {
-        "shape": "box",
+        "shape": "cylinder",
         "size": [
          0.6,
-         0.14,
-         0.45
+         0.9,
+         0.6
         ],
         "at": [
          0,
-         0.07,
-         0
-        ],
-        "color": "#8e6f52"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.54,
-         0.2,
-         0.4
-        ],
-        "at": [
-         0,
-         0.24,
-         0
-        ],
-        "color": "#e5ddcd"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.54,
-         0.2,
-         0.4
-        ],
-        "at": [
-         0.03,
          0.45,
          0
         ],
-        "rot": [
-         0,
-         7,
-         0
-        ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.54,
-         0.2,
-         0.4
-        ],
-        "at": [
-         -0.03,
-         0.66,
-         0
-        ],
-        "rot": [
-         0,
-         -6,
-         0
-        ],
-        "color": "#6d8aa8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.54,
-         0.2,
-         0.4
-        ],
-        "at": [
-         0.02,
-         0.87,
-         0
-        ],
-        "rot": [
-         0,
-         4,
-         0
-        ],
-        "color": "#e5ddcd"
+        "color": "#a8825f"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.2,
-         0.14,
-         0.2
+         0.55,
+         0.7,
+         0.55
         ],
         "at": [
          0,
-         1.04,
+         1.25,
          0
         ],
-        "color": "#c46a52"
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.55,
+         0.5
+        ],
+        "at": [
+         0,
+         1.87,
+         0
+        ],
+        "color": "#dcd0b8"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.35,
+         0.35,
+         0.35
+        ],
+        "at": [
+         0,
+         2.3,
+         0
+        ],
+        "color": "#79a86b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.08,
+         0.7
+        ],
+        "at": [
+         0,
+         0.92,
+         0
+        ],
+        "color": "#5d6b7a"
        }
       ]
      },
      {
-      "name": "Payout Ledger Cart",
-      "zone": "back",
+      "name": "Support Ticket Kiosk",
+      "zone": "side",
       "tiers": [
        3
       ],
@@ -1140,159 +905,92 @@
        {
         "shape": "box",
         "size": [
-         0.9,
-         0.08,
-         0.55
-        ],
-        "at": [
-         0,
-         0.66,
-         0
-        ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.9,
-         0.08,
-         0.55
-        ],
-        "at": [
-         0,
-         0.34,
-         0
-        ],
-        "color": "#c9a882"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.06,
-         0.66,
-         0.06
-        ],
-        "at": [
-         -0.4,
-         0.33,
-         0.22
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.06,
-         0.66,
-         0.06
-        ],
-        "at": [
-         0.4,
-         0.33,
-         0.22
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.06,
-         0.66,
-         0.06
-        ],
-        "at": [
-         -0.4,
-         0.33,
-         -0.22
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.06,
-         0.66,
-         0.06
-        ],
-        "at": [
-         0.4,
-         0.33,
-         -0.22
-        ],
-        "color": "#8e9aa2",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
          0.7,
-         0.14,
+         1,
+         0.5
+        ],
+        "at": [
+         0,
+         0.5,
+         0
+        ],
+        "color": "#7e8f7c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.55,
+         0.7,
+         0.03
+        ],
+        "at": [
+         0,
+         1.4,
+         0.1
+        ],
+        "rot": [
+         -15,
+         0,
+         0
+        ],
+        "color": "#3f4a58",
+        "picture": "app",
+        "accent": "#d98b62",
+        "textColor": "#f0e7d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.12,
          0.4
         ],
         "at": [
          0,
-         0.77,
-         0
+         1.02,
+         0.05
         ],
-        "color": "#7fae8e"
+        "color": "#e6dcc8"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.2,
-         0.05,
-         0.2
+         0.12,
+         0.7,
+         0.12
         ],
         "at": [
-         -0.2,
-         0.87,
-         0
+         0.28,
+         1.35,
+         -0.15
         ],
-        "color": "#e8c46a",
+        "color": "#8b95a1",
         "finish": "metal"
        },
        {
-        "shape": "cylinder",
+        "shape": "sphere",
         "size": [
          0.2,
-         0.05,
+         0.2,
          0.2
         ],
         "at": [
-         -0.2,
-         0.92,
-         0
+         0.28,
+         1.78,
+         -0.15
         ],
-        "color": "#e8c46a",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.06,
-         0.24
-        ],
-        "at": [
-         0.22,
-         0.87,
-         0
-        ],
-        "color": "#f2ebda"
+        "color": "#c4553f"
        }
       ]
      }
     ],
-    "theme": "Back-office control room for the shirt marketplace: a staff console desk flanked by verification frames, approval stamps and an ops triage board."
+    "theme": "A back-office control room for the shirt marketplace: a staffed ops desk under a wall of queue screens, kit-intake bench, role lockers and flag towers."
    },
    "failures": [],
-   "ms": 48877,
+   "ms": 45252,
    "usage": {
-    "input": 7160,
-    "output": 4905
+    "input": 7489,
+    "output": 3967
    }
   }
  ]

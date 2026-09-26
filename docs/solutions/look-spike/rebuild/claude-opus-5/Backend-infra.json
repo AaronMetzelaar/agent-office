@@ -5,7 +5,7 @@
    "design": {
     "props": [
      {
-      "name": "Stadium Server Stand",
+      "name": "Match-Day Server Rack & Deploy Gantry",
       "zone": "back",
       "tiers": [
        1,
@@ -17,983 +17,718 @@
        {
         "shape": "box",
         "size": [
-         2.4,
-         0.18,
-         1.15
+         2,
+         0.14,
+         1.2
         ],
         "at": [
          0,
-         0.09,
+         0.07,
          0
         ],
-        "color": "#6d7a86",
+        "color": "#6b7a8c",
         "finish": "metal"
        },
        {
         "shape": "rounded",
         "size": [
-         0.78,
-         2.1,
-         1
+         0.8,
+         2.2,
+         0.9
         ],
         "at": [
-         -0.78,
-         1.14,
-         0
+         -0.55,
+         1.17,
+         -0.05
         ],
-        "color": "#516070",
+        "color": "#4d5b6b",
         "finish": "satin"
        },
        {
         "shape": "rounded",
         "size": [
-         0.78,
-         2.3,
-         1
+         0.8,
+         2.2,
+         0.9
         ],
         "at": [
-         0,
-         1.24,
-         0
+         0.55,
+         1.17,
+         -0.05
         ],
-        "color": "#59697a",
-        "finish": "satin"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.78,
-         2.1,
-         1
-        ],
-        "at": [
-         0.78,
-         1.14,
-         0
-        ],
-        "color": "#516070",
+        "color": "#5a6a7b",
         "finish": "satin"
        },
        {
         "shape": "panel",
         "size": [
          0.62,
-         0.16,
+         0.45,
          0.03
         ],
         "at": [
-         -0.78,
-         1.9,
-         0.52
+         -0.55,
+         1.95,
+         0.42
         ],
-        "color": "#8fa96f"
+        "color": "#39434f",
+        "picture": "dashboard",
+        "accent": "#8fc7a8",
+        "textColor": "#f2ece1",
+        "text": "UPTIME"
        },
        {
         "shape": "panel",
         "size": [
          0.62,
-         0.16,
+         0.45,
          0.03
         ],
         "at": [
-         -0.78,
-         1.6,
-         0.52
+         0.55,
+         1.95,
+         0.42
         ],
-        "color": "#e2b768"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         -0.78,
-         1.3,
-         0.52
-        ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         -0.78,
-         1,
-         0.52
-        ],
-        "color": "#c8735a"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         0.78,
-         1.9,
-         0.52
-        ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         0.78,
-         1.6,
-         0.52
-        ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         0.78,
-         1.3,
-         0.52
-        ],
-        "color": "#e2b768"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.62,
-         0.16,
-         0.03
-        ],
-        "at": [
-         0.78,
-         1,
-         0.52
-        ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.66,
-         0.5,
-         0.03
-        ],
-        "at": [
-         0,
-         1.75,
-         0.52
-        ],
-        "color": "#2f3a46",
-        "text": "UPTIME",
-        "textColor": "#9fd08a"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.66,
-         0.34,
-         0.03
-        ],
-        "at": [
-         0,
-         1.28,
-         0.52
-        ],
-        "color": "#3d4a58",
-        "text": "90'+3",
-        "textColor": "#e8d6a8"
+        "color": "#39434f",
+        "picture": "chart",
+        "accent": "#e8a25c",
+        "textColor": "#f2ece1",
+        "text": "COVERAGE"
        },
        {
         "shape": "box",
         "size": [
-         2.5,
-         0.14,
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         -0.55,
+         1.45,
+         0.45
+        ],
+        "color": "#8fc7a8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         -0.55,
+         1.25,
+         0.45
+        ],
+        "color": "#e8a25c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         -0.55,
+         1.05,
+         0.45
+        ],
+        "color": "#8fc7a8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         0.55,
+         1.45,
+         0.45
+        ],
+        "color": "#e0dcd2"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         0.55,
+         1.25,
+         0.45
+        ],
+        "color": "#8fc7a8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.06
+        ],
+        "at": [
+         0.55,
+         1.05,
+         0.45
+        ],
+        "color": "#c46a5a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         2.7,
+         0.16
+        ],
+        "at": [
+         -0.92,
+         1.35,
+         0.42
+        ],
+        "color": "#9aa7b4",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         2.7,
+         0.16
+        ],
+        "at": [
+         0.92,
+         1.35,
+         0.42
+        ],
+        "color": "#9aa7b4",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2.1,
+         0.18,
          0.2
         ],
         "at": [
          0,
-         2.5,
-         -0.2
+         2.6,
+         0.42
         ],
-        "color": "#c9d3da"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.5,
-         0.1
-        ],
-        "at": [
-         -1,
-         2.65,
-         -0.2
-        ],
-        "color": "#8d99a4",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.5,
-         0.1
-        ],
-        "at": [
-         1,
-         2.65,
-         -0.2
-        ],
-        "color": "#8d99a4",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.22,
-         0.16,
-         0.16
-        ],
-        "at": [
-         -1,
-         2.9,
-         -0.2
-        ],
-        "color": "#f2e6c4"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.22,
-         0.16,
-         0.16
-        ],
-        "at": [
-         1,
-         2.9,
-         -0.2
-        ],
-        "color": "#f2e6c4"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.12,
-         1.6,
-         0.12
-        ],
-        "at": [
-         -1.28,
-         1,
-         -0.35
-        ],
-        "rot": [
-         0,
-         0,
-         0
-        ],
-        "color": "#9db089",
-        "finish": "satin"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.12,
-         1.6,
-         0.12
-        ],
-        "at": [
-         1.28,
-         1,
-         -0.35
-        ],
-        "color": "#b98a74",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         2.9,
-         0.1,
-         0.26
-        ],
-        "at": [
-         0,
-         0.42,
-         -0.42
-        ],
-        "color": "#7f8a94",
-        "finish": "metal"
-       }
-      ]
-     },
-     {
-      "name": "CI Pipeline Turnstiles",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.5,
-         0.12,
-         0.9
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#d9cdb8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.28,
-         1,
-         0.28
-        ],
-        "at": [
-         -0.5,
-         0.62,
-         0
-        ],
-        "color": "#6f7d8a",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.28,
-         1,
-         0.28
-        ],
-        "at": [
-         0.5,
-         0.62,
-         0
-        ],
-        "color": "#6f7d8a",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         0.7,
-         0.08
-        ],
-        "at": [
-         -0.2,
-         0.75,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#b0bac2",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         0.7,
-         0.08
-        ],
-        "at": [
-         0.2,
-         0.75,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#b0bac2",
+        "color": "#9aa7b4",
         "finish": "metal"
        },
        {
         "shape": "panel",
         "size": [
-         1.1,
-         0.34,
+         1.3,
+         0.5,
          0.03
         ],
         "at": [
          0,
-         1.35,
-         0
-        ],
-        "color": "#3f4c58",
-        "text": "BUILD",
-        "textColor": "#9fd08a"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         -0.5,
-         1.18,
-         0
-        ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         0.5,
-         1.18,
-         0
-        ],
-        "color": "#e2b768"
-       }
-      ]
-     },
-     {
-      "name": "Database Ball Store",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.9,
-         0.28,
-         0.9
-        ],
-        "at": [
-         0,
-         0.14,
-         0
-        ],
-        "color": "#7f9ab4",
-        "finish": "satin"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.9,
-         0.26,
-         0.9
-        ],
-        "at": [
-         0,
-         0.42,
-         0
-        ],
-        "color": "#8fa8c0",
-        "finish": "satin"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.9,
-         0.26,
-         0.9
-        ],
-        "at": [
-         0,
-         0.7,
-         0
-        ],
-        "color": "#9cb4c9",
-        "finish": "satin"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.38,
-         0.38,
-         0.38
-        ],
-        "at": [
-         0,
-         1.02,
-         0
-        ],
-        "color": "#efe8d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         0.22,
-         1.02,
-         0.22
-        ],
-        "color": "#4d5a66"
-       }
-      ]
-     },
-     {
-      "name": "Kit Room API Lockers",
-      "zone": "back",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.6,
-         1.4,
+         2.3,
          0.5
         ],
-        "at": [
-         0,
-         0.7,
-         0
-        ],
-        "color": "#a9b79c"
+        "color": "#3f6f5b",
+        "text": "DEPLOY",
+        "textColor": "#f4efe4"
        },
        {
-        "shape": "panel",
+        "shape": "sphere",
         "size": [
-         0.46,
-         0.6,
-         0.03
+         0.22,
+         0.22,
+         0.22
         ],
         "at": [
-         -0.52,
-         1,
-         0.27
+         -0.45,
+         2.6,
+         0.55
         ],
-        "color": "#e6dcc6"
+        "color": "#8fc7a8"
        },
        {
-        "shape": "panel",
+        "shape": "sphere",
         "size": [
-         0.46,
-         0.6,
-         0.03
+         0.22,
+         0.22,
+         0.22
         ],
         "at": [
-         0,
-         1,
-         0.27
+         0.45,
+         2.6,
+         0.55
         ],
-        "color": "#e6dcc6"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.46,
-         0.6,
-         0.03
-        ],
-        "at": [
-         0.52,
-         1,
-         0.27
-        ],
-        "color": "#e6dcc6"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         1.5,
-         0.3,
-         0.03
-        ],
-        "at": [
-         0,
-         0.42,
-         0.27
-        ],
-        "color": "#3f4c58",
-        "text": "/v1",
-        "textColor": "#e8d6a8"
-       },
+        "color": "#e8a25c"
+       }
+      ]
+     },
+     {
+      "name": "Pipeline Pipes & Data Valves",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
        {
         "shape": "box",
         "size": [
          1.7,
-         0.1,
-         0.6
+         0.12,
+         0.9
         ],
         "at": [
          0,
-         1.45,
+         0.06,
          0
         ],
-        "color": "#8e9c82"
-       }
-      ]
-     },
-     {
-      "name": "Load Balancer Whistle Board",
-      "zone": "back",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "panel",
-        "size": [
-         1.6,
-         0.9,
-         0.03
-        ],
-        "at": [
-         0,
-         1.75,
-         0
-        ],
-        "color": "#33404b"
+        "color": "#7d6a58"
        },
        {
-        "shape": "box",
+        "shape": "cylinder",
         "size": [
-         0.3,
-         0.5,
-         0.06
+         0.75,
+         0.9,
+         0.75
         ],
         "at": [
          -0.5,
-         1.6,
-         0.04
+         0.57,
+         0
         ],
-        "color": "#8fa96f"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.75,
-         0.06
-        ],
-        "at": [
-         0,
-         1.72,
-         0.04
-        ],
-        "color": "#e2b768"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.35,
-         0.06
-        ],
-        "at": [
-         0.5,
-         1.52,
-         0.04
-        ],
-        "color": "#c8735a"
+        "color": "#7f97ad",
+        "finish": "metal"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.16,
-         0.3,
-         0.16
+         0.75,
+         0.9,
+         0.75
         ],
         "at": [
-         0.62,
-         2.05,
-         0.06
+         0.5,
+         0.57,
+         0
+        ],
+        "color": "#7f97ad",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.28,
+         1.4,
+         0.28
+        ],
+        "at": [
+         0,
+         0.82,
+         0
         ],
         "rot": [
-         90,
          0,
-         20
+         0,
+         90
         ],
-        "color": "#d8c28a",
+        "color": "#a7b6c4",
         "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.3,
+         0.34
+        ],
+        "at": [
+         -0.5,
+         1.15,
+         0
+        ],
+        "color": "#c46a5a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.3,
+         0.34
+        ],
+        "at": [
+         0.5,
+         1.15,
+         0
+        ],
+        "color": "#8fc7a8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0,
+         1.25,
+         0
+        ],
+        "color": "#e8a25c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.3,
+         0.03
+        ],
+        "at": [
+         0,
+         0.6,
+         0.42
+        ],
+        "color": "#3d4a55",
+        "text": "DB",
+        "textColor": "#f2ece1"
        }
       ]
      },
      {
-      "name": "Cache Cooler Tower",
-      "zone": "side",
+      "name": "Framed Kit of the Build Team",
+      "zone": "back",
       "tiers": [
+       1,
        2,
        3
       ],
       "parts": [
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.55,
-         1.5,
-         0.55
-        ],
-        "at": [
-         0,
-         0.75,
-         0
-        ],
-        "color": "#9fb6c7",
-        "finish": "satin",
-        "taper": 0.15
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.62,
-         0.12,
-         0.62
-        ],
-        "at": [
-         0,
-         1.56,
-         0
-        ],
-        "color": "#6d7a86",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.3,
-         0.3,
-         0.3
+         1.1,
+         1.35,
+         0.12
         ],
         "at": [
          0,
          1.75,
          0
         ],
-        "color": "#e6dcc6"
+        "color": "#8a6f56"
        },
        {
         "shape": "panel",
         "size": [
-         0.34,
-         0.3,
+         0.92,
+         1.15,
          0.03
         ],
         "at": [
          0,
-         0.95,
-         0.29
+         1.75,
+         0.08
         ],
-        "color": "#3f4c58",
-        "text": "TTL",
-        "textColor": "#9fd08a"
-       }
-      ]
-     },
-     {
-      "name": "Migration Cone Stack",
-      "zone": "side",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.5,
-         0.55,
-         0.5
-        ],
-        "at": [
-         0,
-         0.27,
-         0
-        ],
-        "color": "#c8735a",
-        "taper": 0
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.42,
-         0.5,
-         0.42
-        ],
-        "at": [
-         0,
-         0.75,
-         0
-        ],
-        "color": "#d4886c",
-        "taper": 0
+        "color": "#efe9dd",
+        "picture": "shirt",
+        "accent": "#3f6f5b",
+        "textColor": "#f4efe4",
+        "text": "01"
        },
        {
         "shape": "box",
         "size": [
-         0.6,
-         0.06,
-         0.6
+         1.2,
+         0.1,
+         0.2
         ],
         "at": [
          0,
-         0.03,
-         0
+         1.02,
+         0.02
         ],
-        "color": "#7c8a94"
+        "color": "#6f5a46"
        }
       ]
      },
      {
-      "name": "Log Stream Pitch Rollers",
+      "name": "Green Build Scoreboard",
       "zone": "back",
       "tiers": [
+       1,
+       2,
        3
       ],
       "parts": [
        {
         "shape": "box",
         "size": [
-         1.4,
-         0.3,
+         1.8,
+         1,
+         0.14
+        ],
+        "at": [
+         0,
+         1.8,
+         0
+        ],
+        "color": "#3d4a55"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.75,
+         0.6,
+         0.03
+        ],
+        "at": [
+         -0.42,
+         1.85,
+         0.09
+        ],
+        "color": "#2f3a44",
+        "picture": "code",
+        "accent": "#8fc7a8",
+        "textColor": "#e8e2d6"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.75,
+         0.6,
+         0.03
+        ],
+        "at": [
+         0.42,
+         1.85,
+         0.09
+        ],
+        "color": "#2f3a44",
+        "picture": "dashboard",
+        "accent": "#7f97ad",
+        "textColor": "#e8e2d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.12,
+         0.16
+        ],
+        "at": [
+         0,
+         1.22,
+         0.02
+        ],
+        "color": "#6b7a8c",
+        "finish": "metal"
+       }
+      ]
+     },
+     {
+      "name": "Seed Data Crate Stack",
+      "zone": "back",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.5,
          0.7
         ],
         "at": [
          0,
-         0.15,
+         0.25,
          0
         ],
-        "color": "#8fa96f"
+        "color": "#a8825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.45,
+         0.65
+        ],
+        "at": [
+         0.05,
+         0.72,
+         0.02
+        ],
+        "color": "#b89170"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.4,
+         0.6
+        ],
+        "at": [
+         -0.1,
+         1.14,
+         0
+        ],
+        "color": "#9c7855"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.24,
+         0.03
+        ],
+        "at": [
+         0,
+         0.28,
+         0.36
+        ],
+        "color": "#3f6f5b",
+        "text": "SEED",
+        "textColor": "#f4efe4"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.22,
+         0.5
+        ],
+        "at": [
+         -0.1,
+         1.45,
+         0
+        ],
+        "color": "#e8a25c"
+       }
+      ]
+     },
+     {
+      "name": "Cable Tray Trophy Shelf",
+      "zone": "back",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.6,
+         0.12,
+         0.3
+        ],
+        "at": [
+         0,
+         1.5,
+         0
+        ],
+        "color": "#8a6f56"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.42,
+         0.34
+        ],
+        "at": [
+         -0.45,
+         1.77,
+         0
+        ],
+        "taper": 0.5,
+        "color": "#c9a24c",
+        "finish": "metal"
        },
        {
         "shape": "cylinder",
         "size": [
          0.3,
-         1.2,
+         0.36,
          0.3
         ],
         "at": [
-         -0.5,
-         0.45,
+         0.15,
+         1.74,
          0
         ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#d9cdb8"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.24,
-         1.2,
-         0.24
-        ],
-        "at": [
-         0.5,
-         0.72,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#b98a74"
+        "taper": 0.5,
+        "color": "#b8bcc2",
+        "finish": "metal"
        },
        {
         "shape": "box",
         "size": [
-         0.1,
-         0.9,
-         0.1
+         0.4,
+         0.3,
+         0.24
         ],
         "at": [
-         -0.65,
-         0.5,
-         0.3
+         0.6,
+         1.71,
+         0
         ],
-        "color": "#6f7d8a",
+        "color": "#7f97ad"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.6,
+         0.1,
+         0.16
+        ],
+        "at": [
+         0,
+         2.05,
+         -0.08
+        ],
+        "color": "#6b7a8c",
         "finish": "metal"
        }
       ]
      },
      {
-      "name": "Secrets Trophy Safe",
+      "name": "Uptime Monitor Mast",
       "zone": "side",
       "tiers": [
+       2,
        3
       ],
       "parts": [
        {
-        "shape": "rounded",
-        "size": [
-         0.6,
-         0.9,
-         0.5
-        ],
-        "at": [
-         0,
-         0.45,
-         0
-        ],
-        "color": "#6f7d8a",
-        "finish": "satin"
-       },
-       {
         "shape": "cylinder",
         "size": [
-         0.26,
-         0.08,
-         0.26
+         0.6,
+         0.14,
+         0.6
         ],
         "at": [
          0,
-         0.5,
-         0.26
-        ],
-        "rot": [
-         90,
-         0,
+         0.07,
          0
         ],
-        "color": "#d8c28a",
+        "color": "#5a6a7b",
         "finish": "metal"
        },
        {
         "shape": "cylinder",
         "size": [
          0.2,
-         0.3,
+         2.1,
          0.2
         ],
         "at": [
@@ -1001,364 +736,270 @@
          1.05,
          0
         ],
-        "color": "#d8c28a",
-        "finish": "metal",
-        "taper": 0.6
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.22,
-         0.22,
-         0.22
-        ],
-        "at": [
-         0,
-         1.28,
-         0
-        ],
-        "color": "#e3cf96",
+        "color": "#9aa7b4",
         "finish": "metal"
-       }
-      ]
-     }
-    ],
-    "theme": "A stadium-stand server rack: backend infra as a floodlit ground, with CI turnstiles, database ball stores and kit-room API lockers"
-   },
-   "failures": [
-    "Prop 8 (\"Log Stream Pitch Rollers\"), part 2 goes below the floor"
-   ],
-   "ms": 42616,
-   "usage": {
-    "input": 5500,
-    "output": 4036
-   }
-  },
-  {
-   "design": {
-    "theme": "Backend & infra as a stadium engine room: server racks under floodlights, database barrels, CI pipeline and log-stream pitch",
-    "props": [
-     {
-      "name": "Stadium Server Rack Stand",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "signature": true,
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         2.4,
-         0.12,
-         1.1
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#6b7f6a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.72,
-         2,
-         0.9
-        ],
-        "at": [
-         -0.76,
-         1.06,
-         0
-        ],
-        "color": "#8d9aa8",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.72,
-         2,
-         0.9
-        ],
-        "at": [
-         0,
-         1.06,
-         0
-        ],
-        "color": "#8d9aa8",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.72,
-         2,
-         0.9
-        ],
-        "at": [
-         0.76,
-         1.06,
-         0
-        ],
-        "color": "#8d9aa8",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         -0.76,
-         1.85,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         -0.76,
-         1.6,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         0,
-         1.85,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         0,
-         1.6,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         0.76,
-         1.85,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.1,
-         0.06
-        ],
-        "at": [
-         0.76,
-         1.6,
-         0.46
-        ],
-        "color": "#e8e3d8"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.09,
-         0.09,
-         0.09
-        ],
-        "at": [
-         -0.95,
-         1.3,
-         0.46
-        ],
-        "color": "#d97b42",
-        "finish": "satin"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.09,
-         0.09,
-         0.09
-        ],
-        "at": [
-         0.05,
-         1.3,
-         0.46
-        ],
-        "color": "#7fb069"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.09,
-         0.09,
-         0.09
-        ],
-        "at": [
-         0.85,
-         1.3,
-         0.46
-        ],
-        "color": "#e0b04a"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         1.2,
-         0.08
-        ],
-        "at": [
-         -1.3,
-         0.6,
-         -0.4
-        ],
-        "color": "#b9c2cb",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         1.2,
-         0.08
-        ],
-        "at": [
-         1.3,
-         0.6,
-         -0.4
-        ],
-        "color": "#b9c2cb",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         2.8,
-         0.1,
-         0.18
-        ],
-        "at": [
-         0,
-         2.3,
-         -0.4
-        ],
-        "color": "#b9c2cb",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.45,
-         0.18,
-         0.2
-        ],
-        "at": [
-         -0.9,
-         2.48,
-         -0.4
-        ],
-        "color": "#f0ead9"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.45,
-         0.18,
-         0.2
-        ],
-        "at": [
-         0,
-         2.48,
-         -0.4
-        ],
-        "color": "#f0ead9"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.45,
-         0.18,
-         0.2
-        ],
-        "at": [
-         0.9,
-         2.48,
-         -0.4
-        ],
-        "color": "#f0ead9"
        },
        {
         "shape": "panel",
         "size": [
-         1.4,
-         0.3,
+         0.7,
+         0.55,
          0.03
         ],
         "at": [
          0,
-         2.32,
-         0.5
+         1.9,
+         0.12
         ],
-        "color": "#3f5a6d",
-        "text": "UPTIME",
-        "textColor": "#f2e8d5"
+        "color": "#2f3a44",
+        "picture": "dashboard",
+        "accent": "#8fc7a8",
+        "textColor": "#e8e2d6"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.28,
+         0.28,
+         0.28
+        ],
+        "at": [
+         0,
+         2.35,
+         0
+        ],
+        "color": "#8fc7a8"
        },
        {
         "shape": "box",
         "size": [
-         2.3,
-         0.05,
-         0.42
+         0.5,
+         0.12,
+         0.12
         ],
         "at": [
          0,
-         0.14,
-         0.48
+         1.4,
+         0
         ],
-        "color": "#7fa06b"
+        "color": "#e8a25c"
        }
       ]
      },
      {
-      "name": "Kit Room Database Barrels",
+      "name": "Cooling Fan Tower",
+      "zone": "side",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.16,
+         0.7
+        ],
+        "at": [
+         0,
+         0.08,
+         0
+        ],
+        "color": "#6b7a8c"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.62,
+         1.9,
+         0.62
+        ],
+        "at": [
+         0,
+         1.05,
+         0
+        ],
+        "color": "#8d9aa8",
+        "finish": "satin"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.48,
+         0.1,
+         0.48
+        ],
+        "at": [
+         0,
+         1.55,
+         0.3
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#3d4a55"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.48,
+         0.1,
+         0.48
+        ],
+        "at": [
+         0,
+         0.85,
+         0.3
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#3d4a55"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.24,
+         0.24,
+         0.24
+        ],
+        "at": [
+         0,
+         2.12,
+         0
+        ],
+        "color": "#7f97ad"
+       }
+      ]
+     },
+     {
+      "name": "API Gateway Turnstiles",
       "zone": "back",
       "tiers": [
-       1,
-       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.14,
+         0.8
+        ],
+        "at": [
+         0,
+         0.07,
+         0
+        ],
+        "color": "#7d8a96"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         1,
+         0.7
+        ],
+        "at": [
+         -0.65,
+         0.62,
+         0
+        ],
+        "color": "#3f6f5b"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         1,
+         0.7
+        ],
+        "at": [
+         0,
+         0.62,
+         0
+        ],
+        "color": "#3f6f5b"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         1,
+         0.7
+        ],
+        "at": [
+         0.65,
+         0.62,
+         0
+        ],
+        "color": "#3f6f5b"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.7,
+         0.1
+        ],
+        "at": [
+         -0.32,
+         1,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         90
+        ],
+        "color": "#c9a24c",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.7,
+         0.1
+        ],
+        "at": [
+         0.33,
+         1,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         90
+        ],
+        "color": "#c9a24c",
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.2,
+         0.03
+        ],
+        "at": [
+         0,
+         1.25,
+         -0.2
+        ],
+        "color": "#3d4a55",
+        "textColor": "#e8e2d6"
+       }
+      ]
+     },
+     {
+      "name": "Pitch-Plan Ops Board",
+      "zone": "back",
+      "tiers": [
        3
       ],
       "parts": [
@@ -1366,52 +1007,109 @@
         "shape": "box",
         "size": [
          1.5,
-         0.1,
-         0.8
+         1.05,
+         0.1
         ],
         "at": [
          0,
-         0.05,
+         1.8,
          0
         ],
-        "color": "#9b8straight"
+        "color": "#8a6f56"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.3,
+         0.85,
+         0.03
+        ],
+        "at": [
+         0,
+         1.8,
+         0.07
+        ],
+        "color": "#3f6f5b",
+        "picture": "pitch",
+        "accent": "#5f9e72",
+        "textColor": "#f4efe4"
        }
       ]
      },
      {
-      "name": "CI Pipeline Turnstiles",
-      "zone": "back",
+      "name": "Cache Barrel Bank",
+      "zone": "side",
       "tiers": [
-       1,
-       2,
        3
       ],
       "parts": [
        {
-        "shape": "box",
+        "shape": "cylinder",
         "size": [
-         1.6,
-         0.12,
-         0.7
+         0.6,
+         0.9,
+         0.6
+        ],
+        "at": [
+         -0.22,
+         0.45,
+         0
+        ],
+        "color": "#c46a5a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.9,
+         0.6
+        ],
+        "at": [
+         0.32,
+         0.45,
+         0.1
+        ],
+        "color": "#a7b6c4",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.55,
+         0.8,
+         0.55
         ],
         "at": [
          0,
-         0.06,
-         0
+         1.3,
+         0.05
         ],
-        "color": "#8a9ba8"
+        "color": "#e8a25c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.1,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0,
+         0.95,
+         0.05
+        ],
+        "color": "#6b7a8c"
        }
       ]
      }
-    ]
+    ],
+    "theme": "Match-day infrastructure depot: a stadium-grade server rack under a deploy gantry, pipeline plumbing, seed crates and green-build scoreboards"
    },
-   "failures": [
-    "Prop 2 (\"Kit Room Database Barrels\"), part 1 has a colour that isn't #rrggbb: \"#9b8straight\""
-   ],
-   "ms": 61964,
+   "failures": [],
+   "ms": 47419,
    "usage": {
-    "input": 13128,
-    "output": 5955
+    "input": 5833,
+    "output": 4483
    }
   }
  ]

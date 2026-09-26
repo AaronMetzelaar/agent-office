@@ -59,6 +59,11 @@ test(`draws the ${model} looks from the generation spike`, async () => {
     await page.locator('.sign', { hasText: look.name }).click()
     await page.waitForTimeout(2500)
     await page.screenshot({ path: join(shots, `${look.repo}.png`) })
+    const canvas = (await page.locator('canvas').boundingBox())!
+    await page.mouse.move(canvas.x + canvas.width * 0.32, canvas.y + canvas.height * 0.45)
+    for (let k = 0; k < 4; k++) await page.mouse.wheel(0, -250)
+    await page.waitForTimeout(1500)
+    await page.screenshot({ path: join(shots, `${look.repo}-close.png`) })
     await page.keyboard.press('Escape')
     await page.waitForTimeout(1500)
   }

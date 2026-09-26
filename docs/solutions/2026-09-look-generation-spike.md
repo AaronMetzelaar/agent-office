@@ -36,7 +36,20 @@ Sonnet and Haiku each ran out of turns on some repos without returning a design.
   - Labels such as `q=4` and `$64k` were rejected. Labels are painted on a canvas, so only control characters and links are blocked now.
 - **Thinking was most of the output.** Claude Code turns thinking on by default, and Haiku spent 18k output tokens on a 1.8k-token design. Thinking is off for Haiku, and the others run at low effort.
 
+## Rebuilding the current rooms
+
+`AGENT_OFFICE_LOOK_REBUILD=1 pnpm test tests/main/look-rebuild.test.ts` generates looks for Aaron's rooms: Marketplace, Admin, Mobile, Backend / infra, PR reviews and UX Lab. The Research gym and Side projects are left out, because their floor plans (treadmills, picnic tables) don't use the desk grid that `arrange` places props around.
+
+The first preview was on theme but didn't read on screen: each room was a thin row of small blocks against the back wall, weaker than the hand-built rooms with their drawn shirts and screens. Three changes fixed that:
+
+- **Pictures.** A panel can show a shirt, a pitch, a dashboard, a chart, a code diff or a phone app screen, painted by the office in the model's colours. Pictures read from across the office in a way small parts don't.
+- **A stage.** The signature piece gets its own spot centred on the aisle between the first two desk columns, up to 2.1 m wide, 1.8 m deep and 2.8 m tall. The other back props go either side of it.
+- **Chunkier parts.** The guidelines ask for 6 to 16 parts per prop and nothing thinner than 5 cm, leaving detail to pictures.
+
+On the second run all six passed, five on the first try, in 38–78 seconds each, and every room used pictures. Marketplace got a live auction tower with a number 10 shirt and bid charts, Backend / infra a DEPLOY gantry over the racks, and Mobile a phone kiosk showing a BID screen.
+
+Panel pictures first came out blank: they hung off the panel mesh, which the office's mesh merge removes with its children. Each panel now sits in its own group with the picture beside it.
+
 ## Still open
 
-- The looks are on theme and pass the check, but they're tidy rather than over the top. The next lever is the guidelines and a few examples drawn from the hand-built rooms, then another look at the screenshots.
 - The rest of step 2 hasn't been started: generating when a room is made, storing the design on the room (the `design` field on `RoomDef` is already drawn by `props.ts`), the construction scene, Redecorate and the setting.

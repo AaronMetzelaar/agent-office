@@ -45,8 +45,8 @@ export const guidelines = `You design the decoration for one room in Agent Offic
 Style
 - Chunky, rounded, low-poly, matte, in soft daylight colours, like a tidy toy model of a modern office. No glossy, glowing or see-through materials.
 - Make the room unmistakably about this project, and a little over the top, like a themed set in a toy shop. Work out what the project is about from its name and README, before its tech stack. A launch tracker gets a launch pad with a rocket on its gantry, a weather app a rooftop weather station, a home server lab a humming rack wall with blinking lights and cable trays, a trading tool a ticker wall with a trading bell. Never make a room that only says "JavaScript" or "code".
-- The signature piece is a showpiece: the biggest, most detailed prop, the one you'd point at from across the office. Make it about 2 to ${limits.span} m wide and 1.8 to ${limits.height} m tall, with real detail, 12 to ${limits.parts} parts.
-- Fill the room: 4 or 5 props at tier 1, supporting pieces 0.6 to 1.5 m in size, plus a wall piece or two above them.
+- The signature piece is a showpiece, the one you'd point at from across the office, and it gets the stage: a spot in the middle of the back wall, up to ${limits.stage.width} m wide, ${limits.stage.depth} m deep and ${limits.height} m tall. Build it to fill the stage, with 10 to 20 parts and at least one picture.
+- Fill the room: 4 or 5 props at tier 1. Supporting pieces stand either side of the stage, each up to about 2 m wide and 1.3 m deep, with a picture or two hung on the wall above them.
 - Every other prop carries the theme too. No generic office filler: no plain bookshelves, filing cabinets or potted plants unless they're themed (a plant in a rocket-shaped pot is fine).
 - When the input says mws is true, the room belongs to MWS (MatchWornShirt), a marketplace where fans buy and bid on match-worn football shirts. Theme it on that and on the room's own part of the product: framed shirts, auction boards, pitches, kit rooms, trophies, stadium lights. No real club crests, player names or MWS logos.
 - Don't repeat the signature pieces of the rooms listed as already standing.
@@ -67,7 +67,9 @@ The room
 
 Parts
 - Each prop is up to ${limits.parts} parts, placed relative to the prop's centre on the floor. at is the centre of the part, so a part resting on the floor has at[1] equal to half its height, and nothing goes below 0.
+- Build with fewer, bigger parts: 6 to 16 per prop, and nothing thinner than 5 cm except trims. The office is seen from above and far away, so small details vanish. Big shapes and pictures carry the theme.
 - Only panels carry text, at most ${limits.labels} labels in the whole room.
+- A panel can show a picture, which reads from across the office: shirt (a football shirt; accent is the shirt, textColor the sleeves, collar and number, text the number), pitch (accent is the grass, textColor the lines), dashboard, chart, code (a diff), or app (a phone screen). For the other pictures accent colours the drawing, textColor its ink, and text is a short caption under it. Use them on the showpiece and the wall: framed shirts, auction screens, diff walls, stat boards.
 - Shapes: box and rounded (size = width, height, depth), cylinder (size = diameter, height, diameter; taper 0 to 1 narrows the top, 0 makes a cone), sphere (size = diameters, so it can be squashed), panel (a flat board 3 cm thick facing into the room, size = width, height, 0.03; text puts a short label on it, textColor colours the label).
 - rot is a tilt in degrees around x, y and z. rotate turns the whole prop around y.
 - Colours are #rrggbb. Big surfaces use a soft palette: warm whites, woods, sage, dusty blues, terracotta. One or two strong accent colours are fine on small parts. No neon, no pure black or pure white.

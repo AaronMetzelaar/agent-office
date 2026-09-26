@@ -5,7 +5,7 @@
    "design": {
     "props": [
      {
-      "name": "Giant Shirt Auction Handset",
+      "name": "Giant Phone Bid Kiosk",
       "zone": "back",
       "tiers": [
        1,
@@ -15,1947 +15,584 @@
       "signature": true,
       "parts": [
        {
-        "shape": "rounded",
-        "size": [
-         1.5,
-         2.5,
-         0.32
-        ],
-        "at": [
-         0,
-         1.3,
-         0
-        ],
-        "color": "#43506b",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.28,
-         2.06,
-         0.06
-        ],
-        "at": [
-         0,
-         1.34,
-         0.17
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         1.2,
-         0.26,
-         0.03
-        ],
-        "at": [
-         0,
-         2.24,
-         0.22
-        ],
-        "color": "#7f9a78",
-        "text": "LIVE BID",
-        "textColor": "#f7f4ea"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.62,
-         0.9,
-         0.04
-        ],
-        "at": [
-         -0.28,
-         1.62,
-         0.22
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.28,
-         0.05
-        ],
-        "at": [
-         -0.49,
-         2,
-         0.24
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.28,
-         0.05
-        ],
-        "at": [
-         -0.07,
-         2,
-         0.24
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.3,
-         0.3,
-         0.03
-        ],
-        "at": [
-         -0.28,
-         1.5,
-         0.25
-        ],
-        "color": "#f3efe4",
-        "text": "09",
-        "textColor": "#43506b"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.5,
-         0.22,
-         0.03
-        ],
-        "at": [
-         0.34,
-         1.86,
-         0.22
-        ],
-        "color": "#dfd8c6",
-        "text": "€ 420",
-        "textColor": "#c46a4e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.12,
-         0.04
-        ],
-        "at": [
-         0.34,
-         1.6,
-         0.22
-        ],
-        "color": "#8fa8c4"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.12,
-         0.04
-        ],
-        "at": [
-         0.34,
-         1.42,
-         0.22
-        ],
-        "color": "#8fa8c4"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.66,
-         0.24,
-         0.05
-        ],
-        "at": [
-         0.3,
-         1.12,
-         0.23
-        ],
-        "color": "#7f9a78"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.1,
-         0.16,
-         0.05
-        ],
-        "at": [
-         0,
-         0.78,
-         0.22
-        ],
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         -0.4,
-         0.5,
-         0.22
-        ],
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         0,
-         0.5,
-         0.22
-        ],
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         0.4,
-         0.5,
-         0.22
-        ],
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.06,
-         0.1
-        ],
-        "at": [
-         0.79,
-         1.9,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#8fa8c4",
-        "finish": "metal"
-       },
-       {
         "shape": "box",
         "size": [
          1.9,
-         0.12,
-         0.9
-        ],
-        "at": [
-         0,
-         0.06,
-         0.1
-        ],
-        "color": "#9d8straight"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.1,
-         0.1,
-         0.1
-        ],
-        "at": [
-         -0.45,
-         2.3,
-         0.2
-        ],
-        "color": "#2f3a4d"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.06,
-         0.5
-        ],
-        "at": [
-         0,
-         0.32,
-         0.05
-        ],
-        "color": "#a68a64"
-       }
-      ]
-     },
-     {
-      "name": "Build Bots: iOS & Android Totems",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "rounded",
-        "size": [
-         0.5,
-         0.7,
-         0.4
-        ],
-        "at": [
-         -0.4,
-         0.35,
-         0
-        ],
-        "color": "#8fa8c4"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         -0.5,
-         0.55,
-         0.2
-        ],
-        "color": "#2f3a4d"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         -0.3,
-         0.55,
-         0.2
-        ],
-        "color": "#2f3a4d"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.06,
-         0.2,
-         0.06
-        ],
-        "at": [
-         -0.4,
-         0.8,
-         0
-        ],
-        "taper": 0.4,
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.5,
-         0.7,
-         0.4
-        ],
-        "at": [
-         0.4,
-         0.35,
-         0
-        ],
-        "color": "#7f9a78"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         0.3,
-         0.55,
-         0.2
-        ],
-        "color": "#2f3a4d"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         0.5,
-         0.55,
-         0.2
-        ],
-        "color": "#2f3a4d"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.05,
-         0.16,
-         0.05
-        ],
-        "at": [
-         0.28,
-         0.79,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         20
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.05,
-         0.16,
-         0.05
-        ],
-        "at": [
-         0.52,
-         0.79,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         -20
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.4,
-         0.1,
-         0.5
-        ],
-        "at": [
-         0,
-         0.05,
-         0
-        ],
-        "color": "#a68a64"
-       }
-      ]
-     },
-     {
-      "name": "Push Notification Bell Post",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.16,
-         1.1,
-         0.16
-        ],
-        "at": [
-         0,
-         0.55,
-         0
-        ],
-        "color": "#43506b",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.44,
-         0.4,
-         0.44
-        ],
-        "at": [
-         0,
-         1.22,
-         0
-        ],
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.12,
-         0.16,
-         0.12
-        ],
-        "at": [
-         0,
-         1.48,
-         0
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.12,
-         0.12,
-         0.12
-        ],
-        "at": [
-         0,
-         1,
-         0
-        ],
-        "color": "#c9b36a",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.5,
-         0.08,
-         0.5
-        ],
-        "at": [
-         0,
-         0.04,
-         0
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.36,
-         0.2,
-         0.03
-        ],
-        "at": [
-         0,
-         0.7,
-         0.1
-        ],
-        "color": "#f3efe4",
-        "text": "BID!",
-        "textColor": "#c46a4e"
-       }
-      ]
-     },
-     {
-      "name": "Framed Mini Kit Wall Strip",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         2.2,
-         0.12,
-         0.14
-        ],
-        "at": [
-         0,
-         0.95,
-         0
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.6,
-         0.7,
-         0.03
-        ],
-        "at": [
-         -0.7,
-         1.45,
-         0
-        ],
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.42,
-         0.5,
-         0.05
-        ],
-        "at": [
-         -0.7,
-         1.45,
-         0.04
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.6,
-         0.7,
-         0.03
-        ],
-        "at": [
-         0,
-         1.45,
-         0
-        ],
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.42,
-         0.5,
-         0.05
-        ],
-        "at": [
-         0,
-         1.45,
-         0.04
-        ],
-        "color": "#8fa8c4"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.6,
-         0.7,
-         0.03
-        ],
-        "at": [
-         0.7,
-         1.45,
-         0
-        ],
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.42,
-         0.5,
-         0.05
-        ],
-        "at": [
-         0.7,
-         1.45,
-         0.04
-        ],
-        "color": "#7f9a78"
-       }
-      ]
-     },
-     {
-      "name": "Device Lab Locker",
-      "zone": "side",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         0.7,
-         1.7,
-         0.45
-        ],
-        "at": [
-         0,
-         0.85,
-         0
-        ],
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.06,
-         0.4
-        ],
-        "at": [
-         0,
-         0.5,
-         0.03
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.06,
-         0.4
-        ],
-        "at": [
-         0,
-         0.95,
-         0.03
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.06,
-         0.4
-        ],
-        "at": [
-         0,
-         1.4,
-         0.03
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.16,
-         0.3,
-         0.04
-        ],
-        "at": [
-         -0.18,
-         0.68,
-         0.2
-        ],
-        "color": "#43506b"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.16,
-         0.3,
-         0.04
-        ],
-        "at": [
-         0.08,
-         0.68,
-         0.2
-        ],
-        "color": "#7f9a78"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.16,
-         0.3,
-         0.04
-        ],
-        "at": [
-         -0.18,
-         1.13,
-         0.2
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.16,
-         0.3,
-         0.04
-        ],
-        "at": [
-         0.08,
-         1.13,
-         0.2
-        ],
-        "color": "#8fa8c4"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.5,
          0.18,
-         0.03
-        ],
-        "at": [
-         0,
-         1.62,
-         0.23
-        ],
-        "color": "#7f9a78",
-        "text": "DEVICES",
-        "textColor": "#f7f4ea"
-       }
-      ]
-     },
-     {
-      "name": "Crash Report Radar Lamp",
-      "zone": "side",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.4,
-         0.08,
-         0.4
-        ],
-        "at": [
-         0,
-         0.04,
-         0
-        ],
-        "color": "#43506b"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.12,
-         1.3,
-         0.12
-        ],
-        "at": [
-         0,
-         0.7,
-         0
-        ],
-        "color": "#8fa8c4",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.36,
-         0.36,
-         0.36
-        ],
-        "at": [
-         0,
-         1.5,
-         0
-        ],
-        "color": "#c46a4e"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.3,
-         0.2,
-         0.3
-        ],
-        "at": [
-         0,
-         1.78,
-         0
-        ],
-        "taper": 0.3,
-        "color": "#dfd8c6"
-       }
-      ]
-     },
-     {
-      "name": "Stadium Wi-Fi Mast",
-      "zone": "side",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.1,
-         0.5
-        ],
-        "at": [
-         0,
-         0.05,
-         0
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.14,
-         1.6,
-         0.14
-        ],
-        "at": [
-         0,
-         0.85,
-         0
-        ],
-        "taper": 0.5,
-        "color": "#dfd8c6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.3,
-         0.12
-        ],
-        "at": [
-         0,
-         1.78,
-         0
-        ],
-        "color": "#43506b"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         -0.15,
-         1.78,
-         0.09
-        ],
-        "color": "#c9b36a"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.14,
-         0.14,
-         0.14
-        ],
-        "at": [
-         0.15,
-         1.78,
-         0.09
-        ],
-        "color": "#c9b36a"
-       }
-      ]
-     },
-     {
-      "name": "Test Pitch Turf Tray",
-      "zone": "back",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.6,
-         0.12,
-         0.9
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#7f9a78"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.5,
-         0.02,
-         0.04
-        ],
-        "at": [
-         0,
-         0.13,
-         0
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.04,
-         0.3,
-         0.5
-        ],
-        "at": [
-         -0.75,
-         0.27,
-         0
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.04,
-         0.3,
-         0.5
-        ],
-        "at": [
-         0.75,
-         0.27,
-         0
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.18,
-         0.18,
-         0.18
-        ],
-        "at": [
-         0.3,
-         0.21,
-         0.2
-        ],
-        "color": "#f3efe4"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.3,
-         0.5,
-         0.06
-        ],
-        "at": [
-         -0.3,
-         0.4,
-         -0.2
-        ],
-        "color": "#43506b"
-       }
-      ]
-     },
-     {
-      "name": "Release Train Signal Board",
-      "zone": "back",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "panel",
-        "size": [
-         1.4,
-         0.8,
-         0.03
-        ],
-        "at": [
-         0,
-         1.7,
-         0
-        ],
-        "color": "#43506b",
-        "text": "v1.76",
-        "textColor": "#f7f4ea"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.5,
-         0.1,
-         0.1
-        ],
-        "at": [
-         0,
-         1.25,
-         0.02
-        ],
-        "color": "#a68a64"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.18,
-         0.18,
-         0.18
-        ],
-        "at": [
-         -0.45,
-         1.38,
-         0.06
-        ],
-        "color": "#7f9a78"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.18,
-         0.18,
-         0.18
-        ],
-        "at": [
-         0,
-         1.38,
-         0.06
-        ],
-        "color": "#c9b36a"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.18,
-         0.18,
-         0.18
-        ],
-        "at": [
-         0.45,
-         1.38,
-         0.06
-        ],
-        "color": "#c46a4e"
-       }
-      ]
-     }
-    ],
-    "theme": "A pocket-sized stadium: a giant toy handset running a live shirt auction, flanked by build bots, a bid bell and a test pitch"
-   },
-   "failures": [
-    "Prop 1 (\"Giant Shirt Auction Handset\"), part 17 has a colour that isn't #rrggbb: \"#9d8straight\""
-   ],
-   "ms": 42900,
-   "usage": {
-    "input": 7351,
-    "output": 4365
-   }
-  },
-  {
-   "design": {
-    "props": [
-     {
-      "name": "Giant Shirt Auction Handset",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "signature": true,
-      "parts": [
-       {
-        "shape": "rounded",
-        "size": [
-         2.2,
-         2.6,
-         0.45
-        ],
-        "at": [
-         0,
-         1.35,
-         0
-        ],
-        "color": "#eae4da",
-        "finish": "satin"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         1.85,
-         2,
-         0.03
-        ],
-        "at": [
-         0,
-         1.45,
-         0.24
-        ],
-        "color": "#cfd9e4"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.7,
-         0.3,
-         0.03
-        ],
-        "at": [
-         0,
-         2.3,
-         0.26
-        ],
-        "color": "#4a6f97"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         1.2,
-         0.22,
-         0.03
-        ],
-        "at": [
-         -0.2,
-         2.3,
-         0.28
-        ],
-        "color": "#4a6f97",
-        "text": "LIVE BID",
-        "textColor": "#f6efe2"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.9,
-         1.1,
-         0.05
-        ],
-        "at": [
-         -0.4,
-         1.5,
-         0.27
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.32,
-         0.34,
-         0.06
-        ],
-        "at": [
-         -0.4,
-         1.95,
-         0.3
-        ],
-        "color": "#f0e6d6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.5,
-         0.06
-        ],
-        "at": [
-         -0.72,
-         1.35,
-         0.3
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.5,
-         0.06
-        ],
-        "at": [
-         -0.08,
-         1.35,
-         0.3
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.5,
-         0.3,
-         0.03
-        ],
-        "at": [
-         -0.4,
-         1.7,
-         0.31
-        ],
-        "color": "#f0e6d6",
-        "text": "09",
-        "textColor": "#3d4b5c"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.75,
-         0.5,
-         0.03
-        ],
-        "at": [
-         0.5,
-         1.85,
-         0.27
-        ],
-        "color": "#f6efe2",
-        "text": "€ 1,250",
-        "textColor": "#4a6f97"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.75,
-         0.28,
-         0.06
-        ],
-        "at": [
-         0.5,
-         1.4,
-         0.28
-        ],
-        "color": "#7f9c6d"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.75,
-         0.28,
-         0.06
-        ],
-        "at": [
-         0.5,
-         1.05,
-         0.28
-        ],
-        "color": "#c9b46a"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.34,
-         0.06,
-         0.34
-        ],
-        "at": [
-         0.5,
-         0.72,
-         0.28
-        ],
-        "color": "#b9c4d2",
-        "rot": [
-         90,
-         0,
-         0
-        ]
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.34,
-         0.06,
-         0.34
-        ],
-        "at": [
-         0.05,
-         0.72,
-         0.28
-        ],
-        "color": "#b9c4d2",
-        "rot": [
-         90,
-         0,
-         0
-        ]
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.34,
-         0.06,
-         0.34
-        ],
-        "at": [
-         -0.4,
-         0.72,
-         0.28
-        ],
-        "color": "#b9c4d2",
-        "rot": [
-         90,
-         0,
-         0
-        ]
-       },
-       {
-        "shape": "box",
-        "size": [
-         2.3,
-         0.18,
-         0.6
+         1.1
         ],
         "at": [
          0,
          0.09,
-         0.02
+         0
         ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.14,
-         0.7,
-         0.14
-        ],
-        "at": [
-         -0.95,
-         0.5,
-         -0.1
-        ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.14,
-         0.7,
-         0.14
-        ],
-        "at": [
-         0.95,
-         0.5,
-         -0.1
-        ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.22,
-         0.22,
-         0.22
-        ],
-        "at": [
-         -0.95,
-         0.92,
-         -0.1
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.22,
-         0.22,
-         0.22
-        ],
-        "at": [
-         0.95,
-         0.92,
-         -0.1
-        ],
-        "color": "#d86f4a"
+        "color": "#8a9a86"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.1,
-         0.35,
-         0.1
+         0.34,
+         0.75,
+         0.34
         ],
         "at": [
-         0,
-         2.8,
+         -0.5,
+         0.52,
          0
         ],
-        "color": "#b9c4d2",
-        "taper": 0.5,
+        "color": "#b9bfc6",
         "finish": "metal"
-       }
-      ]
-     },
-     {
-      "name": "App Store Rating Podium",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.8,
-         0.55,
-         0.8
-        ],
-        "at": [
-         0,
-         0.27,
-         0
-        ],
-        "color": "#eae4da"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.55,
-         0.5,
-         0.55
-        ],
-        "at": [
-         0,
-         0.8,
-         0
-        ],
-        "color": "#d6cec0"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.5,
-         0.5,
-         0.14
-        ],
-        "at": [
-         0,
-         1.25,
-         0
-        ],
-        "color": "#c9b46a",
-        "finish": "satin"
-       },
-       {
-        "shape": "sphere",
-        "size": [
          0.34,
-         0.34,
-         0.12
+         0.75,
+         0.34
         ],
         "at": [
-         -0.42,
-         1.05,
-         0
-        ],
-        "color": "#c9b46a",
-        "finish": "satin"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.34,
-         0.34,
-         0.12
-        ],
-        "at": [
-         0.42,
-         1.05,
-         0
-        ],
-        "color": "#c9b46a",
-        "finish": "satin"
-       },
-       {
-        "shape": "panel",
-        "size": [
          0.5,
-         0.2,
-         0.03
-        ],
-        "at": [
-         0,
-         0.8,
-         0.29
-        ],
-        "color": "#4a6f97",
-        "text": "4.9",
-        "textColor": "#f6efe2"
-       }
-      ]
-     },
-     {
-      "name": "Device Test Rack",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.3,
-         0.1,
-         0.5
-        ],
-        "at": [
-         0,
-         0.05,
+         0.52,
          0
         ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.1,
-         1.1,
-         0.1
-        ],
-        "at": [
-         -0.6,
-         0.6,
-         0
-        ],
-        "color": "#b9c4d2",
+        "color": "#b9bfc6",
         "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.1,
-         1.1,
-         0.1
-        ],
-        "at": [
-         0.6,
-         0.6,
-         0
-        ],
-        "color": "#b9c4d2",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.3,
-         0.08,
-         0.4
-        ],
-        "at": [
-         0,
-         0.65,
-         0
-        ],
-        "color": "#d6cec0"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.3,
-         0.08,
-         0.4
-        ],
-        "at": [
-         0,
-         1.1,
-         0
-        ],
-        "color": "#d6cec0"
        },
        {
         "shape": "rounded",
         "size": [
-         0.3,
-         0.5,
-         0.05
+         1.7,
+         1.75,
+         0.28
         ],
         "at": [
-         -0.4,
-         0.94,
-         0.05
+         0,
+         1.78,
+         0
         ],
         "color": "#3d4b5c"
        },
        {
-        "shape": "rounded",
-        "size": [
-         0.3,
-         0.5,
-         0.05
-        ],
-        "at": [
-         0.05,
-         0.94,
-         0.05
-        ],
-        "color": "#4a6f97"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.3,
-         0.5,
-         0.05
-        ],
-        "at": [
-         0.45,
-         0.94,
-         0.05
-        ],
-        "color": "#7f9c6d"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.38,
-         0.28,
-         0.05
-        ],
-        "at": [
-         -0.35,
-         0.49,
-         0.05
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.38,
-         0.28,
-         0.05
-        ],
-        "at": [
-         0.3,
-         0.49,
-         0.05
-        ],
-        "color": "#c9b46a"
-       }
-      ]
-     },
-     {
-      "name": "Framed Mini Shirt Screens",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
         "shape": "panel",
         "size": [
-         0.7,
-         0.9,
-         0.03
-        ],
-        "at": [
-         -0.8,
-         1.6,
-         0
-        ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.55,
-         0.75,
-         0.03
-        ],
-        "at": [
-         -0.8,
-         1.6,
-         0.03
-        ],
-        "color": "#f6efe2"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.4,
-         0.45,
-         0.04
-        ],
-        "at": [
-         -0.8,
-         1.65,
-         0.06
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.7,
-         0.9,
+         1.45,
+         1.45,
          0.03
         ],
         "at": [
          0,
-         1.6,
-         0
+         1.85,
+         0.17
         ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.55,
-         0.75,
-         0.03
-        ],
-        "at": [
-         0,
-         1.6,
-         0.03
-        ],
-        "color": "#f6efe2"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.4,
-         0.45,
-         0.04
-        ],
-        "at": [
-         0,
-         1.65,
-         0.06
-        ],
-        "color": "#4a6f97"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.7,
-         0.9,
-         0.03
-        ],
-        "at": [
-         0.8,
-         1.6,
-         0
-        ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.55,
-         0.75,
-         0.03
-        ],
-        "at": [
-         0.8,
-         1.6,
-         0.03
-        ],
-        "color": "#f6efe2"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.4,
-         0.45,
-         0.04
-        ],
-        "at": [
-         0.8,
-         1.65,
-         0.06
-        ],
-        "color": "#7f9c6d"
-       }
-      ]
-     },
-     {
-      "name": "Push Notification Whistle Bell",
-      "zone": "back",
-      "tiers": [
-       1,
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.5,
-         0.12,
-         0.5
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#9d8a72"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.85,
-         0.1
-        ],
-        "at": [
-         0,
-         0.5,
-         0
-        ],
-        "color": "#b9c4d2",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.45,
-         0.4,
-         0.45
-        ],
-        "at": [
-         0,
-         1.05,
-         0
-        ],
-        "color": "#d86f4a",
-        "finish": "satin"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.12,
-         0.3
-        ],
-        "at": [
-         0,
-         0.82,
-         0
-        ],
-        "color": "#c9b46a"
+        "color": "#f3efe6",
+        "picture": "app",
+        "accent": "#2f6f4f",
+        "textColor": "#d9552f",
+        "text": "BID"
        },
        {
         "shape": "cylinder",
         "size": [
          0.16,
-         0.3,
+         0.16,
          0.16
         ],
         "at": [
+         0,
+         0.82,
+         0.17
+        ],
+        "color": "#e8e2d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.06,
          0.3,
-         1.05,
+         0.06
+        ],
+        "at": [
+         0.88,
+         2.1,
          0
         ],
-        "color": "#eae4da",
-        "rot": [
+        "color": "#7d858f",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         1.1,
+         0.34,
+         0.2
+        ],
+        "at": [
          0,
+         2.82,
+         0
+        ],
+        "color": "#d9552f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.95,
+         0.22,
+         0.03
+        ],
+        "at": [
          0,
-         90
-        ]
+         2.82,
+         0.12
+        ],
+        "color": "#d9552f",
+        "text": "MWS APP",
+        "textColor": "#fdf6ec"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.62,
+         0.03
+        ],
+        "at": [
+         -0.72,
+         0.52,
+         0.56
+        ],
+        "color": "#e8e2d6",
+        "picture": "shirt",
+        "accent": "#2f5d8a",
+        "textColor": "#f3efe6",
+        "text": "9"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.62,
+         0.03
+        ],
+        "at": [
+         0.72,
+         0.52,
+         0.56
+        ],
+        "color": "#e8e2d6",
+        "picture": "chart",
+        "accent": "#2f6f4f",
+        "textColor": "#4a4a4a",
+        "text": "BIDS"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.26,
+         0.26,
+         0.26
+        ],
+        "at": [
+         -0.85,
+         2.6,
+         0
+        ],
+        "color": "#e2b23c"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.26,
+         0.26,
+         0.26
+        ],
+        "at": [
+         0.85,
+         2.6,
+         0
+        ],
+        "color": "#e2b23c"
        }
       ]
      },
      {
-      "name": "Crash Report Siren Tower",
+      "name": "iOS / Android Build Towers",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.14,
+         0.9
+        ],
+        "at": [
+         0,
+         0.07,
+         0
+        ],
+        "color": "#6f7b6a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.62,
+         1.25,
+         0.62
+        ],
+        "at": [
+         -0.5,
+         0.76,
+         0
+        ],
+        "color": "#c9d2d8"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.62,
+         1.25,
+         0.62
+        ],
+        "at": [
+         0.5,
+         0.76,
+         0
+        ],
+        "color": "#9fb59a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.46,
+         0.5,
+         0.03
+        ],
+        "at": [
+         -0.5,
+         1,
+         0.33
+        ],
+        "color": "#f3efe6",
+        "picture": "code",
+        "accent": "#2f6f4f",
+        "textColor": "#4a4a4a",
+        "text": "iOS"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.46,
+         0.5,
+         0.03
+        ],
+        "at": [
+         0.5,
+         1,
+         0.33
+        ],
+        "color": "#f3efe6",
+        "picture": "dashboard",
+        "accent": "#2f5d8a",
+        "textColor": "#4a4a4a",
+        "text": "ANDROID"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         0.3,
+         0.14
+        ],
+        "at": [
+         -0.5,
+         1.53,
+         0
+        ],
+        "color": "#d9552f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         0.3,
+         0.14
+        ],
+        "at": [
+         0.5,
+         1.53,
+         0
+        ],
+        "color": "#e2b23c"
+       }
+      ]
+     },
+     {
+      "name": "Shirt Drop Notification Wall",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2.2,
+         0.12,
+         0.1
+        ],
+        "at": [
+         0,
+         1.05,
+         0
+        ],
+        "color": "#8a6f56"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.68,
+         0.85,
+         0.03
+        ],
+        "at": [
+         -0.72,
+         1.6,
+         0
+        ],
+        "color": "#e8e2d6",
+        "picture": "shirt",
+        "accent": "#d9552f",
+        "textColor": "#fdf6ec"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.68,
+         0.85,
+         0.03
+        ],
+        "at": [
+         0,
+         1.6,
+         0
+        ],
+        "color": "#e8e2d6",
+        "picture": "shirt",
+        "accent": "#2f6f4f",
+        "textColor": "#fdf6ec"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.68,
+         0.85,
+         0.03
+        ],
+        "at": [
+         0.72,
+         1.6,
+         0
+        ],
+        "color": "#e8e2d6",
+        "picture": "pitch",
+        "accent": "#4e8a5a",
+        "textColor": "#f3efe6"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.5,
+         0.3,
+         0.14
+        ],
+        "at": [
+         0,
+         2.25,
+         0
+        ],
+        "color": "#d9552f"
+       }
+      ]
+     },
+     {
+      "name": "Pocket Kit Locker",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         0.12,
+         0.8
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#7d858f"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         1.1,
+         1.5,
+         0.7
+        ],
+        "at": [
+         0,
+         0.85,
+         0
+        ],
+        "color": "#c8a07e"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.06,
+         1.4,
+         0.72
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "color": "#9c7a5c"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.14,
+         0.14,
+         0.14
+        ],
+        "at": [
+         -0.12,
+         0.95,
+         0.36
+        ],
+        "color": "#e2b23c",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.14,
+         0.14,
+         0.14
+        ],
+        "at": [
+         0.12,
+         0.95,
+         0.36
+        ],
+        "color": "#e2b23c",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.9,
+         0.26,
+         0.5
+        ],
+        "at": [
+         0,
+         1.73,
+         0
+        ],
+        "color": "#2f5d8a"
+       }
+      ]
+     },
+     {
+      "name": "Crash-Free Streak Totem",
       "zone": "side",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.16,
+         0.6
+        ],
+        "at": [
+         0,
+         0.08,
+         0
+        ],
+        "color": "#6f7b6a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         1.6,
+         0.34
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "color": "#c9d2d8",
+        "taper": 0.2,
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.6,
+         0.03
+        ],
+        "at": [
+         0,
+         1.9,
+         0.14
+        ],
+        "color": "#f3efe6",
+        "picture": "chart",
+        "accent": "#2f6f4f",
+        "textColor": "#4a4a4a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0,
+         2.35,
+         0
+        ],
+        "color": "#e2b23c"
+       }
+      ]
+     },
+     {
+      "name": "Test Lab Device Rack",
+      "zone": "back",
       "tiers": [
        2,
        3
@@ -1964,413 +601,288 @@
        {
         "shape": "box",
         "size": [
-         0.5,
+         1.6,
          0.12,
-         0.5
+         0.7
         ],
         "at": [
          0,
          0.06,
          0
         ],
-        "color": "#9d8a72"
+        "color": "#8a9a86"
        },
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.34,
+         0.1,
+         1.3,
+         0.6
+        ],
+        "at": [
+         -0.75,
+         0.7,
+         0
+        ],
+        "color": "#9fb59a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.1,
+         1.3,
+         0.6
+        ],
+        "at": [
+         0.75,
+         0.7,
+         0
+        ],
+        "color": "#9fb59a"
+       },
+       {
+        "shape": "box",
+        "size": [
          1.5,
-         0.34
+         0.08,
+         0.6
         ],
         "at": [
          0,
-         0.81,
+         0.62,
          0
         ],
-        "color": "#eae4da",
-        "taper": 0.2
+        "color": "#c8a07e"
        },
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.3,
-         0.25,
-         0.3
-        ],
-        "at": [
-         0,
-         1.68,
-         0
-        ],
-        "color": "#d86f4a",
-        "finish": "satin"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.3,
-         0.2,
-         0.3
-        ],
-        "at": [
-         0,
-         1.85,
-         0
-        ],
-        "color": "#c9b46a"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         0.28,
-         0.6,
-         0.03
+         1.5,
+         0.08,
+         0.6
         ],
         "at": [
          0,
          1.1,
-         0.19
+         0
+        ],
+        "color": "#c8a07e"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.4,
+         0.08
+        ],
+        "at": [
+         -0.45,
+         0.86,
+         0.1
         ],
         "color": "#3d4b5c"
        },
        {
-        "shape": "box",
+        "shape": "rounded",
         "size": [
-         0.12,
-         0.08,
-         0.03
+         0.3,
+         0.4,
+         0.08
         ],
         "at": [
          0,
-         1.3,
-         0.21
+         0.86,
+         0.1
         ],
-        "color": "#7f9c6d"
+        "color": "#3d4b5c"
        },
        {
-        "shape": "box",
+        "shape": "rounded",
         "size": [
-         0.12,
-         0.08,
-         0.03
+         0.3,
+         0.4,
+         0.08
         ],
         "at": [
-         0,
-         1.15,
-         0.21
+         0.45,
+         0.86,
+         0.1
         ],
-        "color": "#c9b46a"
+        "color": "#3d4b5c"
        },
        {
-        "shape": "box",
+        "shape": "rounded",
         "size": [
-         0.12,
-         0.08,
-         0.03
+         0.3,
+         0.4,
+         0.08
         ],
         "at": [
-         0,
-         1,
-         0.21
+         -0.22,
+         1.34,
+         0.1
         ],
-        "color": "#d86f4a"
+        "color": "#2f5d8a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.4,
+         0.08
+        ],
+        "at": [
+         0.22,
+         1.34,
+         0.1
+        ],
+        "color": "#2f5d8a"
        }
       ]
      },
      {
-      "name": "Kit Bag Charging Station",
+      "name": "Push Alert Siren Post",
       "zone": "side",
       "tiers": [
        3
       ],
       "parts": [
        {
-        "shape": "rounded",
-        "size": [
-         0.8,
-         0.55,
-         0.5
-        ],
-        "at": [
-         0,
-         0.3,
-         0
-        ],
-        "color": "#4a6f97"
-       },
-       {
         "shape": "box",
         "size": [
-         0.8,
-         0.1,
+         0.5,
+         0.14,
          0.5
         ],
         "at": [
          0,
-         0.4,
+         0.07,
          0
         ],
-        "color": "#d6cec0"
+        "color": "#7d858f"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.06,
-         0.4,
-         0.06
-        ],
-        "at": [
-         0,
-         0.6,
-         0
-        ],
-        "color": "#b9c4d2",
-        "rot": [
-         0,
-         0,
-         90
-        ]
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.22,
-         0.36,
-         0.05
-        ],
-        "at": [
-         -0.2,
-         0.78,
-         0
-        ],
-        "color": "#3d4b5c"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.22,
-         0.36,
-         0.05
-        ],
-        "at": [
          0.2,
-         0.78,
-         0
-        ],
-        "color": "#3d4b5c"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.06,
-         0.06
-        ],
-        "at": [
-         0,
-         0.62,
-         0
-        ],
-        "color": "#c9b46a"
-       }
-      ]
-     },
-     {
-      "name": "Release Train Signal Board",
-      "zone": "back",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "panel",
-        "size": [
-         1.6,
-         0.7,
-         0.03
-        ],
-        "at": [
-         0,
-         1.9,
-         0
-        ],
-        "color": "#3d4b5c"
-       },
-       {
-        "shape": "panel",
-        "size": [
-         1.4,
-         0.25,
-         0.03
-        ],
-        "at": [
-         0,
-         2.05,
-         0.03
-        ],
-        "color": "#3d4b5c",
-        "text": "v1.76 SHIPPED",
-        "textColor": "#c9b46a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.18,
-         0.18,
-         0.05
-        ],
-        "at": [
-         -0.55,
          1.7,
-         0.04
-        ],
-        "color": "#7f9c6d"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.18,
-         0.18,
-         0.05
-        ],
-        "at": [
-         -0.2,
-         1.7,
-         0.04
-        ],
-        "color": "#c9b46a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.18,
-         0.18,
-         0.05
-        ],
-        "at": [
-         0.15,
-         1.7,
-         0.04
-        ],
-        "color": "#d86f4a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.7,
-         0.08,
-         0.12
-        ],
-        "at": [
-         0,
-         2.3,
-         0.02
-        ],
-        "color": "#9d8a72"
-       }
-      ]
-     },
-     {
-      "name": "Pitch Turf Step Tiles",
-      "zone": "back",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.4,
-         0.12,
-         0.9
-        ],
-        "at": [
-         0,
-         0.06,
-         0
-        ],
-        "color": "#7f9c6d"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.4,
-         0.03,
-         0.08
-        ],
-        "at": [
-         0,
-         0.13,
-         -0.3
-        ],
-        "color": "#eae4da"
-       },
-       {
-        "shape": "box",
-        "size": [
-         1.4,
-         0.03,
-         0.08
-        ],
-        "at": [
-         0,
-         0.13,
          0.2
         ],
-        "color": "#eae4da"
+        "at": [
+         0,
+         0.95,
+         0
+        ],
+        "color": "#b9bfc6",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.5,
+         0.4,
+         0.4
+        ],
+        "at": [
+         0,
+         2,
+         0
+        ],
+        "color": "#d9552f"
        },
        {
         "shape": "sphere",
         "size": [
-         0.28,
-         0.28,
-         0.28
+         0.34,
+         0.34,
+         0.34
         ],
         "at": [
-         0.45,
-         0.26,
+         0,
+         2.35,
          0
         ],
-        "color": "#f6efe2"
-       },
+        "color": "#e2b23c"
+       }
+      ]
+     },
+     {
+      "name": "Release Train Podium",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.1,
-         0.6,
-         0.1
+         1.2,
+         0.7,
+         0.8
         ],
         "at": [
-         -0.6,
-         0.42,
+         0,
+         0.35,
          0
         ],
-        "color": "#eae4da"
+        "color": "#c8a07e"
        },
        {
         "shape": "box",
         "size": [
-         0.35,
-         0.24,
-         0.02
+         1.3,
+         0.1,
+         0.9
         ],
         "at": [
-         -0.42,
-         0.62,
+         0,
+         0.75,
          0
         ],
-        "color": "#d86f4a"
+        "color": "#9c7a5c"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.5,
+         0.3
+        ],
+        "at": [
+         -0.35,
+         1.05,
+         0
+        ],
+        "color": "#e2b23c",
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.5,
+         0.03
+        ],
+        "at": [
+         0.3,
+         1.05,
+         0
+        ],
+        "color": "#f3efe6",
+        "picture": "dashboard",
+        "accent": "#2f5d8a",
+        "textColor": "#4a4a4a"
        }
       ]
      }
     ],
-    "theme": "A toy-scale mobile matchday: a giant handset showing a live shirt auction, device test rack and pitch-side app gadgets"
+    "theme": "A giant toy phone kiosk where fans bid on match-worn shirts, flanked by build towers and a device test lab"
    },
    "failures": [],
-   "ms": 45315,
+   "ms": 37597,
    "usage": {
-    "input": 7428,
-    "output": 4634
+    "input": 7683,
+    "output": 3581
    }
   }
  ]

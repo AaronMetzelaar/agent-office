@@ -5,7 +5,7 @@
    "design": {
     "props": [
      {
-      "name": "Giant Interface Prototype Wall",
+      "name": "Interaction Lab Wall",
       "zone": "back",
       "tiers": [
        1,
@@ -17,304 +17,237 @@
        {
         "shape": "box",
         "size": [
-         2.4,
-         0.12,
-         0.6
+         2.1,
+         0.14,
+         1.2
         ],
         "at": [
          0,
-         0.06,
+         0.07,
          0
         ],
-        "color": "#a8896a"
+        "color": "#b9c4cf"
        },
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.14,
-         1.9,
-         0.14
-        ],
-        "at": [
-         -1.05,
-         1,
-         0
-        ],
-        "color": "#b7bec7",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.14,
-         1.9,
-         0.14
-        ],
-        "at": [
-         1.05,
-         1,
-         0
-        ],
-        "color": "#b7bec7",
-        "finish": "metal"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         2.4,
-         1.9,
+         2,
+         2.5,
          0.16
         ],
         "at": [
          0,
-         1.35,
-         -0.06
+         1.32,
+         -0.5
         ],
         "color": "#f2ece2"
        },
        {
         "shape": "panel",
         "size": [
-         0.9,
-         0.5,
+         0.78,
+         1.5,
          0.03
         ],
         "at": [
-         -0.62,
-         1.95,
-         0.06
+         -0.55,
+         1.45,
+         -0.4
         ],
-        "color": "#dfe6ea",
-        "text": "WIREFRAME",
-        "textColor": "#54657a"
+        "color": "#dfe6ec",
+        "picture": "app",
+        "accent": "#7fa8d4",
+        "textColor": "#3c4a58",
+        "text": "Flow"
        },
        {
         "shape": "panel",
         "size": [
-         0.9,
-         0.5,
+         0.78,
+         0.68,
          0.03
         ],
         "at": [
-         0.62,
-         1.95,
+         0.55,
+         1.9,
+         -0.4
+        ],
+        "color": "#dfe6ec",
+        "picture": "dashboard",
+        "accent": "#8fb996",
+        "textColor": "#3c4a58",
+        "text": "Taps"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.78,
+         0.6,
+         0.03
+        ],
+        "at": [
+         0.55,
+         1.1,
+         -0.4
+        ],
+        "color": "#dfe6ec",
+        "picture": "chart",
+        "accent": "#d98a63",
+        "textColor": "#3c4a58",
+        "text": "Feel"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         0.34,
          0.06
         ],
-        "color": "#8fb3a6",
-        "text": "POLISHED",
-        "textColor": "#27413a"
+        "at": [
+         -0.55,
+         0.45,
+         -0.38
+        ],
+        "color": "#d98a63"
        },
        {
-        "shape": "box",
+        "shape": "rounded",
         "size": [
-         0.8,
-         0.1,
-         0.04
+         0.34,
+         0.34,
+         0.06
         ],
         "at": [
-         -0.62,
-         1.55,
-         0.08
+         -0.05,
+         0.45,
+         -0.38
         ],
-        "color": "#c9d2d8"
+        "color": "#7fa8d4"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         0.34,
+         0.06
+        ],
+        "at": [
+         0.45,
+         0.45,
+         -0.38
+        ],
+        "color": "#8fb996"
        },
        {
         "shape": "box",
         "size": [
+         1.4,
+         0.1,
+         0.7
+        ],
+        "at": [
+         0,
+         0.82,
+         0.28
+        ],
+        "color": "#c8a06f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.75,
+         0.12
+        ],
+        "at": [
+         -0.55,
+         0.42,
+         0.28
+        ],
+        "color": "#9aa6b2",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.75,
+         0.12
+        ],
+        "at": [
          0.55,
-         0.1,
-         0.04
+         0.42,
+         0.28
         ],
-        "at": [
-         -0.74,
-         1.38,
-         0.08
-        ],
-        "color": "#c9d2d8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.7,
-         0.28,
-         0.05
-        ],
-        "at": [
-         -0.66,
-         1.1,
-         0.08
-        ],
-        "color": "#d8dfe4"
+        "color": "#9aa6b2",
+        "finish": "metal"
        },
        {
         "shape": "rounded",
         "size": [
          0.5,
-         0.18,
-         0.05
+         0.08,
+         0.9
         ],
         "at": [
-         -0.76,
-         0.8,
-         0.08
+         -0.35,
+         0.91,
+         0.28
         ],
-        "color": "#b0bcc6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.8,
-         0.1,
-         0.04
-        ],
-        "at": [
-         0.62,
-         1.55,
-         0.08
-        ],
-        "color": "#e6c3a8"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.7,
-         0.28,
-         0.05
-        ],
-        "at": [
-         0.58,
-         1.1,
-         0.08
-        ],
-        "color": "#f6f1e8"
+        "color": "#e8e2d8",
+        "rot": [
+         -12,
+         0,
+         0
+        ]
        },
        {
         "shape": "rounded",
         "size": [
-         0.5,
-         0.18,
-         0.05
+         0.42,
+         0.1,
+         0.26
         ],
         "at": [
-         0.52,
-         0.8,
-         0.08
+         0.35,
+         0.92,
+         0.32
         ],
-        "color": "#d97b5a"
+        "color": "#3f4a57"
        },
        {
         "shape": "sphere",
         "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         0.9,
-         0.8,
-         0.1
-        ],
-        "color": "#6e8fb5"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         0.9,
-         0.08
-        ],
-        "at": [
-         0,
-         2.05,
-         0.1
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#8a949d",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.22,
          0.3,
-         0.06
-        ],
-        "at": [
-         0.1,
-         2.05,
-         0.16
-        ],
-        "rot": [
-         0,
-         0,
-         -25
-        ],
-        "color": "#4f5a66"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.6,
-         0.14,
+         0.3,
          0.3
         ],
         "at": [
-         0,
-         0.19,
-         0.18
+         0.62,
+         0.95,
+         0.2
         ],
-        "color": "#9fb0a4"
+        "color": "#f0d27a"
        },
        {
         "shape": "cylinder",
         "size": [
-         0.12,
-         0.12,
-         0.12
-        ],
-        "at": [
-         -0.2,
-         0.32,
-         0.18
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.12,
-         0.12,
-         0.12
+         0.5,
+         0.22,
+         0.5
         ],
         "at": [
          0,
-         0.32,
-         0.18
+         2.75,
+         -0.3
         ],
-        "color": "#e3c05e"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.12,
-         0.12,
-         0.12
-        ],
-        "at": [
-         0.2,
-         0.32,
-         0.18
-        ],
-        "color": "#6e8fb5"
+        "color": "#d98a63",
+        "taper": 0.4
        }
       ]
      },
      {
-      "name": "Oversized Toggle & Slider Bench",
+      "name": "Usability Test Booth",
       "zone": "back",
       "tiers": [
        1,
@@ -323,525 +256,374 @@
       ],
       "parts": [
        {
-        "shape": "rounded",
+        "shape": "box",
         "size": [
          1.6,
-         0.7,
-         0.6
-        ],
-        "at": [
-         0,
-         0.35,
-         0
-        ],
-        "color": "#c8b49a"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.7,
-         0.26,
-         0.26
-        ],
-        "at": [
-         -0.45,
-         0.83,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         0
-        ],
-        "color": "#9fb8ab"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.3,
-         0.3,
-         0.3
-        ],
-        "at": [
-         -0.25,
-         0.85,
-         0
-        ],
-        "color": "#f2ece2"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.08,
-         1,
-         0.08
-        ],
-        "at": [
-         0.45,
-         0.76,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         90
-        ],
-        "color": "#b7bec7",
-        "finish": "metal"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.22,
-         0.16,
-         0.22
-        ],
-        "at": [
-         0.6,
-         0.78,
-         0
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.34,
          0.1,
-         0.34
-        ],
-        "at": [
-         0.1,
-         0.79,
-         0
-        ],
-        "color": "#6e8fb5"
-       }
-      ]
-     },
-     {
-      "name": "Cursor Arrow Statue",
-      "zone": "side",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "cylinder",
-        "size": [
-         0.5,
-         0.14,
-         0.5
-        ],
-        "at": [
-         0,
-         0.07,
-         0
-        ],
-        "color": "#a8896a"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.16,
-         1,
-         0.16
-        ],
-        "at": [
-         0,
-         0.6,
-         0
-        ],
-        "color": "#b7bec7",
-        "finish": "metal"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.35,
-         0.5,
-         0.1
-        ],
-        "at": [
-         0,
-         1.35,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         -20
-        ],
-        "color": "#f2ece2"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.14,
-         0.3,
-         0.1
-        ],
-        "at": [
-         0.1,
-         1,
-         0
-        ],
-        "rot": [
-         0,
-         0,
-         -20
-        ],
-        "color": "#f2ece2"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.18,
-         0.18,
-         0.18
-        ],
-        "at": [
-         -0.1,
-         1.62,
-         0
-        ],
-        "color": "#d97b5a"
-       }
-      ]
-     },
-     {
-      "name": "Colour Swatch Fan Board",
-      "zone": "back",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "panel",
-        "size": [
-         1.4,
-         0.7,
-         0.03
-        ],
-        "at": [
-         0,
-         1.85,
-         0
-        ],
-        "color": "#efe7db",
-        "text": "TOKENS",
-        "textColor": "#6b7d8c"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.4,
-         0.05
-        ],
-        "at": [
-         -0.5,
-         1.72,
-         0.04
-        ],
-        "rot": [
-         0,
-         0,
-         10
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.4,
-         0.05
-        ],
-        "at": [
-         -0.25,
-         1.72,
-         0.04
-        ],
-        "rot": [
-         0,
-         0,
-         3
-        ],
-        "color": "#e3c05e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.4,
-         0.05
-        ],
-        "at": [
-         0,
-         1.72,
-         0.04
-        ],
-        "color": "#9fb8ab"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.4,
-         0.05
-        ],
-        "at": [
-         0.25,
-         1.72,
-         0.04
-        ],
-        "rot": [
-         0,
-         0,
-         -3
-        ],
-        "color": "#6e8fb5"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.2,
-         0.4,
-         0.05
-        ],
-        "at": [
-         0.5,
-         1.72,
-         0.04
-        ],
-        "rot": [
-         0,
-         0,
-         -10
-        ],
-        "color": "#b08cc0"
-       }
-      ]
-     },
-     {
-      "name": "Usability Test Pod",
-      "zone": "back",
-      "tiers": [
-       2,
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         1.1,
-         0.72,
-         0.55
-        ],
-        "at": [
-         0,
-         0.36,
-         0
-        ],
-        "color": "#b9a68d"
-       },
-       {
-        "shape": "rounded",
-        "size": [
-         0.8,
-         0.5,
-         0.05
-        ],
-        "at": [
-         0,
-         1,
-         -0.12
-        ],
-        "color": "#e8e2d6"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.64,
-         0.36,
-         0.02
-        ],
-        "at": [
-         0,
-         1,
-         -0.08
-        ],
-        "color": "#7f97ad"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.1,
-         0.3,
-         0.1
-        ],
-        "at": [
-         0,
-         0.85,
-         -0.12
-        ],
-        "color": "#8a949d",
-        "finish": "metal"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.16,
-         0.16,
-         0.16
-        ],
-        "at": [
-         0.42,
-         1.2,
-         -0.1
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.35,
-         0.03,
-         0.2
-        ],
-        "at": [
-         0,
-         0.74,
-         0.15
-        ],
-        "color": "#f2ece2"
-       }
-      ]
-     },
-     {
-      "name": "Feedback Dial Totem",
-      "zone": "side",
-      "tiers": [
-       3
-      ],
-      "parts": [
-       {
-        "shape": "box",
-        "size": [
-         0.45,
-         0.1,
-         0.45
+         1.1
         ],
         "at": [
          0,
          0.05,
          0
         ],
-        "color": "#a8896a"
+        "color": "#b4bfc9"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.5,
+         1.1,
+         0.12
+        ],
+        "at": [
+         0,
+         0.65,
+         -0.45
+        ],
+        "color": "#e6dccd"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.7,
+         0.5,
+         0.1
+        ],
+        "at": [
+         -0.35,
+         1.5,
+         -0.42
+        ],
+        "color": "#3f4a57"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.62,
+         0.42,
+         0.03
+        ],
+        "at": [
+         -0.35,
+         1.5,
+         -0.35
+        ],
+        "color": "#dfe6ec",
+        "picture": "app",
+        "accent": "#8fb996",
+        "textColor": "#3c4a58"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.6,
+         0.6,
+         0.6
+        ],
+        "at": [
+         0.42,
+         1.45,
+         -0.3
+        ],
+        "color": "#c9d6e2"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         0.9,
+         0.16
+        ],
+        "at": [
+         0.42,
+         0.6,
+         -0.3
+        ],
+        "color": "#9aa6b2",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         0.08,
+         0.55
+        ],
+        "at": [
+         0,
+         1.16,
+         0.05
+        ],
+        "color": "#c8a06f"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.06,
+         0.5
+        ],
+        "at": [
+         -0.3,
+         1.22,
+         0.08
+        ],
+        "color": "#f2ece2"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.42,
+         0.34
+        ],
+        "at": [
+         0.35,
+         1.41,
+         0.05
+        ],
+        "color": "#d98a63",
+        "taper": 0.2
+       }
+      ]
+     },
+     {
+      "name": "Component Library Rack",
+      "zone": "back",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.12,
+         0.9
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#c8a06f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.1,
+         0.85
+        ],
+        "at": [
+         0,
+         0.85,
+         0
+        ],
+        "color": "#e6dccd"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.85,
+         0.85
+        ],
+        "at": [
+         -0.84,
+         0.45,
+         0
+        ],
+        "color": "#c8a06f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.85,
+         0.85
+        ],
+        "at": [
+         0.84,
+         0.45,
+         0
+        ],
+        "color": "#c8a06f"
        },
        {
         "shape": "rounded",
         "size": [
          0.4,
-         1.5,
+         0.4,
+         0.4
+        ],
+        "at": [
+         -0.55,
+         1.1,
+         0
+        ],
+        "color": "#7fa8d4"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.42,
          0.4
         ],
         "at": [
          0,
-         0.8,
+         1.11,
          0
         ],
-        "color": "#e8e2d6"
+        "color": "#8fb996"
        },
        {
-        "shape": "cylinder",
+        "shape": "box",
         "size": [
-         0.3,
-         0.08,
-         0.3
+         0.42,
+         0.42,
+         0.42
         ],
         "at": [
-         0,
-         1.3,
-         0.16
-        ],
-        "rot": [
-         90,
-         0,
+         0.55,
+         1.11,
          0
         ],
-        "color": "#9fb8ab"
+        "color": "#d98a63"
        },
        {
-        "shape": "cylinder",
+        "shape": "panel",
         "size": [
-         0.3,
-         0.08,
-         0.3
-        ],
-        "at": [
-         0,
-         0.95,
-         0.16
-        ],
-        "rot": [
-         90,
-         0,
-         0
-        ],
-        "color": "#e3c05e"
-       },
-       {
-        "shape": "cylinder",
-        "size": [
-         0.3,
-         0.08,
-         0.3
-        ],
-        "at": [
-         0,
+         1.5,
          0.6,
-         0.16
-        ],
-        "rot": [
-         90,
-         0,
-         0
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "sphere",
-        "size": [
-         0.3,
-         0.2,
-         0.3
+         0.03
         ],
         "at": [
          0,
-         1.62,
-         0
+         1.95,
+         -0.4
         ],
-        "color": "#6e8fb5"
+        "color": "#f2ece2",
+        "text": "Components",
+        "textColor": "#3c4a58"
        }
       ]
      },
      {
-      "name": "Flow Map Wall Chart",
+      "name": "Heatmap Board",
       "zone": "back",
       "tiers": [
        3
       ],
       "parts": [
        {
+        "shape": "box",
+        "size": [
+         1.6,
+         0.9,
+         0.1
+        ],
+        "at": [
+         0,
+         1.7,
+         -0.2
+        ],
+        "color": "#e6dccd"
+       },
+       {
         "shape": "panel",
         "size": [
-         1.5,
-         0.85,
+         1.4,
+         0.72,
          0.03
+        ],
+        "at": [
+         0,
+         1.7,
+         -0.12
+        ],
+        "color": "#dfe6ec",
+        "picture": "chart",
+        "accent": "#d98a63",
+        "textColor": "#3c4a58",
+        "text": "Heatmap"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.12
+        ],
+        "at": [
+         -0.45,
+         1.05,
+         -0.12
+        ],
+        "color": "#f0d27a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.24,
+         0.24,
+         0.1
+        ],
+        "at": [
+         0.3,
+         1,
+         -0.12
+        ],
+        "color": "#d98a63"
+       }
+      ]
+     },
+     {
+      "name": "Giant Cursor Totem",
+      "zone": "side",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.7,
+         0.16,
+         0.7
+        ],
+        "at": [
+         0,
+         0.08,
+         0
+        ],
+        "color": "#b4bfc9"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.24,
+         1.3,
+         0.24
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#9aa6b2",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.7,
+         0.6
         ],
         "at": [
          0,
@@ -849,175 +631,145 @@
          0
         ],
         "color": "#f2ece2",
-        "text": "FLOW",
-        "textColor": "#54657a"
+        "taper": 0
        },
        {
         "shape": "box",
         "size": [
-         0.28,
          0.18,
-         0.04
-        ],
-        "at": [
-         -0.45,
-         2,
-         0.04
-        ],
-        "color": "#9fb8ab"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.28,
-         0.18,
-         0.04
-        ],
-        "at": [
-         0.1,
-         2,
-         0.04
-        ],
-        "color": "#6e8fb5"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.28,
-         0.18,
-         0.04
-        ],
-        "at": [
-         0.45,
-         1.65,
-         0.04
-        ],
-        "color": "#d97b5a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.5,
-         0.03,
-         0.04
-        ],
-        "at": [
-         -0.17,
-         2,
-         0.04
-        ],
-        "color": "#8a949d"
-       },
-       {
-        "shape": "box",
-        "size": [
          0.4,
-         0.03,
-         0.04
+         0.18
         ],
         "at": [
-         0.28,
-         1.82,
-         0.04
+         0.16,
+         1.42,
+         0
         ],
+        "color": "#f2ece2",
         "rot": [
          0,
          0,
-         -40
+         -20
+        ]
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
         ],
-        "color": "#8a949d"
+        "at": [
+         0,
+         2.3,
+         0
+        ],
+        "color": "#7fa8d4"
        }
       ]
      },
      {
-      "name": "Sticky Note Idea Stack",
-      "zone": "back",
+      "name": "Swatch Column",
+      "zone": "side",
       "tiers": [
        3
       ],
       "parts": [
        {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.14,
+         0.7
+        ],
+        "at": [
+         0,
+         0.07,
+         0
+        ],
+        "color": "#c8a06f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.45,
+         0.6
+        ],
+        "at": [
+         0,
+         0.37,
+         0
+        ],
+        "color": "#d98a63"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.45,
+         0.6
+        ],
+        "at": [
+         0,
+         0.82,
+         0
+        ],
+        "color": "#f0d27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.45,
+         0.6
+        ],
+        "at": [
+         0,
+         1.27,
+         0
+        ],
+        "color": "#8fb996"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.45,
+         0.6
+        ],
+        "at": [
+         0,
+         1.72,
+         0
+        ],
+        "color": "#7fa8d4"
+       },
+       {
         "shape": "cylinder",
         "size": [
-         0.4,
-         0.9,
-         0.4
+         0.5,
+         0.3,
+         0.5
         ],
         "at": [
          0,
-         0.45,
+         2.1,
          0
         ],
-        "taper": 0.2,
-        "color": "#c8b49a"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.3,
-         0.06
-        ],
-        "at": [
-         0,
-         1,
-         0
-        ],
-        "rot": [
-         0,
-         10,
-         6
-        ],
-        "color": "#e3c05e"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.3,
-         0.06
-        ],
-        "at": [
-         0.05,
-         1.1,
-         0.03
-        ],
-        "rot": [
-         0,
-         -12,
-         -5
-        ],
-        "color": "#e8b7a0"
-       },
-       {
-        "shape": "box",
-        "size": [
-         0.3,
-         0.3,
-         0.06
-        ],
-        "at": [
-         -0.04,
-         1.2,
-         -0.02
-        ],
-        "rot": [
-         0,
-         6,
-         9
-        ],
-        "color": "#9fb8ab"
+        "color": "#e6dccd",
+        "taper": 0.3
        }
       ]
      }
     ],
-    "theme": "A UX lab: a giant half-wireframe half-polished interface wall, oversized toggles and sliders, swatch boards and a cursor statue"
+    "theme": "A UX lab: a prototype wall of app flows, a usability test booth, component shelves and a giant cursor totem"
    },
    "failures": [],
-   "ms": 43630,
+   "ms": 39147,
    "usage": {
-    "input": 6409,
-    "output": 4032
+    "input": 6749,
+    "output": 3205
    }
   }
  ]

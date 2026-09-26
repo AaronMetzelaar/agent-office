@@ -29,7 +29,7 @@ describe('placing a generated look', () => {
     for (const prop of props) expect(placed(prop, w)[3]).toBeLessThanOrEqual(limits.backDepth)
     const floor = props.filter((p) => p.name !== 'board').map((p) => ({ name: p.name, box: placed(p, w) })).sort((a, b) => a.box[0] - b.box[0])
     floor.slice(1).forEach(({ box }, i) => expect(box[0]).toBeGreaterThanOrEqual(floor[i]!.box[2]))
-    expect(floor.map((f) => f.name)).toEqual(['gantry', 'bookshelf', 'plant'])
+    expect(floor[1]!.name).toBe('bookshelf')
   })
 
   it('enlarges a timid signature piece toward a showpiece', () => {
@@ -40,7 +40,7 @@ describe('placing a generated look', () => {
 
   it('shrinks a prop too big for its zone instead of failing it', () => {
     const [box] = arrange(room({ ...gantry, signature: true }), 1).map((p) => footprint(p))
-    expect(box![3] - box![1]).toBeLessThanOrEqual(limits.backDepth - 0.15 + 1e-9)
+    expect(box![3] - box![1]).toBeLessThanOrEqual(limits.stage.depth + 1e-9)
     expect(Math.max(...arrange(room({ ...gantry, signature: true }), 1)[0]!.parts.map((p) => p.at[1] + p.size[1] / 2))).toBeLessThanOrEqual(limits.height + 1e-9)
   })
 
@@ -81,5 +81,22 @@ describe('placing a generated look', () => {
     expect(tidied.props[1]!.parts[0]!.text).toBeUndefined()
     expect(tidied.props.flatMap((p) => p.parts).filter((p) => p.text)).toHaveLength(limits.labels)
     expect(checkDesign(tidied).filter((f) => f.includes('colour') || f.includes('label'))).toEqual([])
+  })
+
+  it('puts the signature piece on the stage between the first two desk columns, with the rest either side', () => {
+    const w = roomSize(1).w, props = arrange(room(shelf, plant, { ...plant, name: 'lamp' }), 1)
+    const stage = placed(props.find((p) => p.signature)!, w)
+    expect((stage[0] + stage[2]) / 2).toBeCloseTo(3.5)
+    const sides = props.filter((p) => !p.signature).map((p) => placed(p, w))
+    expect(sides.some((b) => b[2] <= stage[0])).toBe(true)
+    expect(sides.some((b) => b[0] >= stage[2])).toBe(true)
+  })
+
+  it('lets a panel show a picture, but only a known one on a panel', () => {
+    const framed = { ...board, parts: [{ ...board.parts[0]!, picture: 'shirt' as const, accent: '#d7263d', text: '10' }] }
+    expect(checkDesign(room(shelf, framed))).toEqual([])
+    const wrong = { ...plant, parts: [{ ...plant.parts[0]!, picture: 'shirt' as const }] }
+    expect(checkDesign(room(shelf, wrong)).some((f) => f.includes('only panels show'))).toBe(true)
+    expect(tidy(room(shelf, wrong)).props[1]!.parts[0]!.picture).toBeUndefined()
   })
 })
