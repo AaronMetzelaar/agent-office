@@ -185,14 +185,14 @@ describe('chat store', () => {
     engine.emit(id, sdk.taskStarted('a2'))
     engine.emit(id, sdk.toolUse([{ id: 'a1-read', name: 'Read', input: { file_path: '/repo/bid.ts' } }], 'a1'))
     expect(chat(id).subagents).toEqual([
-      { id: 'a1', description: 'Explore bids', activity: 'Reading bid.ts' },
-      { id: 'a2', description: 'Explore auth' },
+      { id: 'a1', description: 'Explore bids', activity: 'Reading bid.ts', startedAt: expect.any(Number) },
+      { id: 'a2', description: 'Explore auth', startedAt: expect.any(Number) },
     ])
     expect(chat(id).rows.find((row) => row.id === 'a1-read')).toMatchObject({ parentToolUseId: 'a1' })
 
     engine.emit(id, sdk.toolResult('a2', 'Async agent launched'))
     engine.emit(id, sdk.toolResult('a1', 'Found it'))
-    expect(chat(id).subagents).toEqual([{ id: 'a2', description: 'Explore auth' }])
+    expect(chat(id).subagents).toMatchObject([{ id: 'a2', description: 'Explore auth' }])
 
     engine.emit(id, sdk.taskNotification('a2'))
     expect(chat(id).subagents).toEqual([])
@@ -212,10 +212,10 @@ describe('chat store', () => {
     expect(caption(id)).toBe('2 subagents exploring')
 
     engine.emit(id, sdk.toolUse([{ id: 'b1-read', name: 'Read', input: { file_path: '/repo/bid.ts' } }], 'b1'))
-    engine.emit(id, sdk.taskProgress('b2', 'Tracing the login flow'))
-    expect(chat(id).subagents).toEqual([
+    engine.emit(id, sdk.taskProgress('b2', 'Tracing the login flow', { total_tokens: 4200, tool_uses: 5, duration_ms: 9000 }))
+    expect(chat(id).subagents).toMatchObject([
       { id: 'b1', description: 'Scan bids', activity: 'Reading bid.ts' },
-      { id: 'b2', description: 'Scan auth', activity: 'Tracing the login flow' },
+      { id: 'b2', description: 'Scan auth', activity: 'Tracing the login flow', tools: 5, tokens: 4200 },
     ])
 
     engine.emit(id, sdk.taskNotification('b1'))

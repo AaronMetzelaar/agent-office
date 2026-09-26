@@ -9,10 +9,10 @@ export type ChatEvent =
   | { type: 'tool-use'; id: string; name: string; input: unknown; parentToolUseId?: string }
   | { type: 'tool-result'; toolUseId: string; text: string; isError: boolean }
   | { type: 'user-text'; id: string; text: string }
-  | { type: 'subagent-start'; id: string; description: string }
+  | { type: 'subagent-start'; id: string; description: string; agentType?: string }
   | { type: 'subagent-background'; id: string }
   | { type: 'subagent-task'; id: string; taskId: string }
-  | { type: 'subagent-progress'; id: string; activity: string }
+  | { type: 'subagent-progress'; id: string; activity?: string; tools: number; tokens: number }
   | { type: 'subagent-stop'; id: string }
   | { type: 'background-tasks'; count: number; jobs: BackgroundJob[] }
   | { type: 'turn-result'; usage: Usage; isError: boolean; errorText?: string }
@@ -81,8 +81,9 @@ function assistantEvents(uuid: string, content: unknown, parent: string | null):
     if (block.type !== 'tool_use' || !block.id || !block.name) return []
     const toolUse: ChatEvent = { type: 'tool-use', id: block.id, name: block.name, input: block.input, parentToolUseId }
     if (!subagentTools.has(block.name)) return [toolUse]
-    const input = (block.input ?? {}) as { description?: unknown }
-    return [toolUse, { type: 'subagent-start', id: block.id, description: String(input.description ?? 'Subagent') }]
+    const input = (block.input ?? {}) as { description?: unknown; subagent_type?: unknown }
+    const agentType = typeof input.subagent_type === 'string' ? input.subagent_type : undefined
+    return [toolUse, { type: 'subagent-start', id: block.id, description: String(input.description ?? 'Subagent'), ...(agentType ? { agentType } : {}) }]
   })
 }
 
@@ -138,7 +139,9 @@ export function normalize(message: SDKMessage): ChatEvent[] {
         return [{ type: 'other', label: `Compacted the conversation (${kilo(before)}${after === undefined ? '' : ` → ${kilo(after)}`} tokens)` }]
       }
       if (message.subtype === 'task_progress') {
-        return message.tool_use_id && message.summary ? [{ type: 'subagent-progress', id: message.tool_use_id, activity: message.summary }] : []
+        if (!message.tool_use_id) return []
+        const { tool_uses: tools, total_tokens: tokens } = message.usage
+        return [{ type: 'subagent-progress', id: message.tool_use_id, tools, tokens, ...(message.summary ? { activity: message.summary } : {}) }]
       }
       if (message.subtype === 'task_notification') return message.tool_use_id ? [{ type: 'subagent-stop', id: message.tool_use_id }] : []
       if (message.subtype === 'background_tasks_changed') {

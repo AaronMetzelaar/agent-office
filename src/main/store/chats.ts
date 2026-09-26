@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck } from '../../shared/chat'
+import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck, type Subagent } from '../../shared/chat'
 import { defaultAccountFor, playgroundRoom, repoPath, type StartOptions } from '../../shared/departments'
 import { pickColour } from '../../shared/office'
 import type { AccountView } from '../../shared/ipc'
@@ -182,9 +182,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     if (chat.view.subagents.some((agent) => agent.id === id)) set(chat, { subagents: chat.view.subagents.filter((agent) => agent.id !== id) })
   }
 
-  function subagentDoing(chat: Chat, id: string, activity: string) {
+  function updateSubagent(chat: Chat, id: string, patch: Partial<Subagent>) {
     const subagents = chat.view.subagents
-    if (subagents.some((agent) => agent.id === id && agent.activity !== activity)) set(chat, { subagents: subagents.map((agent) => (agent.id === id ? { ...agent, activity } : agent)) })
+    const changed = (agent: Subagent) => agent.id === id && Object.entries(patch).some(([key, value]) => agent[key as keyof Subagent] !== value)
+    if (subagents.some(changed)) set(chat, { subagents: subagents.map((agent) => (agent.id === id ? { ...agent, ...patch } : agent)) })
   }
 
   function wake(chat: Chat) {
@@ -229,7 +230,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         break
       case 'tool-use': {
         if (event.parentToolUseId) {
-          subagentDoing(chat, event.parentToolUseId, describeTool(event.name, event.input))
+          updateSubagent(chat, event.parentToolUseId, { activity: describeTool(event.name, event.input) })
           break
         }
         wake(chat)
@@ -243,14 +244,16 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
         if (view.subagents.some((agent) => agent.id === event.id)) chat.background.add(event.id)
         break
       case 'subagent-start':
-        set(chat, { subagents: [...view.subagents, { id: event.id, description: event.description }] })
+        set(chat, { subagents: [...view.subagents, { id: event.id, description: event.description, startedAt: Date.now(), ...(event.agentType ? { agentType: event.agentType } : {}) }] })
         break
       case 'subagent-task':
         chat.tasks.set(event.id, event.taskId)
         break
-      case 'subagent-progress':
-        subagentDoing(chat, event.id, event.activity)
+      case 'subagent-progress': {
+        const { id, type: _, ...patch } = event
+        updateSubagent(chat, id, patch)
         break
+      }
       case 'subagent-stop':
         chat.background.delete(event.id)
         chat.tasks.delete(event.id)

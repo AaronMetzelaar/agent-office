@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { ChatView } from '../../../shared/chat'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import type { ChatView, Subagent } from '../../../shared/chat'
 import { items } from './groups'
 import SubagentSteps from './SubagentSteps.vue'
 
 const props = defineProps<{ chat: ChatView }>()
 const open = ref<string>()
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => (clock = setInterval(() => (now.value = Date.now()), 1000)))
+onUnmounted(() => clearInterval(clock))
 
 const agents = computed(() => {
   const byId = new Map(items(props.chat.rows).flatMap((item) => (item.kind === 'agent' ? [[item.row.id, item] as const] : [])))
@@ -18,6 +22,15 @@ const summary = computed(() => {
   return `${parts.filter(Boolean).join(' and ')} running`
 })
 const stop = (id: string) => window.office.stopTask(props.chat.id, id)
+
+const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+const tokens = (count: number) => (count < 1000 ? plural(count, 'token') : `${(count / 1000).toFixed(1)}k tokens`)
+function elapsed(ms: number) {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
+const stats = (agent: Subagent) =>
+  [agent.agentType, agent.tools ? plural(agent.tools, 'tool use') : '', agent.tokens ? tokens(agent.tokens) : '', elapsed(now.value - agent.startedAt)].filter(Boolean).join(' · ')
 </script>
 
 <template>
@@ -28,7 +41,10 @@ const stop = (id: string) => window.office.stopTask(props.chat.id, id)
         <div class="sr">
           <button type="button" class="sat" :aria-expanded="open === agent.id" @click="toggle(agent.id)">
             <span class="dot" />
-            <b>{{ agent.description }}</b>
+            <span class="nm">
+              <b>{{ agent.description }}</b>
+              <small>{{ stats(agent) }}</small>
+            </span>
             <span class="act">{{ agent.activity ?? 'Starting' }}</span>
           </button>
           <button type="button" class="btn sm" :aria-label="`Stop ${agent.description}`" title="Stop this subagent only" @click="stop(agent.id)">Stop</button>
@@ -126,6 +142,20 @@ const stop = (id: string) => window.office.stopTask(props.chat.id, id)
   flex: none;
 }
 
+.subs .nm {
+  display: grid;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.subs small {
+  font: 11px var(--mono);
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .subs b {
   font-weight: 500;
   color: var(--ink);
@@ -144,7 +174,7 @@ const stop = (id: string) => window.office.stopTask(props.chat.id, id)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 0 1 55%;
+  flex: 1 1 0;
   min-width: 0;
   text-align: right;
 }

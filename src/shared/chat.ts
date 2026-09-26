@@ -102,7 +102,7 @@ export interface ChatFields {
   oldestPendingAt?: number
   answered?: Answered[]
   earlier?: boolean
-  subagents: { id: string; description: string; activity?: string }[]
+  subagents: Subagent[]
   backgroundJobs?: BackgroundJob[]
   usage: Usage
   partial: string
@@ -110,6 +110,16 @@ export interface ChatFields {
   context?: ContextUsage
   createdAt: number
   lastActivityAt: number
+}
+
+export interface Subagent {
+  id: string
+  description: string
+  startedAt: number
+  agentType?: string
+  activity?: string
+  tools?: number
+  tokens?: number
 }
 
 export interface ChatView extends ChatFields {

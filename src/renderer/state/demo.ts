@@ -145,7 +145,10 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     pending: ask ? [{ id: `${id}-ask`, toolName: ask[0] }] : [],
     pendingRequests: ask ? [request(`${id}-ask`, ask[0], ask[1], at, ask[2])] : [],
     ...(ask ? { oldestPendingAt: at } : {}),
-    subagents: (state === 'working' ? (extra.subs ?? []) : []).map((description, k) => ({ id: `${id}-sub-${k}`, description })),
+    subagents: (state === 'working' ? (extra.subs ?? []) : []).map((label, k) => {
+      const [agentType, description = label] = label.split(' · ')
+      return { id: `${id}-sub-${k}`, description, agentType, tools: 4 + k * 3, tokens: 8_200 + k * 5_300, startedAt: Date.now() - (k + 1) * 47_000 }
+    }),
     ...(state === 'working' || state === 'done' ? { context: { tokens: 84_000 + index * 3_000, max: 200_000, percent: 42 + index } } : {}),
     usage: emptyUsage(),
     partial: '',

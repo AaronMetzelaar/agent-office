@@ -29,7 +29,7 @@ export const sdk = {
   apiError: (error: string) => message({ type: 'assistant', parent_tool_use_id: null, error, message: { content: [] } }),
   rateLimit: (info: SDKRateLimitInfo) => message({ type: 'rate_limit_event', rate_limit_info: info }),
   taskStarted: (toolUseId: string) => message({ type: 'system', subtype: 'task_started', task_id: 't', tool_use_id: toolUseId, description: '', is_backgrounded: true }),
-  taskProgress: (toolUseId: string, summary: string) => message({ type: 'system', subtype: 'task_progress', task_id: 't', tool_use_id: toolUseId, description: '', usage: { total_tokens: 0, tool_uses: 0, duration_ms: 0 }, summary }),
+  taskProgress: (toolUseId: string, summary?: string, usage = { total_tokens: 0, tool_uses: 0, duration_ms: 0 }) => message({ type: 'system', subtype: 'task_progress', task_id: 't', tool_use_id: toolUseId, description: '', usage, summary }),
   backgroundTasks: (...tasks: { ambient?: boolean; task_type?: string; description?: string }[]) => message({ type: 'system', subtype: 'background_tasks_changed', tasks: tasks.map((task, index) => ({ task_id: `t${index}`, task_type: 'local_bash', description: '', ...task })) }),
   taskNotification: (toolUseId: string) => message({ type: 'system', subtype: 'task_notification', task_id: 't', tool_use_id: toolUseId, status: 'completed', output_file: '', summary: '' }),
 }
