@@ -210,6 +210,12 @@ Permission messages carry ntfy `http` buttons, Allow once and Deny, that post `{
 
 `pnpm hooks` (also run by `postinstall`) points `core.hooksPath` at `.githooks`, so every merge into `main` builds a throwaway worktree in the background and runs `tests/e2e/real-floor.spec.ts` against it, logging to `~/Library/Logs/agent-office/post-merge-e2e.log` and raising a macOS notification, plus an ntfy push if `~/.config/agent-office/ntfy-topic` exists, on failure.
 
+## Downloading the app
+
+Apple Silicon Macs can download `Agent Office-<version>-arm64.dmg` from [Releases](https://github.com/AaronMetzelaar/agent-office/releases) and drag the app to Applications. The build isn't signed, so the first launch needs a right-click on the app, then Open. macOS also drops its notifications (see Packaging and signing), while the inbox and phone push still work. A downloaded app checks the latest release every 6 hours and when you focus the window, and shows Download in the bar when a newer one is out. It doesn't update itself.
+
+Pushing a tag such as `v0.2.0` builds the `.dmg` and publishes the release (`.github/workflows/release.yml`). The tag has to match `version` in `package.json`.
+
 ## Installing and updating the app
 
 `pnpm app:install` builds `origin/main` in a throwaway worktree, packages it and puts it in `/Applications/Agent Office.app`. It never builds from your own checkout, so uncommitted work stays out. If the window app is open, the script quits it, swaps the bundle and opens the new one. Agents keep running in the host, and the host moves to the new code once nothing is working. The replaced bundle goes to `~/Library/Caches/agent-office/Agent Office.previous.app`, and the log to `~/Library/Logs/agent-office/install-app.log`. `AGENT_OFFICE_REF` builds another commit, and `AGENT_OFFICE_APP` installs somewhere else. After the swap it unregisters the replaced copy from Launch Services and registers the new one, so the Dock and Spotlight open the installed app. A package left in `dist/` by a manual `electron-builder` run shares the same bundle id, and macOS may open that one instead. Delete it once you're done with it.
