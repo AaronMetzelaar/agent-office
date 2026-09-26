@@ -90,10 +90,7 @@ onUnmounted(() => {
     </ul>
   </div>
   <div class="ih">
-    <div>
-      <h2><i :class="{ clear: !inbox.waiting.length }" />Waiting for you · {{ inbox.waiting.length }}</h2>
-      <p>{{ inbox.waiting.length ? 'Auto mode handles the rest. These need a yes or no from you.' : 'Nobody is at your door right now.' }}</p>
-    </div>
+    <h2><i :class="{ clear: !inbox.waiting.length }" />Waiting for you · {{ inbox.waiting.length }}</h2>
     <button type="button" class="btn sm" title="New agent (⌘N)" @click="emit('new')">New agent</button>
   </div>
   <div v-if="alertsHint" class="hintcard">
@@ -126,7 +123,7 @@ onUnmounted(() => {
       </div>
       <div class="m">
         <template v-if="item.dept"><span class="dd" :style="{ background: item.accent }" /><span>{{ item.dept }}</span><span>·</span></template>
-        <span>{{ item.requests[0] ? `Auto mode · ${item.requests[0].tool}` : item.detail }}</span>
+        <span>{{ item.requests[0]?.tool ?? item.detail }}</span>
         <template v-if="item.kind !== 'login'"><span>·</span><span>{{ since(item.since) }}</span></template>
       </div>
       <template v-if="item.requests[0]">
@@ -195,8 +192,9 @@ onUnmounted(() => {
     </button>
   </div>
   <div class="ifoot">
-    <span><kbd>1</kbd> opens the first in line, then <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answer</span>
-    <span><kbd>j</kbd><kbd>k</kbd> step through</span>
+    <span><kbd>1</kbd> first in line</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> answer</span>
+    <span><kbd>j</kbd><kbd>k</kbd> step</span>
     <span><kbd>⌘N</kbd> new agent</span>
   </div>
 </template>
@@ -252,12 +250,6 @@ onUnmounted(() => {
 
 .inbox .ih h2 i.clear {
   background: var(--ok);
-}
-
-.inbox .ih p {
-  margin: 3px 0 0;
-  font-size: 12.5px;
-  color: var(--muted);
 }
 
 .inbox .ibx {
@@ -610,7 +602,8 @@ onUnmounted(() => {
 }
 
 .standby .srow {
-  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .standby .srow + .srow {
@@ -618,11 +611,8 @@ onUnmounted(() => {
 }
 
 .standby .srow .brow {
-  padding-right: 64px;
-}
-
-.finished .srow .brow {
-  padding-right: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .finished .ffilter {
@@ -663,10 +653,8 @@ onUnmounted(() => {
 }
 
 .standby .sacts {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  translate: 0 -50%;
+  flex: none;
+  padding-right: 10px;
   display: flex;
   gap: 4px;
   opacity: 0.55;

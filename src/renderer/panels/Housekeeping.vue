@@ -134,7 +134,7 @@ onUnmounted(() => {
     </span>
     <div>
       <h2>Housekeeping</h2>
-      <p class="meta">{{ view ? `${gb(view.bytes)} RAM · ${rows.length} chats · ${view.worktrees.length} worktrees · ${gb(diskTotal)}` : 'Measuring…' }}</p>
+      <p class="meta">{{ view ? `${rows.length} chats · ${plural(view.worktrees.length, 'worktree')} · ${gb(diskTotal)} on disk` : 'Measuring…' }}</p>
     </div>
     <button type="button" class="ib" aria-label="Close housekeeping" title="Close (Esc)" @click="emit('close')">×</button>
   </div>
@@ -169,7 +169,7 @@ onUnmounted(() => {
         <small>suggested below</small>
       </label>
     </div>
-    <div class="hcta">
+    <div v-if="safe.length" class="hcta">
       <div v-if="confirming && safe.length" class="hconf" role="group" aria-label="Confirm cleanup">
         <h4>Clean up {{ safe.length }} chat{{ safe.length === 1 ? '' : 's' }}?</h4>
         <ul>
@@ -184,9 +184,7 @@ onUnmounted(() => {
           <button type="button" class="btn" @click="confirming = false">Cancel</button>
         </div>
       </div>
-      <button v-else type="button" class="btn primary" :disabled="!safe.length || busy" @click="confirming = true">
-        {{ safe.length ? `Clean up ${safe.length} safe · frees ${gb(preview.bytes)}` : 'Nothing safe to clean up' }}
-      </button>
+      <button v-else type="button" class="btn primary" :disabled="busy" @click="confirming = true">Clean up {{ safe.length }} safe · frees {{ gb(preview.bytes) }}</button>
     </div>
     <p v-if="flash" class="flash toast" role="status">{{ flash }}</p>
 
@@ -213,7 +211,7 @@ onUnmounted(() => {
           <button v-if="row.tree" type="button" class="btn sm" :disabled="!row.tree.git?.safe || !!hold(row) || busy" @click="removeVisitorTree(row)">Remove worktree</button>
         </div>
         <div v-else class="hr4">
-          <button type="button" class="btn sm" :disabled="!row.memory || busy" @click="stop(row)">Stop processes</button>
+          <button v-if="row.memory?.processes.length" type="button" class="btn sm" :disabled="busy" @click="stop(row)">Stop processes</button>
           <button type="button" class="btn sm" :disabled="busy" @click="archive(row)">Archive chat</button>
           <button v-if="row.tree?.git?.blocked" type="button" class="btn sm primary" @click="emit('select', row.chat.id)">Open chat</button>
           <button v-else-if="row.tree" type="button" class="btn sm" :disabled="!row.tree.git?.safe || busy" @click="cleanUp([row.chat.id])">Remove worktree</button>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
-import { defaultModel, effortLabels, efforts, modelLabels, simulatorOf, usingSimulator, type ChatView, type Effort } from '../../shared/chat'
+import { simulatorOf, usingSimulator, type ChatView } from '../../shared/chat'
 import { canRest } from '../office/standby'
 import { hasNewArtifact, sawArtifacts } from '../state/artifacts'
 import { runsIn } from '../../shared/housekeeping'
@@ -43,10 +43,6 @@ const device = computed(() => (props.chat ? simulatorOf(props.chat.rows) : undef
 const published = computed(() => (props.chat ? latestArtifacts(props.chat.rows) : []))
 const pending = computed(() => props.chat?.pendingRequests ?? [])
 const elsewhere = computed(() => answeredElsewhere(seen, pending.value, props.chat?.answered).filter((card) => !dismissed.has(card.request.id)))
-const models = computed(() => {
-  const current = props.chat?.model
-  return current && !(current in modelLabels) ? [current, ...Object.keys(modelLabels)] : Object.keys(modelLabels)
-})
 
 function say(message: string) {
   flash.value = message
@@ -122,17 +118,6 @@ function saveName() {
   if (props.chat && title && title !== props.chat.title) void window.office.renameChat(props.chat.id, title)
 }
 
-function setModel(event: Event) {
-  const model = (event.target as HTMLSelectElement).value
-  if (props.chat && model) void window.office.setModel(props.chat.id, model)
-}
-
-function setEffort(effort: Effort) {
-  if (!props.chat) return
-  void window.office.setEffort(props.chat.id, effort)
-  say(`${effortLabels[effort]} effort applies from the next turn.`)
-}
-
 watch(
   () => props.agent.id,
   (chatId) => {
@@ -205,15 +190,8 @@ onUnmounted(() => {
         <button v-if="device" type="button" role="tab" :aria-selected="tab === 'simulator'" @click="tab = 'simulator'">Simulator</button>
         <button v-if="published.length" type="button" role="tab" :aria-selected="tab === 'artifacts'" @click="tab = 'artifacts'">Artifacts · {{ published.length }}</button>
       </div>
-      <select v-if="chat && !chat.visitor" aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
-        <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
-      </select>
+      <p :class="['doing', agent.state]">{{ agent.caption }}</p>
     </div>
-    <div v-if="chat && !chat.visitor" class="effort" role="radiogroup" aria-label="Effort" title="Effort applies from the next turn">
-      <span class="lbl">Effort</span>
-      <button v-for="effort in efforts" :key="effort" type="button" role="radio" :aria-checked="chat.effort === effort" @click="setEffort(effort)">{{ effortLabels[effort] }}</button>
-    </div>
-    <p :class="['doing', agent.state]">{{ agent.caption }}</p>
     <SubagentStrip v-if="chat" :chat="chat" />
     <template v-if="tab === 'chat'">
       <Transcript v-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
@@ -241,7 +219,7 @@ onUnmounted(() => {
       </section>
     </div>
     <p v-if="flash" class="flash" role="status">{{ flash }}</p>
-    <Composer v-if="chat && !chat.visitor" :chat="chat" :waiting="pending[0]" @accounts="emit('accounts')" />
+    <Composer v-if="chat && !chat.visitor" :chat="chat" :waiting="pending[0]" @accounts="emit('accounts')" @note="say" />
   </div>
 </template>
 
@@ -314,8 +292,7 @@ onUnmounted(() => {
   padding: 2px;
 }
 
-.chatp .tabs button,
-.chatp .effort button {
+.chatp .tabs button {
   all: unset;
   cursor: pointer;
   font: 500 12px Geist, system-ui, sans-serif;
@@ -330,43 +307,8 @@ onUnmounted(() => {
   box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08);
 }
 
-.chatp .tabs button:focus-visible,
-.chatp .effort button:focus-visible {
+.chatp .tabs button:focus-visible {
   outline: 2px solid var(--accent);
-}
-
-.chatp .ctl select {
-  font: 12px Geist, system-ui, sans-serif;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 4px 6px;
-  background: #fff;
-  color: var(--ink);
-  max-width: 50%;
-}
-
-.chatp .effort {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 16px 0;
-}
-
-.chatp .effort .lbl {
-  font: 11px var(--mono);
-  color: var(--faint);
-  margin-right: 4px;
-}
-
-.chatp .effort button {
-  font-size: 11.5px;
-  padding: 3px 7px;
-}
-
-.chatp .effort button[aria-checked='true'] {
-  background: var(--accent-soft);
-  color: var(--accent);
 }
 
 .chatp .vb {
@@ -398,7 +340,11 @@ onUnmounted(() => {
 }
 
 .chatp .doing {
-  margin: 8px 16px 0;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chatp .arts {

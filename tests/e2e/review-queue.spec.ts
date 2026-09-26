@@ -119,14 +119,13 @@ test('review requests fill the tray and the drawer, Review starts an agent in PR
   await quit(app)
 })
 
-test('a ticket id is enough: Start from ticket or the prompt itself names the chat and the worktree after it, without a Linear key', async () => {
+test('a ticket id in the prompt is enough: it names the chat and the worktree after it, without a Linear key', async () => {
   const { app, page, views } = await launch()
   const drawer = page.getByRole('complementary', { name: 'Inbox' })
   await drawer.getByRole('button', { name: 'New agent' }).click()
   await drawer.getByLabel('Folder').selectOption(repo)
-  await drawer.getByLabel('Linear ticket').fill('auc-1302')
-  await drawer.getByRole('button', { name: 'Use ticket' }).click()
-  await expect(drawer.getByLabel('Prompt')).toHaveValue('AUC-1302')
+  await drawer.getByLabel('Fresh worktree').uncheck()
+  await drawer.getByLabel('Prompt').fill('auc-1302')
   await expect(drawer.getByLabel('Fresh worktree')).toBeChecked()
   await expect(drawer.getByRole('status')).toContainText('The agent sees only AUC-1302, not the ticket.')
 
@@ -135,7 +134,7 @@ test('a ticket id is enough: Start from ticket or the prompt itself names the ch
   await drawer.getByRole('button', { name: 'Start agent' }).click()
   const tree = join(repo, '.claude', 'worktrees', 'auc-1302-bid-flow-approach')
   await expect.poll(async () => (await views()).find((view) => view.title === 'AUC-1302 bid flow approach')?.state).toMatch(/^(done|idle)$/)
-  expect(git(tree, 'branch', '--show-current').trim()).toBe('auc-1302-bid-flow-approach')
+  expect(git(tree, 'branch', '--show-current').trim()).toBe('feature/auc-1302-bid-flow-approach')
   await expect(drawer.getByRole('region', { name: 'Next steps' })).toContainText('AUC-1302')
 
   await drawer.getByRole('button', { name: 'Back to inbox' }).click()

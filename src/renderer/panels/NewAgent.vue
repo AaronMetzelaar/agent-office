@@ -28,7 +28,6 @@ const promptEl = ref<InstanceType<typeof SlashInput>>()
 const form = reactive({ folder: '', accountId: '', section: '' as DeptId | '', prompt: '', model: defaultModel, effort: defaultEffort, worktree: recallWorktree() })
 const error = ref('')
 const busy = ref(false)
-const ticket = reactive({ text: '', note: '', busy: false })
 const lead = computed(() => leadingTicket(form.prompt))
 const found = ref<{ ticket: Ticket; notice?: string }>()
 let lookup: ReturnType<typeof setTimeout> | undefined
@@ -89,7 +88,9 @@ watch(
     if (!id) return
     lookup = setTimeout(async () => {
       const result = await window.office.lookupTicket(id)
-      if (lead.value?.id === id && !('error' in result)) found.value = result
+      if (lead.value?.id !== id || 'error' in result) return
+      found.value = result
+      form.worktree = true
     }, 300)
   },
 )
@@ -97,18 +98,6 @@ onUnmounted(() => {
   clearTimeout(lookup)
   clearTimeout(previewing)
 })
-
-async function fromTicket() {
-  if (!ticket.text.trim() || ticket.busy) return
-  ticket.busy = true
-  const result = await window.office.lookupTicket(ticket.text).finally(() => (ticket.busy = false))
-  if ('error' in result) return void (ticket.note = result.error)
-  ticket.note = ''
-  found.value = result
-  form.prompt = [result.ticket.id, lead.value?.rest ?? form.prompt.trim()].filter(Boolean).join(' ')
-  form.worktree = true
-  promptEl.value?.focus()
-}
 
 async function start() {
   if (!ready.value) return
@@ -144,17 +133,9 @@ onMounted(async () => {
     <button type="button" class="ib" aria-label="Cancel" title="Cancel (Esc)" @click="emit('close')">×</button>
   </div>
   <form class="nw" @submit.prevent="start" @keydown.meta.enter.prevent="start" @keydown.esc="emit('close')">
-    <div class="field">
-      Start from ticket
-      <span class="pick">
-        <input v-model="ticket.text" aria-label="Linear ticket" placeholder="AUC-1302 or a Linear link" @keydown.enter.prevent="fromTicket" />
-        <button type="button" class="btn" :disabled="!ticket.text.trim() || ticket.busy" @click="fromTicket">Use ticket</button>
-      </span>
-      <p v-if="ticket.note" class="note" role="status">{{ ticket.note }}</p>
-    </div>
     <label class="field">
       Prompt
-      <SlashInput ref="promptEl" v-model="form.prompt" :load="loadCommands" below rows="5" placeholder="What should this agent do? A Linear ticket id or link is enough. / for commands." aria-label="Prompt" />
+      <SlashInput ref="promptEl" v-model="form.prompt" :load="loadCommands" below rows="5" placeholder="What should this agent do? Start with a Linear ticket id or link to work on it. / for commands." aria-label="Prompt" />
     </label>
     <p v-if="ticketLine" class="note" role="status">{{ ticketLine }}</p>
     <label class="field">
@@ -171,14 +152,12 @@ onMounted(async () => {
       <input v-model="form.worktree" type="checkbox" aria-label="Fresh worktree" />
       <span><b>Fresh worktree</b> in <code>.claude/worktrees</code> on a new branch</span>
     </label>
-    <div class="fields">
-      <label class="field">
-        Account
-        <select v-model="accountId" aria-label="Account">
-          <option v-for="candidate in accounts" :key="candidate.id" :value="candidate.id" :disabled="candidate.health.status === 'needs-login'">{{ candidate.label }} · {{ usageLine(candidate) }}</option>
-        </select>
-      </label>
-    </div>
+    <label class="field">
+      Account
+      <select v-model="accountId" aria-label="Account">
+        <option v-for="candidate in accounts" :key="candidate.id" :value="candidate.id" :disabled="candidate.health.status === 'needs-login'">{{ candidate.label }} · {{ usageLine(candidate) }}</option>
+      </select>
+    </label>
     <p v-if="hint" class="suggest">
       <span>{{ hint.text }}</span>
       <button type="button" class="btn sm" @click="useSuggested">Use {{ accounts.find((candidate) => candidate.id === hint?.accountId)?.label }}</button>

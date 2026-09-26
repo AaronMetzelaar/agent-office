@@ -43,7 +43,9 @@ test('the demo office renders its sections, signs and door queue', async () => {
   await expect(page.getByRole('complementary', { name: 'Inbox' })).toContainText('Dialog flow CI fix')
   await expect(page.locator('.chip.q').first()).toBeVisible()
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }
+  await page.getByRole('button', { name: /^Settings/ }).click()
   await expect(page.getByText(new RegExp(`^Agent Office ${version.replaceAll('.', '\\.')} · [0-9a-f]{7}$`))).toBeVisible()
+  await page.keyboard.press('Escape')
 })
 
 test('Admin unfolds when its first agent starts', async () => {

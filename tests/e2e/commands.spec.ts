@@ -62,7 +62,7 @@ test('Esc closes the picker without leaving the chat', async () => {
 
 test('Browse all opens the full list and inserts the chosen entry', async () => {
   await drawer().getByLabel('Message').fill('fix it')
-  await drawer().getByRole('button', { name: '/ Commands' }).click()
+  await drawer().getByRole('button', { name: 'Commands', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Commands and skills' })
   await dialog.getByLabel('Search commands and skills').fill('review')
   await dialog.getByLabel('Search commands and skills').press('Enter')

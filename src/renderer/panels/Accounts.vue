@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import type { AccountStatus, AccountView, Headroom } from '../../shared/ipc'
+import type { AccountStatus, AccountView, Headroom, Settings } from '../../shared/ipc'
+import { editors } from '../../shared/review'
 import AddAccount from './AddAccount.vue'
 
 const props = defineProps<{ accounts: AccountView[] }>()
@@ -10,11 +11,16 @@ const statusText: Record<AccountStatus, string> = { ok: 'OK', 'needs-login': 'Ne
 const labels = computed(() => props.accounts.map((account) => account.label))
 const checking = reactive(new Set<string>())
 const relogin = ref<string>()
+const adding = ref(false)
 const formKey = ref(0)
 const hasLinearKey = ref(false)
 const linearKey = ref('')
 const hasJevKey = ref(false)
 const jevKey = ref('')
+const settings = ref<Settings>()
+const hookError = ref('')
+const version = ref('')
+const showForm = computed(() => adding.value || !!relogin.value || props.accounts.length < 2)
 
 const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
 const dayTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
@@ -42,6 +48,7 @@ function pasteNewToken(label: string) {
 
 function added() {
   relogin.value = undefined
+  adding.value = false
   formKey.value++
 }
 
@@ -69,6 +76,34 @@ async function clearJevKey() {
   hasJevKey.value = false
 }
 
+async function togglePhonePush() {
+  if (settings.value) settings.value = await window.office.setSetting('phonePush', !settings.value.phonePush)
+}
+
+async function toggleQuietHours() {
+  if (settings.value) settings.value = await window.office.setSetting('quietHoursEnabled', !settings.value.quietHoursEnabled)
+}
+
+async function setQuietStart(event: Event) {
+  settings.value = await window.office.setSetting('quietHoursStart', (event.target as HTMLInputElement).value)
+}
+
+async function setQuietEnd(event: Event) {
+  settings.value = await window.office.setSetting('quietHoursEnd', (event.target as HTMLInputElement).value)
+}
+
+async function toggleOutsideChats() {
+  const result = settings.value?.outsideChats ? await window.office.uninstallHook() : await window.office.installHook()
+  hookError.value = 'error' in result ? result.error : ''
+  if (!('error' in result)) settings.value = result
+}
+
+async function setEditor(event: Event) {
+  settings.value = await window.office.setSetting('editor', (event.target as HTMLSelectElement).value)
+}
+
+const stopHost = () => window.office.stopHost()
+
 const onKey = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')
 }
@@ -77,17 +112,21 @@ onMounted(async () => {
   addEventListener('keydown', onKey)
   hasLinearKey.value = await window.office.hasLinearKey()
   hasJevKey.value = await window.office.hasJevKey()
+  settings.value = await window.office.getSettings()
+  const info = await window.office.getAppInfo()
+  version.value = info.commit ? `${info.version} · ${info.commit}` : info.version
 })
 onUnmounted(() => removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <aside class="drawer" aria-labelledby="accounts-title">
+  <aside class="drawer" aria-labelledby="settings-title">
     <header class="head">
-      <h2 id="accounts-title">Accounts</h2>
-      <button class="close" aria-label="Close accounts" @click="emit('close')">×</button>
+      <h2 id="settings-title">Settings</h2>
+      <button class="close" aria-label="Close settings" title="Close (Esc)" @click="emit('close')">×</button>
     </header>
     <div class="body">
+      <h3 class="sec">Accounts</h3>
       <article v-for="account in accounts" :key="account.id" class="account" :data-account="account.label">
         <div class="title">
           <b>{{ account.label }}</b>
@@ -108,18 +147,19 @@ onUnmounted(() => removeEventListener('keydown', onKey))
         </div>
         <p v-if="!account.health.headroom && account.health.status !== 'needs-login'" class="meta">Check the account to see its 5-hour and weekly usage.</p>
         <div class="actions">
+          <button v-if="account.health.status === 'needs-login'" class="btn primary" @click="pasteNewToken(account.label)">Paste new token</button>
           <button class="btn" :disabled="checking.has(account.id)" @click="check(account.id)">{{ checking.has(account.id) ? 'Checking…' : 'Check now' }}</button>
-          <button v-if="account.health.status === 'needs-login'" class="btn" @click="pasteNewToken(account.label)">Paste new token</button>
-          <button class="btn danger" @click="remove(account)">Remove</button>
+          <button class="btn danger push" @click="remove(account)">Remove…</button>
         </div>
       </article>
 
-      <section class="section">
+      <section v-if="showForm" class="section">
         <h3 class="sec">{{ relogin ? `New token for ${relogin}` : 'Add an account' }}</h3>
         <p class="meta">Run <code>claude setup-token</code> in Terminal, signed in to the account. The token lasts one year.</p>
         <p class="meta">Claude in Chrome needs Claude Code’s own login instead of a token. For the account Claude Code is signed in to in Terminal, choose Use Claude Code login.</p>
         <AddAccount :key="formKey" :taken="labels" :label="relogin" @added="added" />
       </section>
+      <button v-else class="btn add" @click="adding = true">Add account…</button>
 
       <section class="section">
         <h3 class="sec">Linear</h3>
@@ -151,6 +191,40 @@ onUnmounted(() => removeEventListener('keydown', onKey))
           <button class="btn">Save key</button>
         </form>
       </section>
+
+      <section v-if="settings" class="section">
+        <h3 class="sec">General</h3>
+        <label class="opt">
+          <input type="checkbox" :checked="settings.phonePush" :disabled="!settings.phonePushAvailable" @change="togglePhonePush" />
+          <span>Phone push<small>{{ settings.phonePushAvailable ? 'Also send notifications to your phone through ntfy.' : 'Add ~/.config/agent-office/ntfy-topic to use phone push.' }}</small></span>
+        </label>
+        <label class="opt">
+          <input type="checkbox" :checked="settings.quietHoursEnabled" @change="toggleQuietHours" />
+          <span>Quiet hours<small>Hold normal and low priority phone pushes, then send one summary when quiet hours end.</small></span>
+        </label>
+        <div v-if="settings.quietHoursEnabled" class="quiet">
+          <label>From <input type="time" :value="settings.quietHoursStart" @change="setQuietStart" /></label>
+          <label>To <input type="time" :value="settings.quietHoursEnd" @change="setQuietEnd" /></label>
+        </div>
+        <label class="opt">
+          <input type="checkbox" :checked="settings.outsideChats" @change="toggleOutsideChats" />
+          <span>Outside chats<small>Show desktop and terminal chats live. Adds one marked hook entry to ~/.claude/settings.json, backed up first.</small></span>
+        </label>
+        <p v-if="hookError" class="meta warn" role="alert">{{ hookError }}</p>
+        <label class="opt pick">
+          <span>Editor<small>Opens files and worktrees from Review.</small></span>
+          <select :value="settings.editor" @change="setEditor">
+            <option v-for="(label, id) in editors" :key="id" :value="id">{{ label }}</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="section">
+        <h3 class="sec">Agent host</h3>
+        <p class="meta">The host keeps agents running while this window is closed. Stopping it interrupts every agent and quits Agent Office.</p>
+        <button class="btn danger" @click="stopHost">Stop agent host</button>
+        <p class="meta version">Agent Office {{ version }}</p>
+      </section>
     </div>
   </aside>
 </template>
@@ -162,7 +236,7 @@ onUnmounted(() => removeEventListener('keydown', onKey))
   top: 12px;
   right: 12px;
   bottom: 12px;
-  width: min(400px, calc(100vw - 24px));
+  width: clamp(420px, 34vw, 560px);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -170,6 +244,18 @@ onUnmounted(() => removeEventListener('keydown', onKey))
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: opacity 0.15s, translate 0.2s cubic-bezier(0.2, 0, 0, 1);
+
+  @starting-style {
+    opacity: 0;
+    translate: 8px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer {
+    transition: none;
+  }
 }
 
 .head {
@@ -316,5 +402,72 @@ h2 {
 .linear .btn,
 .section > .btn {
   justify-self: start;
+}
+
+.body > .sec {
+  margin-top: 14px;
+}
+
+.push {
+  margin-left: auto;
+}
+
+.add {
+  margin-bottom: 16px;
+}
+
+.opt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.opt input {
+  margin: 3px 0 0;
+}
+
+.opt span {
+  display: grid;
+  gap: 2px;
+}
+
+.opt small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.opt.pick {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.opt select,
+.quiet input {
+  font: 13px Geist, system-ui, sans-serif;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.quiet {
+  display: flex;
+  gap: 12px;
+  padding-left: 23px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.quiet label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.version {
+  color: var(--faint);
 }
 </style>

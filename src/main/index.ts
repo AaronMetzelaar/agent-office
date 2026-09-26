@@ -178,18 +178,33 @@ async function start(): Promise<void> {
     handle('stopHost', win, appUrl, stopAgents)
     app.on('before-quit', host.close)
   }
-  Menu.setApplicationMenu(appMenu(() => show({ to: 'new' })))
+  Menu.setApplicationMenu(appMenu(show))
   Object.assign(globalThis, { tray: strip.tray })
   app.on('second-instance', () => show())
   app.on('activate', () => show())
 }
 
-function appMenu(newAgent: () => void): Menu {
+function appMenu(go: (to: Navigate) => void): Menu {
   return Menu.buildFromTemplate([
-    { role: 'appMenu' },
-    { label: 'File', submenu: [{ id: 'new-agent', label: 'New Agent…', accelerator: 'CmdOrCtrl+N', click: newAgent }, { type: 'separator' }, { role: 'close' }] },
+    {
+      role: 'appMenu',
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => go({ to: 'accounts' }) },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    { label: 'File', submenu: [{ id: 'new-agent', label: 'New Agent…', accelerator: 'CmdOrCtrl+N', click: () => go({ to: 'new' }) }, { type: 'separator' }, { role: 'close' }] },
     { role: 'editMenu' },
-    ...(app.isPackaged ? [] : [{ role: 'viewMenu' as const }]),
+    { label: 'View', submenu: [{ label: 'Inbox', accelerator: 'CmdOrCtrl+1', click: () => go({ to: 'inbox' }) }, { label: 'Housekeeping', accelerator: 'CmdOrCtrl+2', click: () => go({ to: 'housekeeping' }) }, { type: 'separator' }, { role: 'togglefullscreen' }, ...(app.isPackaged ? [] : [{ type: 'separator' as const }, { role: 'reload' as const }, { role: 'toggleDevTools' as const }])] },
     { role: 'windowMenu' },
   ])
 }

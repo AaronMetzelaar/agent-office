@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, toRaw, watch } from 'vue'
-import type { Attachment, ChatView } from '../../../shared/chat'
+import { defaultModel, effortLabels, efforts, modelLabels, type Attachment, type ChatView, type Effort } from '../../../shared/chat'
+import { Icon } from '../../icons'
 import type { PendingRequestView } from '../../../shared/permissions'
 import { modeLabels } from './cards'
 import { drafts, submit, toAttachment } from './draft'
 import SlashInput from './SlashInput.vue'
 
 const props = defineProps<{ chat: ChatView; waiting?: PendingRequestView }>()
-const emit = defineEmits<{ accounts: [] }>()
+const emit = defineEmits<{ accounts: []; note: [message: string] }>()
 
 const store = drafts()
 const text = ref('')
@@ -20,6 +21,10 @@ const attachments = ref<Attachment[]>([])
 const mode = computed(() => props.chat.permissionMode ?? 'auto')
 const busy = computed(() => ['starting', 'working', 'needs-you'].includes(props.chat.state))
 const suggestion = computed(() => (props.waiting ? undefined : props.chat.suggestion))
+const models = computed(() => {
+  const current = props.chat.model
+  return current && !(current in modelLabels) ? [current, ...Object.keys(modelLabels)] : Object.keys(modelLabels)
+})
 
 watch(
   () => props.chat.id,
@@ -40,6 +45,17 @@ watch(slash, (input) => props.waiting || input?.focus(), { flush: 'post' })
 const togglePlan = () => window.office.setPlanMode(props.chat.id, mode.value !== 'plan')
 const stop = () => window.office.interruptChat(props.chat.id)
 const loadCommands = () => window.office.getCommands({ chatId: props.chat.id })
+
+function setModel(event: Event) {
+  const model = (event.target as HTMLSelectElement).value
+  if (model) void window.office.setModel(props.chat.id, model)
+}
+
+function setEffort(event: Event) {
+  const effort = (event.target as HTMLSelectElement).value as Effort
+  void window.office.setEffort(props.chat.id, effort)
+  emit('note', `${effortLabels[effort]} effort applies from the next turn.`)
+}
 
 function edit(value: string) {
   text.value = value
@@ -135,12 +151,19 @@ async function send() {
       <button v-if="needsLogin" type="button" class="btn sm" @click="emit('accounts')">Re-login</button>
     </div>
     <div class="crow">
-      <span :class="['mode', mode]" :title="mode === 'auto' ? 'Auto mode asks you only before risky actions' : undefined">{{ modeLabels[mode] }}</span>
-      <span v-if="chat.context" :class="['ctx', { full: chat.context.percent >= 80 }]" :title="`${chat.context.tokens.toLocaleString()} of ${chat.context.max.toLocaleString()} tokens in context`">Context {{ chat.context.percent }}%</span>
-      <button type="button" class="btn sm" title="Commands & skills" @click="slash?.browse()">/ Commands</button>
-      <button v-if="!waiting" type="button" class="btn sm" title="Attach files or images (or paste / drop them)" @click="picker?.click()">Attach</button>
+      <span v-if="mode !== 'auto' && mode !== 'plan'" class="mode">{{ modeLabels[mode] }}</span>
+      <button type="button" class="btn sm sq" aria-label="Commands" title="Commands & skills (/)" @click="slash?.browse()">/</button>
+      <button v-if="!waiting" type="button" class="btn sm sq" aria-label="Attach" title="Attach files or images (or paste / drop them)" @click="picker?.click()"><Icon name="paperclip" /></button>
       <input ref="picker" type="file" multiple hidden @change="picked" />
       <button type="button" class="btn sm" :aria-pressed="mode === 'plan'" title="Plan first: Claude proposes a plan and waits for your approval before editing" @click="togglePlan">Plan</button>
+      <select aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
+        <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
+      </select>
+      <select aria-label="Effort" title="Effort applies from the next turn" :value="chat.effort ?? ''" @change="setEffort">
+        <option v-if="!chat.effort" value="" disabled>Effort</option>
+        <option v-for="effort in efforts" :key="effort" :value="effort">{{ effortLabels[effort] }}</option>
+      </select>
+      <span v-if="chat.context" :class="['ctx', { full: chat.context.percent >= 80 }]" :title="`${chat.context.tokens.toLocaleString()} of ${chat.context.max.toLocaleString()} tokens in context`">Context {{ chat.context.percent }}%</span>
       <span class="sp" />
       <button v-if="busy" type="button" class="btn sm" title="Stop this turn" @click="stop">Stop</button>
       <button type="button" class="btn accent" :disabled="!canSend || sending" @click="send">{{ waiting ? 'Deny and send' : 'Send' }} <kbd>↵</kbd></button>
@@ -216,9 +239,20 @@ async function send() {
   padding: 3px 7px;
 }
 
-.comp .mode.plan {
-  color: var(--needs-ink);
-  background: var(--needs-bg);
+.comp select {
+  min-width: 0;
+  font: 500 11.5px Geist, system-ui, sans-serif;
+  padding: 5px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink2);
+  cursor: pointer;
+}
+
+.comp select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .comp .ctx {
@@ -228,6 +262,19 @@ async function send() {
 
 .comp .ctx.full {
   color: var(--needs-ink);
+}
+
+.comp .crow {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.comp .sq {
+  width: 27px;
+  padding: 0;
+  justify-content: center;
+  align-self: stretch;
+  font-family: var(--mono);
 }
 
 .comp .btn[aria-pressed='true'] {

@@ -75,7 +75,7 @@ test('starting from the free Mobile desk walks a new character in from the entra
   await page.evaluate((id) => window.office.sendMessage(id, 'Keep going [hang]'), chat.id)
   await expect.poll(async () => (await views()).find((view) => view.id === chat.id)?.state).toBe('working')
 
-  await page.getByRole('button', { name: 'Overview' }).click()
+  await page.getByRole('button', { name: 'Agent Office', exact: true }).click()
   await page.waitForTimeout(1500)
   await page.locator('.sign', { hasText: 'Mobile' }).click()
   await expect(desk3).toBeVisible()

@@ -34,6 +34,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 code {
   font: 12px var(--mono);
   background: var(--soft);
@@ -54,6 +65,12 @@ code {
   align-items: center;
   gap: 7px;
   white-space: nowrap;
+  transition: scale 0.12s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s;
+}
+
+.btn:active:not(:disabled),
+.tbtn:active {
+  scale: 0.96;
 }
 
 .btn:hover {
@@ -150,6 +167,7 @@ code {
   gap: 8px;
   color: var(--ink2);
   cursor: pointer;
+  transition: scale 0.12s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s;
 }
 
 .tbtn:hover {
@@ -216,4 +234,16 @@ code {
 
 .icon {
   display: inline-flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .tbtn {
+    transition: none;
+  }
+
+  .btn:active:not(:disabled),
+  .tbtn:active {
+    scale: none;
+  }
 }

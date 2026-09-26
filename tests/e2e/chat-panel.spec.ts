@@ -117,9 +117,9 @@ test('run a shell code block from the reply in a terminal next to the chat', asy
 })
 
 test('change effort; it applies from the next turn', async () => {
-  await drawer().getByRole('radio', { name: 'High', exact: true }).click()
+  await drawer().getByLabel('Effort').selectOption('high')
   await expect.poll(async () => (await snapshotChat())?.effort).toBe('high')
-  await expect(drawer().getByRole('radio', { name: 'High', exact: true })).toHaveAttribute('aria-checked', 'true')
+  await expect(drawer().getByLabel('Effort')).toHaveValue('high')
   await expect(drawer().getByRole('status')).toHaveText('High effort applies from the next turn.')
 
   await drawer().getByLabel('Model').selectOption('sonnet')
@@ -129,7 +129,7 @@ test('change effort; it applies from the next turn', async () => {
 test('plan mode: approve the plan, and the chat returns to the mode it was in', async () => {
   await drawer().getByRole('button', { name: 'Plan', exact: true }).click()
   await expect.poll(async () => (await snapshotChat())?.permissionMode).toBe('plan')
-  await expect(drawer().locator('.comp .mode')).toHaveText('Plan mode')
+  await expect(drawer().getByRole('button', { name: 'Plan', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
   await drawer().getByLabel('Message').fill('Plan the rounding fix [plan]')
   await drawer().getByRole('button', { name: /^Send/ }).click()
@@ -144,5 +144,5 @@ test('plan mode: approve the plan, and the chat returns to the mode it was in', 
   await expect(card).toHaveCount(0)
   await expect(drawer().getByRole('log', { name: 'Transcript' })).toContainText('Plan approved, starting.')
   await expect.poll(async () => (await snapshotChat())?.permissionMode).toBe('auto')
-  await expect(drawer().locator('.comp .mode')).toHaveText('Auto mode')
+  await expect(drawer().getByRole('button', { name: 'Plan', exact: true })).toHaveAttribute('aria-pressed', 'false')
 })

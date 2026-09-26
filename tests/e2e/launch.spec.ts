@@ -48,7 +48,9 @@ test.afterAll(async () => {
 test('launch shows the window, the floor and a tray icon', async () => {
   await expect.poll(windowStates).toEqual([true])
   await expect(page.locator('canvas')).toBeVisible()
+  await page.getByRole('button', { name: /^Settings/ }).click()
   await expect(page.getByText(/^Agent Office \d+\.\d+\.\d+ · [0-9a-f]{7}$/)).toBeVisible()
+  await page.keyboard.press('Escape')
   expect(await app.evaluate(() => !(globalThis as unknown as Recorded).tray.isDestroyed())).toBe(true)
 })
 

@@ -36,7 +36,7 @@ const world = shallowRef<World>()
 const projection = createProjection(props.source)
 const tick = ref(0)
 const colours = new Map<string, number>()
-const palette = reactive({ open: false, query: '' })
+const palette = reactive({ open: false, query: '', active: 0 })
 const hits = shallowRef<SearchHit[]>([])
 const searching = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -205,8 +205,6 @@ function navigate(to: Navigate) {
   select(to.to === 'chat' ? to.chatId : undefined)
 }
 
-defineExpose({ openHousekeeping: () => navigate({ to: 'housekeeping' }) })
-
 watch(
   () => [openChat.value?.id, openChat.value?.state],
   () => {
@@ -275,6 +273,7 @@ function toggleFilter(key: StateKey) {
 async function openPalette() {
   palette.open = true
   palette.query = ''
+  palette.active = 0
   await nextTick()
   paletteInput.value?.focus()
 }
@@ -292,14 +291,21 @@ async function openHit(hit: SearchHit | undefined) {
   else select(opened.chatId)
 }
 
+function movePalette(step: number) {
+  const n = matches.value.length + found.value.length
+  if (n) palette.active = (palette.active + step + n) % n
+}
+
 function pick() {
-  if (matches.value[0]) jump(matches.value[0].id)
-  else void openHit(found.value[0])
+  const agent = matches.value[palette.active]
+  if (agent) jump(agent.id)
+  else void openHit(found.value[palette.active - matches.value.length] ?? found.value[0])
 }
 
 watch(
   () => palette.query.trim(),
   (query) => {
+    palette.active = 0
     clearTimeout(searchTimer)
     searching.value = query.length >= 2
     if (!searching.value) return void (hits.value = [])
@@ -371,14 +377,13 @@ onUnmounted(() => {
   <div ref="labelsEl" class="labels" />
   <header ref="barEl" class="bar">
     <div class="brand">
-      <h1>Agent Office</h1>
+      <h1><button type="button" title="Overview (Esc)" @click="world?.overview()">Agent Office</button></h1>
       <div class="tally">
         <button v-for="c in tally" :key="c.key" type="button" class="tc" :aria-pressed="ui.filter === c.key" :title="ui.filter === c.key ? 'Show everyone' : `Highlight ${c.label}`" @click="toggleFilter(c.key)">
           <i :class="['sd', c.key]" /><b>{{ c.n }}</b> {{ c.label }}
         </button>
       </div>
     </div>
-    <button type="button" class="tbtn" @click="world?.overview()">Overview</button>
     <button type="button" class="tbtn" aria-haspopup="dialog" title="Jump to an agent or search inside every chat" @click="openPalette">Search <kbd>⌘K</kbd></button>
     <button type="button" class="tbtn" title="Next agent. Ctrl+Shift+Tab goes back" :disabled="!ui.agents.length" @click="nextAgent()">Next agent <kbd>⌃Tab</kbd></button>
     <button
@@ -409,15 +414,23 @@ onUnmounted(() => {
   </aside>
   <div v-if="palette.open" class="palette-back" @click.self="palette.open = false">
     <div class="palette" role="dialog" aria-label="Search">
-      <input ref="paletteInput" v-model="palette.query" placeholder="Jump to an agent, or search inside every chat" aria-label="Search" @keydown.enter="pick" />
-      <button v-for="a in matches" :key="a.id" type="button" class="pr" @click="jump(a.id)">
+      <input
+        ref="paletteInput"
+        v-model="palette.query"
+        placeholder="Jump to an agent, or search inside every chat"
+        aria-label="Search"
+        @keydown.down.prevent="movePalette(1)"
+        @keydown.up.prevent="movePalette(-1)"
+        @keydown.enter="pick"
+      />
+      <button v-for="(a, i) in matches" :key="a.id" type="button" :class="['pr', { on: i === palette.active }]" @click="jump(a.id)" @mousemove="palette.active = i">
         <span class="av" :style="{ background: a.colour }" />
         <span class="pt">{{ a.title }}</span>
         <span :class="['pd', a.state]">{{ a.dept }} · {{ a.caption }}</span>
       </button>
       <template v-if="found.length">
         <p class="ph">In chats</p>
-        <button v-for="hit in found" :key="hit.sessionId" type="button" class="pr hit" @click="openHit(hit)">
+        <button v-for="(hit, i) in found" :key="hit.sessionId" type="button" :class="['pr', 'hit', { on: matches.length + i === palette.active }]" @click="openHit(hit)" @mousemove="palette.active = matches.length + i">
           <span class="av" :style="{ background: hitColour(hit) }" />
           <span class="pt">{{ hit.title }}<span class="pa"> · {{ ago(Date.now() - hit.at) }} ago</span></span>
           <span class="ps">{{ hit.snippet[0] }}<mark>{{ hit.snippet[1] }}</mark>{{ hit.snippet[2] }}</span>
@@ -490,7 +503,7 @@ onUnmounted(() => {
   gap: 8px;
   align-items: stretch;
   flex-wrap: wrap;
-  max-width: calc(100vw - 32px - 560px);
+  max-width: calc(100vw - 44px - clamp(420px, 34vw, 560px));
 }
 
 .brand {
@@ -510,6 +523,17 @@ onUnmounted(() => {
   margin: 0;
   letter-spacing: -0.01em;
   white-space: nowrap;
+}
+
+.brand h1 button {
+  all: unset;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.brand h1 button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .tally {
@@ -1063,6 +1087,12 @@ kbd {
   gap: 2px;
   max-height: 72vh;
   overflow: auto;
+  transition: opacity 0.15s, translate 0.15s cubic-bezier(0.2, 0, 0, 1);
+
+  @starting-style {
+    opacity: 0;
+    translate: 0 -6px;
+  }
 }
 
 .palette .ph {
@@ -1115,7 +1145,7 @@ kbd {
   border-radius: 9px;
 }
 
-.pr:hover,
+.pr.on,
 .pr:focus-visible {
   background: var(--soft);
 }
@@ -1157,7 +1187,8 @@ kbd {
   }
 
   .chip,
-  .sign {
+  .sign,
+  .palette {
     transition: none;
   }
 }
