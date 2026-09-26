@@ -10,6 +10,7 @@ import type { ChatSource } from './state/projection'
 const version = ref('')
 const office = ref<{ openHousekeeping(): void }>()
 const accounts = ref<AccountView[]>()
+const setup = ref(false)
 const source = shallowRef<ChatSource>()
 const menuOpen = ref(false)
 const accountsOpen = ref(false)
@@ -109,10 +110,11 @@ onUnmounted(() => {
   <p v-else-if="update.stage === 'building'" class="host" role="status" :title="updateList">Getting {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} ready in the background…</p>
   <p v-else-if="update.error" class="host" role="alert">{{ update.error }}<button @click="installUpdate">Try again</button></p>
   <p v-else-if="update.behind" class="host" role="status" :title="updateList">
-    {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} available: {{ update.subjects[0] }}<button @click="installUpdate">Update</button>
+    <template v-if="update.download">{{ update.subjects[0] }} is available<button @click="installUpdate">Download</button></template>
+    <template v-else>{{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} available: {{ update.subjects[0] }}<button @click="installUpdate">Update</button></template>
   </p>
   <template v-if="accounts && source">
-    <Onboarding v-if="accounts.length === 0" />
+    <Onboarding v-if="accounts.length === 0 || setup" :connected="accounts.length > 0" @adding="setup = true" @done="setup = false" />
     <template v-else>
       <Office ref="office" :accounts="accounts" :source="source" @accounts="openAccounts">
         <div class="settings">

@@ -13,11 +13,17 @@ export interface AppInfo {
   commit?: string
 }
 
+export interface ClaudeCode {
+  installed: boolean
+  signedIn: boolean
+}
+
 export interface AppUpdate {
   behind: number
   subjects: string[]
   stage?: 'building' | 'waiting' | 'installing'
   error?: string
+  download?: string
 }
 
 export type AccountStatus = 'ok' | 'needs-login' | 'unknown'
@@ -75,6 +81,7 @@ export interface HostStatus {
 
 export interface Commands {
   getAppInfo(): AppInfo
+  claudeCode(): Promise<ClaudeCode>
   listAccounts(): AccountView[]
   addAccount(label: string, token: string | null): Promise<AddAccountResult>
   removeAccount(id: string): void

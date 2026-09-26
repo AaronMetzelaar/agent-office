@@ -1,6 +1,6 @@
 import type { Commands, Events } from '../../shared/ipc'
 
-type Local = 'getAppInfo' | 'pickFolder' | 'openNotificationSettings' | 'simulatorScreenshot' | 'openArtifact' | 'getHostStatus' | 'restartHost' | 'stopHost' | 'getAppUpdate' | 'installAppUpdate'
+type Local = 'getAppInfo' | 'claudeCode' | 'pickFolder' | 'openNotificationSettings' | 'simulatorScreenshot' | 'openArtifact' | 'getHostStatus' | 'restartHost' | 'stopHost' | 'getAppUpdate' | 'installAppUpdate'
 
 const names: Record<Exclude<keyof Commands, Local>, true> = {
   listAccounts: true,

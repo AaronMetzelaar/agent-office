@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 const props = defineProps<{ taken: string[]; label?: string }>()
-const emit = defineEmits<{ added: [] }>()
+const emit = defineEmits<{ added: []; submitting: [] }>()
 
 const suggestions = ['main', 'work', 'personal']
 const label = ref(props.label ?? suggestions.find((name) => !props.taken.includes(name)) ?? '')
@@ -13,6 +13,7 @@ const replaces = computed(() => props.taken.some((name) => name.toLowerCase() ==
 
 async function submit(useClaudeLogin = false) {
   if (busy.value) return
+  emit('submitting')
   const pasted = useClaudeLogin ? null : token.value
   token.value = ''
   error.value = ''

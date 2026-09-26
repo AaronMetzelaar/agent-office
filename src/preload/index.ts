@@ -9,6 +9,7 @@ function subscribe<K extends keyof Events>(name: K, listener: (payload: Events[K
 
 const office: OfficeApi = {
   getAppInfo: () => ipcRenderer.invoke('getAppInfo'),
+  claudeCode: () => ipcRenderer.invoke('claudeCode'),
   listAccounts: () => ipcRenderer.invoke('listAccounts'),
   addAccount: (label, token) => ipcRenderer.invoke('addAccount', label, token),
   removeAccount: (id) => ipcRenderer.invoke('removeAccount', id),
