@@ -17,7 +17,14 @@ export const configOf = (config: Partial<DeptConfig> = {}, unreadable?: string):
 export function openOffice(dir: string, engine = createFakeEngine(), config = configOf({ rooms: [researchGym] })) {
   const db = openDb(join(dir, 'office.db'))
   const loggedOut = new Set<string>()
-  const accounts = { exists: (id: string) => id === 'main' || id === 'research', label: (id: string) => id, needsLogin: (id: string) => loggedOut.has(id), loginFailed: vi.fn(), recordHeadroom: vi.fn() }
+  const removed = new Set<string>()
+  const accounts = {
+    exists: (id: string) => (id === 'main' || id === 'research') && !removed.has(id),
+    label: (id: string) => id,
+    needsLogin: (id: string) => loggedOut.has(id),
+    list: () => ['main', 'research'].filter((id) => !removed.has(id)).map((id) => ({ id, label: id, createdAt: 0, health: { status: loggedOut.has(id) ? ('needs-login' as const) : ('ok' as const) } })),
+    loginFailed: vi.fn(), recordHeadroom: vi.fn(),
+  }
   const rules = createRules(db.sql, engine)
   const rooms = createRooms(db, config, () => store.views().flatMap((chat) => (chat.archived || !chat.department ? [] : [chat.department])))
   const store = createChatStore(engine, db, accounts, rooms, rules.forSession)
@@ -39,7 +46,7 @@ export function openOffice(dir: string, engine = createFakeEngine(), config = co
     engine.emit(id, sdk.text('Done.'))
     engine.emit(id, sdk.result())
   }
-  return { engine, db, accounts, loggedOut, rules, rooms, store, waits, broker, chat, start, finish }
+  return { engine, db, accounts, loggedOut, removed, rules, rooms, store, waits, broker, chat, start, finish }
 }
 
 export const ghMissing = async (): Promise<string> => {

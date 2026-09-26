@@ -409,6 +409,20 @@ describe('chat store', () => {
     expect(chat(theirs).stuck?.reason).toBe('needs-login')
   })
 
+  it('moves a chat whose account was removed onto a live account when resumed', () => {
+    const { engine, store, chat, removed } = office
+    const mine = working()
+    removed.add('main')
+    store.accountRemoved('main')
+    expect(store.resumeChat(mine)).toBeUndefined()
+    expect(chat(mine).accountId).toBe('research')
+    expect(chat(mine).state).toBe('working')
+    expect(engine.running(mine)).toBe(true)
+    removed.add('research')
+    store.accountRemoved('research')
+    expect(store.resumeChat(mine)).toMatchObject({ code: 'needs-login' })
+  })
+
   it('gives each chat a palette colour at creation, never repeats one in a department, and keeps it across a reload', () => {
     const ids = Array.from({ length: palette.length + 3 }, (_, i) => office.start(`Chat ${i}`))
     const colours = ids.map((id) => office.chat(id).colour)

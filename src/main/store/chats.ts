@@ -4,8 +4,9 @@ import { statSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import type { SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
 import { defaultEffort, defaultModel, efforts, emptyUsage, maxRows, simulatorTool, type Answered, type ChatFields, type ChatMode, type ChatPatch, type ChatRow, type ChatState, type ChatView, type Effort, type OlderRows, type Refusal, type RewindPreview, type StartChatResult, type Stuck } from '../../shared/chat'
-import { playgroundRoom, repoPath, type StartOptions } from '../../shared/departments'
+import { defaultAccountFor, playgroundRoom, repoPath, type StartOptions } from '../../shared/departments'
 import { pickColour } from '../../shared/office'
+import type { AccountView } from '../../shared/ipc'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Rooms } from '../departments/rooms'
 import { withAttachments, type ImageBlock } from '../sessions/attachments'
@@ -19,6 +20,7 @@ export interface AccountHooks {
   exists(id: string): boolean
   label(id: string): string | undefined
   needsLogin(id: string): boolean
+  list(): AccountView[]
   loginFailed(id: string): void
   recordHeadroom(id: string, info: SDKRateLimitInfo): void
 }
@@ -340,6 +342,13 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     go(chat, text, messageId, fields, fork, images)
   }
 
+  function rehome(chat: Chat): boolean {
+    if (accounts.exists(chat.view.accountId)) return true
+    const accountId = defaultAccountFor(accounts.list(), rooms.tiedRoom, deptOf(chat.view))
+    if (accountId) set(chat, { accountId })
+    return accountId !== undefined
+  }
+
   const isDirectory = (path: string) => statSync(path, { throwIfNoEntry: false })?.isDirectory() === true
   const worktreeFailed = (chat: Chat, error: unknown) => transition(chat, 'stuck', { stuck: { reason: 'error', detail: `Couldn’t set up the worktree: ${errorText(error)}` }, setup: 'worktree-failed' })
 
@@ -536,7 +545,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const message = withAttachments(text, attachments)
       if (!message) return { error: 'Couldn’t send those attachments. Remove them and try again.' }
       if (!message.text.trim()) return undefined
-      if (accounts.needsLogin(chat.view.accountId)) return needsLogin
+      if (!rehome(chat) || accounts.needsLogin(chat.view.accountId)) return needsLogin
       send(chat, message.text, {}, false, message.images)
       return undefined
     },
@@ -544,7 +553,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     resumeChat(chatId: unknown): Refusal | undefined {
       const chat = find(chatId)
       if (chat?.view.state !== 'stuck') return undefined
-      if (accounts.needsLogin(chat.view.accountId)) return needsLogin
+      if (!rehome(chat) || accounts.needsLogin(chat.view.accountId)) return needsLogin
       engine.stop(chat.view.id)
       const firstPrompt = chat.view.rows.find((row) => row.kind === 'user')?.text
       const worktree = chat.view.worktree
