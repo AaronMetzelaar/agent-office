@@ -1,25 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6e9f4"/></linearGradient>
-    <radialGradient id="blob" cx="0.35" cy="0.28" r="0.85"><stop offset="0" stop-color="#7d92ff"/><stop offset="0.5" stop-color="#3f5cff"/><stop offset="1" stop-color="#1b34e0"/></radialGradient>
-    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ddb485"/><stop offset="1" stop-color="#cda274"/></linearGradient>
-    <filter id="lift" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1b2130" flood-opacity="0.22"/></filter>
-    <clipPath id="sq"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4760ff"/>
+      <stop offset="1" stop-color="#1226d6"/>
+    </linearGradient>
+    <linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e8ecff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#050d5c" flood-opacity="0.35"/>
+    </filter>
   </defs>
   <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
-  <g clip-path="url(#sq)">
-    <path d="M512 220 C714 220 790 400 790 580 L790 760 L234 760 L234 580 C234 400 310 220 512 220 Z" fill="url(#blob)"/>
-    <circle cx="428" cy="480" r="68" fill="#fff"/>
-    <circle cx="596" cy="480" r="68" fill="#fff"/>
-    <circle cx="415" cy="504" r="33" fill="#161a24"/>
-    <circle cx="583" cy="504" r="33" fill="#161a24"/>
-    <rect x="100" y="712" width="824" height="84" fill="url(#wood)"/>
-    <rect x="100" y="796" width="824" height="28" fill="#a9804f"/>
-    <rect x="100" y="824" width="824" height="200" fill="#f4f3f0"/>
+  <g fill="#aab7ff">
+    <circle cx="648" cy="404" r="82"/>
+    <path d="M512 720 a136 136 0 0 1 272 0 z"/>
   </g>
-  <g filter="url(#lift)">
-    <circle cx="762" cy="262" r="96" fill="#f59e0b"/>
-    <rect x="746" y="196" width="32" height="88" rx="16" fill="#fff"/>
-    <circle cx="762" cy="320" r="18" fill="#fff"/>
+  <g fill="url(#front)" filter="url(#shadow)">
+    <circle cx="376" cy="420" r="92"/>
+    <path d="M226 736 a150 150 0 0 1 300 0 z"/>
+  </g>
+  <rect x="180" y="712" width="664" height="56" rx="28" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="180" y="748" width="664" height="20" rx="10" fill="#dfe4ff"/>
+  <g filter="url(#shadow)">
+    <circle cx="762" cy="272" r="78" fill="#ffffff"/>
+    <circle cx="762" cy="272" r="62" fill="#f59e0b"/>
+    <rect x="751" y="230" width="22" height="56" rx="11" fill="#ffffff"/>
+    <circle cx="762" cy="310" r="13" fill="#ffffff"/>
   </g>
 </svg>

@@ -65,6 +65,7 @@ swap() {
     mv "$target" "$cache/Agent Office.previous.app"
   fi
   mv "$staged" "$target"
+  touch "$target"
   "$lsregister" -u "$cache/Agent Office.previous.app" >/dev/null 2>&1 || true
   "$lsregister" -f "$target" >/dev/null 2>&1 || true
   step "installed; opening"
