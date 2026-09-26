@@ -32,7 +32,7 @@ export function wireTerminal(hub: Hub, { chat }: TerminalDeps) {
       spawn = (require('node-pty') as typeof import('node-pty')).spawn
     }
     const shell = process.env.SHELL || userInfo().shell || '/bin/zsh'
-    const pty = spawn(shell, ['-l'], { name: 'xterm-256color', cols: 100, rows: 30, cwd, env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string> })
+    const pty = spawn(shell, ['-l'], { name: 'xterm-256color', cols: 100, rows: 30, cwd, env: { ...process.env, TERM: 'xterm-256color', DISABLE_AUTO_UPDATE: 'true' } as Record<string, string> })
     const terminal = { pty, buffer: '' }
     terminals.set(chatId, terminal)
     pty.onData((data) => {
