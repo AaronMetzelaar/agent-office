@@ -109,6 +109,15 @@ describe('app updates', () => {
     expect(steps).toEqual(['build', 'build'])
   })
 
+  it('clears Installing when the swap ends and this window is still open', async () => {
+    const { updater, finish } = setup()
+    await updater.check()
+    await finish()
+    await vi.waitFor(() => expect(updater.state().stage).toBe('installing'))
+    await finish()
+    expect(updater.state()).toMatchObject({ stage: undefined, error: expect.stringContaining('install-app.log') })
+  })
+
   it('rechecks on focus at most every five minutes', async () => {
     const { updater, calls, tick } = setup({ behind: 0 })
     tick(10 * 60_000)

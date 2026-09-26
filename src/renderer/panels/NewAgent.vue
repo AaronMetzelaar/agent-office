@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { defaultEffort, defaultModel, effortLabels, efforts, modelLabels } from '../../shared/chat'
-import { accountHint, defaultAccountFor, showsAccountBadge, tiedRoomIn, type DeptId, type RoomDef } from '../../shared/departments'
+import { accountHint, defaultAccountFor, tiedRoomIn, type DeptId, type RoomDef } from '../../shared/departments'
 import { usageLine, type AccountView } from '../../shared/ipc'
 import { hexOf } from '../../shared/office'
 import { leadingTicket, type Ticket } from '../../shared/workflow'
@@ -37,13 +37,11 @@ const accountId = computed({
   get: () => form.accountId || defaultAccountFor(props.accounts, (label) => tiedRoomIn(depts, label), props.desk?.dept) || '',
   set: (id: string) => (form.accountId = id),
 })
-const account = computed(() => props.accounts.find((candidate) => candidate.id === accountId.value))
 const chosen = computed(() => form.section || props.desk?.dept || '')
 const section = computed<DeptId>(() => chosen.value || preview.value?.id || '')
 const room = computed(() => (props.version, chosen.value || !preview.value ? deptOf(section.value) : preview.value))
 const newRoom = computed(() => (!chosen.value && preview.value?.isNew ? preview.value : undefined))
 const hint = computed(() => accountHint(props.accounts, accountId.value))
-const overflow = computed(() => (props.version, !!account.value && showsAccountBadge(depts, section.value, account.value.label)))
 const ready = computed(() => !!form.folder && !!accountId.value && !!form.prompt.trim() && !busy.value)
 const ticketLine = computed(() => {
   const seen = found.value?.ticket
@@ -162,7 +160,6 @@ onMounted(async () => {
       <span>{{ hint.text }}</span>
       <button type="button" class="btn sm" @click="useSuggested">Use {{ accounts.find((candidate) => candidate.id === hint?.accountId)?.label }}</button>
     </p>
-    <p v-else-if="overflow" class="note">Runs on {{ account?.label }} in {{ room.name }}, with an account badge.</p>
     <div class="fields">
       <label class="field">
         Model

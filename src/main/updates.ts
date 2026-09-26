@@ -82,9 +82,7 @@ export function createUpdater({ commit, repo, git, launch, busy, confirmInterrup
       if (state.behind > stagedBehind) return build()
     }
     set({ stage: 'installing' })
-    launch(repo, 'swap', (code) => {
-      if (code !== 0) failed('swap')
-    })
+    launch(repo, 'swap', () => failed('swap'))
   }
 
   async function measure() {

@@ -19,7 +19,7 @@ mkdir "$lockdir" 2>/dev/null || { echo "An install is already running. Log: $log
 trap 'if [ -n "$worktree" ]; then git -C "$repo" worktree remove --force "$worktree" >/dev/null 2>&1 || true; rm -rf "$worktree"; fi; rm -rf "$lockdir"' EXIT
 
 if [ "$only" = swap ]; then exec >> "$log" 2>&1; else exec > "$log" 2>&1; fi
-window_pids() { ps -axo pid=,command= | awk -v app="$window_app" '{ pid = $1; sub(/^ *[0-9]+ +/, "") } $0 == app { print pid }'; }
+window_pids() { ps -axo pid=,command= | awk -v app="$window_app" '{ pid = $1; sub(/^ *[0-9]+ +/, "") } ($0 == app || index($0, app " ") == 1) && $0 !~ / --agent-host( |$)/ { print pid }'; }
 running() { [ -n "$(window_pids)" ]; }
 step() { echo "$(date '+%H:%M:%S') $1"; }
 fail() {
