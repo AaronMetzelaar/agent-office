@@ -147,6 +147,21 @@ export function arrange(design: Design, tier: 1 | 2 | 3): Prop[] {
   return out
 }
 
+export function tidy(design: Design): Design {
+  let labels = 0
+  const part = (source: Part): Part => {
+    const next = { ...source }
+    if (typeof next.color !== 'string' || !hex.test(next.color)) next.color = '#cfc8bd'
+    if (next.textColor !== undefined && !hex.test(next.textColor)) delete next.textColor
+    if (next.text !== undefined) {
+      if (next.shape !== 'panel' || labels >= limits.labels) delete next.text
+      else labels++
+    }
+    return next
+  }
+  return { ...design, props: (design.props ?? []).map((prop) => ({ ...prop, parts: Array.isArray(prop.parts) ? prop.parts.map(part) : prop.parts })) }
+}
+
 export function checkDesign(design: Design): string[] {
   const out: string[] = []
   const props = design.props ?? []

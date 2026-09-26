@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrange, checkDesign, footprint, limits, placed, roomSize, type Design, type Prop } from '../../src/shared/looks'
+import { arrange, checkDesign, footprint, limits, placed, roomSize, tidy, type Design, type Prop } from '../../src/shared/looks'
 
 const shelf: Prop = {
   name: 'bookshelf',
@@ -71,5 +71,15 @@ describe('placing a generated look', () => {
     const failures = checkDesign(room(shelf, broken))
     expect(failures.some((f) => f.includes('unknown shape'))).toBe(true)
     expect(failures.some((f) => f.includes('three numbers'))).toBe(true)
+  })
+
+  it('tidies small slips before the check: a garbled colour turns neutral, stray and extra labels go', () => {
+    const garbled = { ...plant, parts: [{ ...plant.parts[0]!, color: '#9b8straight', text: 'Pot' }] }
+    const boards = Array.from({ length: 8 }, (_, i) => ({ ...board, name: `board ${i}` }))
+    const tidied = tidy(room(shelf, garbled, ...boards))
+    expect(tidied.props[1]!.parts[0]).toMatchObject({ color: '#cfc8bd' })
+    expect(tidied.props[1]!.parts[0]!.text).toBeUndefined()
+    expect(tidied.props.flatMap((p) => p.parts).filter((p) => p.text)).toHaveLength(limits.labels)
+    expect(checkDesign(tidied).filter((f) => f.includes('colour') || f.includes('label'))).toEqual([])
   })
 })

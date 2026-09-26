@@ -1,0 +1,1024 @@
+{
+ "room": "UX Lab",
+ "attempts": [
+  {
+   "design": {
+    "props": [
+     {
+      "name": "Giant Interface Prototype Wall",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2.4,
+         0.12,
+         0.6
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#a8896a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         1.9,
+         0.14
+        ],
+        "at": [
+         -1.05,
+         1,
+         0
+        ],
+        "color": "#b7bec7",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         1.9,
+         0.14
+        ],
+        "at": [
+         1.05,
+         1,
+         0
+        ],
+        "color": "#b7bec7",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         2.4,
+         1.9,
+         0.16
+        ],
+        "at": [
+         0,
+         1.35,
+         -0.06
+        ],
+        "color": "#f2ece2"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.9,
+         0.5,
+         0.03
+        ],
+        "at": [
+         -0.62,
+         1.95,
+         0.06
+        ],
+        "color": "#dfe6ea",
+        "text": "WIREFRAME",
+        "textColor": "#54657a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.9,
+         0.5,
+         0.03
+        ],
+        "at": [
+         0.62,
+         1.95,
+         0.06
+        ],
+        "color": "#8fb3a6",
+        "text": "POLISHED",
+        "textColor": "#27413a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.1,
+         0.04
+        ],
+        "at": [
+         -0.62,
+         1.55,
+         0.08
+        ],
+        "color": "#c9d2d8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.1,
+         0.04
+        ],
+        "at": [
+         -0.74,
+         1.38,
+         0.08
+        ],
+        "color": "#c9d2d8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.28,
+         0.05
+        ],
+        "at": [
+         -0.66,
+         1.1,
+         0.08
+        ],
+        "color": "#d8dfe4"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.5,
+         0.18,
+         0.05
+        ],
+        "at": [
+         -0.76,
+         0.8,
+         0.08
+        ],
+        "color": "#b0bcc6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.1,
+         0.04
+        ],
+        "at": [
+         0.62,
+         1.55,
+         0.08
+        ],
+        "color": "#e6c3a8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.28,
+         0.05
+        ],
+        "at": [
+         0.58,
+         1.1,
+         0.08
+        ],
+        "color": "#f6f1e8"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.5,
+         0.18,
+         0.05
+        ],
+        "at": [
+         0.52,
+         0.8,
+         0.08
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         0.9,
+         0.8,
+         0.1
+        ],
+        "color": "#6e8fb5"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         0.9,
+         0.08
+        ],
+        "at": [
+         0,
+         2.05,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         90
+        ],
+        "color": "#8a949d",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.22,
+         0.3,
+         0.06
+        ],
+        "at": [
+         0.1,
+         2.05,
+         0.16
+        ],
+        "rot": [
+         0,
+         0,
+         -25
+        ],
+        "color": "#4f5a66"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.14,
+         0.3
+        ],
+        "at": [
+         0,
+         0.19,
+         0.18
+        ],
+        "color": "#9fb0a4"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         -0.2,
+         0.32,
+         0.18
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0,
+         0.32,
+         0.18
+        ],
+        "color": "#e3c05e"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.2,
+         0.32,
+         0.18
+        ],
+        "color": "#6e8fb5"
+       }
+      ]
+     },
+     {
+      "name": "Oversized Toggle & Slider Bench",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "rounded",
+        "size": [
+         1.6,
+         0.7,
+         0.6
+        ],
+        "at": [
+         0,
+         0.35,
+         0
+        ],
+        "color": "#c8b49a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.7,
+         0.26,
+         0.26
+        ],
+        "at": [
+         -0.45,
+         0.83,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#9fb8ab"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.25,
+         0.85,
+         0
+        ],
+        "color": "#f2ece2"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         1,
+         0.08
+        ],
+        "at": [
+         0.45,
+         0.76,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         90
+        ],
+        "color": "#b7bec7",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.16,
+         0.22
+        ],
+        "at": [
+         0.6,
+         0.78,
+         0
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.1,
+         0.34
+        ],
+        "at": [
+         0.1,
+         0.79,
+         0
+        ],
+        "color": "#6e8fb5"
+       }
+      ]
+     },
+     {
+      "name": "Cursor Arrow Statue",
+      "zone": "side",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.14,
+         0.5
+        ],
+        "at": [
+         0,
+         0.07,
+         0
+        ],
+        "color": "#a8896a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         1,
+         0.16
+        ],
+        "at": [
+         0,
+         0.6,
+         0
+        ],
+        "color": "#b7bec7",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         0.5,
+         0.1
+        ],
+        "at": [
+         0,
+         1.35,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         -20
+        ],
+        "color": "#f2ece2"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.14,
+         0.3,
+         0.1
+        ],
+        "at": [
+         0.1,
+         1,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         -20
+        ],
+        "color": "#f2ece2"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -0.1,
+         1.62,
+         0
+        ],
+        "color": "#d97b5a"
+       }
+      ]
+     },
+     {
+      "name": "Colour Swatch Fan Board",
+      "zone": "back",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "panel",
+        "size": [
+         1.4,
+         0.7,
+         0.03
+        ],
+        "at": [
+         0,
+         1.85,
+         0
+        ],
+        "color": "#efe7db",
+        "text": "TOKENS",
+        "textColor": "#6b7d8c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.4,
+         0.05
+        ],
+        "at": [
+         -0.5,
+         1.72,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         10
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.4,
+         0.05
+        ],
+        "at": [
+         -0.25,
+         1.72,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         3
+        ],
+        "color": "#e3c05e"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.4,
+         0.05
+        ],
+        "at": [
+         0,
+         1.72,
+         0.04
+        ],
+        "color": "#9fb8ab"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.4,
+         0.05
+        ],
+        "at": [
+         0.25,
+         1.72,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         -3
+        ],
+        "color": "#6e8fb5"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.4,
+         0.05
+        ],
+        "at": [
+         0.5,
+         1.72,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         -10
+        ],
+        "color": "#b08cc0"
+       }
+      ]
+     },
+     {
+      "name": "Usability Test Pod",
+      "zone": "back",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.1,
+         0.72,
+         0.55
+        ],
+        "at": [
+         0,
+         0.36,
+         0
+        ],
+        "color": "#b9a68d"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.8,
+         0.5,
+         0.05
+        ],
+        "at": [
+         0,
+         1,
+         -0.12
+        ],
+        "color": "#e8e2d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.64,
+         0.36,
+         0.02
+        ],
+        "at": [
+         0,
+         1,
+         -0.08
+        ],
+        "color": "#7f97ad"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.3,
+         0.1
+        ],
+        "at": [
+         0,
+         0.85,
+         -0.12
+        ],
+        "color": "#8a949d",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         0.42,
+         1.2,
+         -0.1
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         0.03,
+         0.2
+        ],
+        "at": [
+         0,
+         0.74,
+         0.15
+        ],
+        "color": "#f2ece2"
+       }
+      ]
+     },
+     {
+      "name": "Feedback Dial Totem",
+      "zone": "side",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.45,
+         0.1,
+         0.45
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#a8896a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.4,
+         1.5,
+         0.4
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#e8e2d6"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.08,
+         0.3
+        ],
+        "at": [
+         0,
+         1.3,
+         0.16
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#9fb8ab"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.08,
+         0.3
+        ],
+        "at": [
+         0,
+         0.95,
+         0.16
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#e3c05e"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.08,
+         0.3
+        ],
+        "at": [
+         0,
+         0.6,
+         0.16
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.2,
+         0.3
+        ],
+        "at": [
+         0,
+         1.62,
+         0
+        ],
+        "color": "#6e8fb5"
+       }
+      ]
+     },
+     {
+      "name": "Flow Map Wall Chart",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "panel",
+        "size": [
+         1.5,
+         0.85,
+         0.03
+        ],
+        "at": [
+         0,
+         1.8,
+         0
+        ],
+        "color": "#f2ece2",
+        "text": "FLOW",
+        "textColor": "#54657a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.18,
+         0.04
+        ],
+        "at": [
+         -0.45,
+         2,
+         0.04
+        ],
+        "color": "#9fb8ab"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.18,
+         0.04
+        ],
+        "at": [
+         0.1,
+         2,
+         0.04
+        ],
+        "color": "#6e8fb5"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.18,
+         0.04
+        ],
+        "at": [
+         0.45,
+         1.65,
+         0.04
+        ],
+        "color": "#d97b5a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.03,
+         0.04
+        ],
+        "at": [
+         -0.17,
+         2,
+         0.04
+        ],
+        "color": "#8a949d"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.03,
+         0.04
+        ],
+        "at": [
+         0.28,
+         1.82,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         -40
+        ],
+        "color": "#8a949d"
+       }
+      ]
+     },
+     {
+      "name": "Sticky Note Idea Stack",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.9,
+         0.4
+        ],
+        "at": [
+         0,
+         0.45,
+         0
+        ],
+        "taper": 0.2,
+        "color": "#c8b49a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.06
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "rot": [
+         0,
+         10,
+         6
+        ],
+        "color": "#e3c05e"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.06
+        ],
+        "at": [
+         0.05,
+         1.1,
+         0.03
+        ],
+        "rot": [
+         0,
+         -12,
+         -5
+        ],
+        "color": "#e8b7a0"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.06
+        ],
+        "at": [
+         -0.04,
+         1.2,
+         -0.02
+        ],
+        "rot": [
+         0,
+         6,
+         9
+        ],
+        "color": "#9fb8ab"
+       }
+      ]
+     }
+    ],
+    "theme": "A UX lab: a giant half-wireframe half-polished interface wall, oversized toggles and sliders, swatch boards and a cursor statue"
+   },
+   "failures": [],
+   "ms": 43630,
+   "usage": {
+    "input": 6409,
+    "output": 4032
+   }
+  }
+ ]
+}

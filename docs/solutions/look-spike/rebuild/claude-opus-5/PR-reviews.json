@@ -1,0 +1,1153 @@
+{
+ "room": "PR reviews",
+ "attempts": [
+  {
+   "design": {
+    "props": [
+     {
+      "name": "VAR Diff Review Booth",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2.4,
+         0.18,
+         1.1
+        ],
+        "at": [
+         0,
+         0.09,
+         0
+        ],
+        "color": "#7e8b7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.22,
+         1,
+         0.22
+        ],
+        "at": [
+         -1,
+         0.58,
+         0.3
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.22,
+         1,
+         0.22
+        ],
+        "at": [
+         1,
+         0.58,
+         0.3
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         2.3,
+         1.35,
+         0.22
+        ],
+        "at": [
+         0,
+         1.75,
+         0.1
+        ],
+        "color": "#4a5a6b"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1,
+         1.05,
+         0.03
+        ],
+        "at": [
+         -0.55,
+         1.78,
+         0.23
+        ],
+        "color": "#e4efe1",
+        "text": "+ADD",
+        "textColor": "#4f8a55"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1,
+         1.05,
+         0.03
+        ],
+        "at": [
+         0.55,
+         1.78,
+         0.23
+        ],
+        "color": "#f3e2de",
+        "text": "-DEL",
+        "textColor": "#b5635a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.06,
+         1.15,
+         0.04
+        ],
+        "at": [
+         0,
+         1.78,
+         0.24
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2.3,
+         0.14,
+         0.3
+        ],
+        "at": [
+         0,
+         2.5,
+         0.06
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.1,
+         0.26,
+         0.03
+        ],
+        "at": [
+         0,
+         2.66,
+         0.05
+        ],
+        "color": "#dfe6ea",
+        "text": "REVIEW",
+        "textColor": "#4a5a6b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.9,
+         0.1,
+         0.55
+        ],
+        "at": [
+         0,
+         0.78,
+         -0.05
+        ],
+        "color": "#d9c3a5"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.04,
+         0.35
+        ],
+        "at": [
+         -0.45,
+         0.85,
+         -0.05
+        ],
+        "rot": [
+         -12,
+         0,
+         0
+        ],
+        "color": "#b9c4cc"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.14,
+         0.3
+        ],
+        "at": [
+         0.55,
+         0.9,
+         -0.05
+        ],
+        "color": "#e0e4e6"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.42,
+         1.03,
+         -0.05
+        ],
+        "color": "#4f8a55"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.68,
+         1.03,
+         -0.05
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.42,
+         0.1
+        ],
+        "at": [
+         -0.95,
+         0.99,
+         -0.1
+        ],
+        "color": "#43505c",
+        "taper": 0.4
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.14,
+         0.16
+        ],
+        "at": [
+         -0.95,
+         1.24,
+         -0.1
+        ],
+        "color": "#d4b483"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.06,
+         0.2
+        ],
+        "at": [
+         0.95,
+         0.84,
+         -0.1
+        ],
+        "color": "#43505c"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.07,
+         0.3,
+         0.07
+        ],
+        "at": [
+         0.95,
+         1.02,
+         -0.1
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.14,
+         0.14,
+         0.14
+        ],
+        "at": [
+         0.95,
+         1.2,
+         -0.1
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.03,
+         0.4
+        ],
+        "at": [
+         -1,
+         1.12,
+         0.35
+        ],
+        "color": "#e0e4e6"
+       }
+      ]
+     },
+     {
+      "name": "Approve / Request Changes Lever Stand",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.12,
+         0.6
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#8d7a66"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.5,
+         0.45
+        ],
+        "at": [
+         0,
+         0.37,
+         0
+        ],
+        "rot": [
+         -14,
+         0,
+         0
+        ],
+        "color": "#dfe6ea"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.34,
+         0.1
+        ],
+        "at": [
+         -0.22,
+         0.72,
+         0.02
+        ],
+        "rot": [
+         -18,
+         0,
+         0
+        ],
+        "color": "#4f8a55"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         -0.22,
+         0.9,
+         -0.04
+        ],
+        "color": "#4f8a55"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.34,
+         0.1
+        ],
+        "at": [
+         0.22,
+         0.72,
+         0.02
+        ],
+        "rot": [
+         16,
+         0,
+         0
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         0.22,
+         0.88,
+         0.1
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.2,
+         0.03
+        ],
+        "at": [
+         0,
+         0.66,
+         0.26
+        ],
+        "color": "#f0e7d8",
+        "text": "MERGE?",
+        "textColor": "#6b5b48"
+       }
+      ]
+     },
+     {
+      "name": "Comment Thread Card Tree",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.42,
+         0.1,
+         0.42
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#7e8b7a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         1.3,
+         0.1
+        ],
+        "at": [
+         0,
+         0.7,
+         0
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.55,
+         0.34,
+         0.06
+        ],
+        "at": [
+         -0.3,
+         1.3,
+         0
+        ],
+        "color": "#e9dfcc"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.55,
+         0.34,
+         0.06
+        ],
+        "at": [
+         0.32,
+         1,
+         0
+        ],
+        "color": "#d6e2e8"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.55,
+         0.34,
+         0.06
+        ],
+        "at": [
+         -0.28,
+         0.72,
+         0
+        ],
+        "color": "#e6ded0"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.14,
+         0.14,
+         0.14
+        ],
+        "at": [
+         0,
+         1.55,
+         0
+        ],
+        "color": "#c9a27a"
+       }
+      ]
+     },
+     {
+      "name": "Nitpick Red Card Rack",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.1,
+         0.4
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#8d7a66"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.9,
+         0.12
+        ],
+        "at": [
+         0,
+         0.5,
+         0
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.34,
+         0.5,
+         0.05
+        ],
+        "at": [
+         -0.2,
+         1.1,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         10
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.34,
+         0.5,
+         0.05
+        ],
+        "at": [
+         0.2,
+         1.05,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         -8
+        ],
+        "color": "#d9b45c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.14,
+         0.3
+        ],
+        "at": [
+         0,
+         0.24,
+         0
+        ],
+        "color": "#4a5a6b"
+       }
+      ]
+     },
+     {
+      "name": "Diff Scoreboard Wall",
+      "zone": "back",
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2,
+         0.9,
+         0.14
+        ],
+        "at": [
+         0,
+         1.85,
+         0
+        ],
+        "color": "#4a5a6b"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.8,
+         0.5,
+         0.03
+        ],
+        "at": [
+         -0.45,
+         1.9,
+         0.1
+        ],
+        "color": "#e4efe1",
+        "text": "+128",
+        "textColor": "#4f8a55"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.8,
+         0.5,
+         0.03
+        ],
+        "at": [
+         0.45,
+         1.9,
+         0.1
+        ],
+        "color": "#f3e2de",
+        "text": "-64",
+        "textColor": "#b5635a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2,
+         0.1,
+         0.18
+        ],
+        "at": [
+         0,
+         2.34,
+         0
+        ],
+        "color": "#c9a27a"
+       }
+      ]
+     },
+     {
+      "name": "Reviewer Queue Turnstile",
+      "zone": "side",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.12,
+         0.6
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#7e8b7a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         1.15,
+         0.22
+        ],
+        "at": [
+         0,
+         0.68,
+         0
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.08,
+         0.08
+        ],
+        "at": [
+         0,
+         1.15,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         0.08,
+         1
+        ],
+        "at": [
+         0,
+         1.15,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0,
+         1.4,
+         0
+        ],
+        "color": "#4a5a6b"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         0,
+         1.62,
+         0
+        ],
+        "color": "#4f8a55"
+       }
+      ]
+     },
+     {
+      "name": "Merge Trophy Plinth",
+      "zone": "side",
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.9,
+         0.5
+        ],
+        "at": [
+         0,
+         0.45,
+         0
+        ],
+        "color": "#e9dfcc"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.1,
+         0.3
+        ],
+        "at": [
+         0,
+         0.95,
+         0
+        ],
+        "color": "#c9a27a",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.36,
+         0.34
+        ],
+        "at": [
+         0,
+         1.18,
+         0
+        ],
+        "taper": 0.5,
+        "color": "#d9b45c",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.16,
+         0.1
+        ],
+        "at": [
+         0,
+         1.44,
+         0
+        ],
+        "color": "#d9b45c",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         0,
+         1.58,
+         0
+        ],
+        "color": "#d9b45c",
+        "finish": "metal"
+       }
+      ]
+     },
+     {
+      "name": "Squash & Rebase Bench",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.4,
+         0.1,
+         0.5
+        ],
+        "at": [
+         0,
+         0.45,
+         0
+        ],
+        "color": "#d9c3a5"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.45,
+         0.45
+        ],
+        "at": [
+         -0.6,
+         0.22,
+         0
+        ],
+        "color": "#8d7a66"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.45,
+         0.45
+        ],
+        "at": [
+         0.6,
+         0.22,
+         0
+        ],
+        "color": "#8d7a66"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.26,
+         0.2,
+         0.26
+        ],
+        "at": [
+         -0.35,
+         0.6,
+         0
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.14,
+         0.3
+        ],
+        "at": [
+         0.35,
+         0.57,
+         0
+        ],
+        "color": "#4a5a6b"
+       }
+      ]
+     },
+     {
+      "name": "Blame Lamp",
+      "zone": "side",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.08,
+         0.4
+        ],
+        "at": [
+         0,
+         0.04,
+         0
+        ],
+        "color": "#4a5a6b"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         1.4,
+         0.08
+        ],
+        "at": [
+         0,
+         0.78,
+         0
+        ],
+        "color": "#9aa3a8",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.4,
+         0.5
+        ],
+        "at": [
+         0,
+         1.66,
+         0
+        ],
+        "taper": 0.45,
+        "color": "#e9dfcc"
+       }
+      ]
+     },
+     {
+      "name": "Changelog Ribbon Shelf",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.4,
+         0.1,
+         0.28
+        ],
+        "at": [
+         0,
+         1.3,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.3,
+         0.2
+        ],
+        "at": [
+         -0.45,
+         1.5,
+         0
+        ],
+        "color": "#7e8b7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.18,
+         0.26,
+         0.18
+        ],
+        "at": [
+         -0.18,
+         1.48,
+         0
+        ],
+        "color": "#b5635a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.24,
+         0.22,
+         0.24
+        ],
+        "at": [
+         0.35,
+         1.46,
+         0
+        ],
+        "color": "#d6e2e8"
+       }
+      ]
+     },
+     {
+      "name": "Pitch-side Review Rug Post",
+      "zone": "back",
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         0.06,
+         0.8
+        ],
+        "at": [
+         0,
+         0.03,
+         0
+        ],
+        "color": "#7e8b7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.02,
+         0.02
+        ],
+        "at": [
+         0,
+         0.07,
+         0.2
+        ],
+        "color": "#e9dfcc"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.9,
+         0.1
+        ],
+        "at": [
+         -0.4,
+         0.5,
+         -0.1
+        ],
+        "color": "#e9dfcc"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.3,
+         0.03
+        ],
+        "at": [
+         -0.2,
+         0.85,
+         -0.1
+        ],
+        "color": "#d9b45c"
+       }
+      ]
+     }
+    ],
+    "theme": "Code review as a VAR booth: split-screen diff wall, approve/reject levers, comment-thread cards and a merge trophy"
+   },
+   "failures": [],
+   "ms": 45700,
+   "usage": {
+    "input": 3100,
+    "output": 4437
+   }
+  }
+ ]
+}

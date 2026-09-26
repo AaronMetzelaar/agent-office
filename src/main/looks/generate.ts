@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { checkDesign, designSchema, limits, roomSize, type Design } from '../../shared/looks'
+import { checkDesign, designSchema, limits, roomSize, tidy, type Design } from '../../shared/looks'
 import { sessionEnv, spawnClaude } from '../sessions/manager'
 
 const manifests = ['package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'Gemfile', 'Podfile', 'composer.json', 'build.gradle', 'build.gradle.kts', 'pubspec.yaml', 'Package.swift']
@@ -15,6 +15,9 @@ const read = (path: string, size: number) => {
 }
 
 export interface RepoInput {
+  room?: string
+  about?: string
+  mws?: boolean
   folder: string
   readme?: string
   manifests: Record<string, string>
@@ -24,7 +27,7 @@ export interface RepoInput {
 export function repoInput(root: string): RepoInput {
   let names: string[] = []
   try {
-    names = readdirSync(root).filter((name) => !name.startsWith('.')).sort()
+    names = readdirSync(root).filter((name) => !name.startsWith('.') && !['node_modules', 'dist', 'coverage'].includes(name)).sort()
   } catch {}
   const readme = names.find((name) => /^readme(\.|$)/i.test(name))
   return {
@@ -45,6 +48,7 @@ Style
 - The signature piece is a showpiece: the biggest, most detailed prop, the one you'd point at from across the office. Make it about 2 to ${limits.span} m wide and 1.8 to ${limits.height} m tall, with real detail, 12 to ${limits.parts} parts.
 - Fill the room: 4 or 5 props at tier 1, supporting pieces 0.6 to 1.5 m in size, plus a wall piece or two above them.
 - Every other prop carries the theme too. No generic office filler: no plain bookshelves, filing cabinets or potted plants unless they're themed (a plant in a rocket-shaped pot is fine).
+- When the input says mws is true, the room belongs to MWS (MatchWornShirt), a marketplace where fans buy and bid on match-worn football shirts. Theme it on that and on the room's own part of the product: framed shirts, auction boards, pitches, kit rooms, trophies, stadium lights. No real club crests, player names or MWS logos.
 - Don't repeat the signature pieces of the rooms listed as already standing.
 - No real logos, crests, brand names or people. Labels are short words, not sentences.
 
@@ -81,7 +85,7 @@ export type Ask = (system: string, prompt: string) => Promise<{ output?: unknown
 
 export const promptFor = (input: RepoInput, standing: string[], failures: string[] = []) =>
   [
-    `Design the room for this repository.\n\n${JSON.stringify(input, null, 1)}`,
+    `Design this room. When it has a folder, the folder's files tell you what the work is about.\n\n${JSON.stringify(input, null, 1)}`,
     standing.length ? `Rooms already standing, with their signature pieces: ${standing.join('; ')}.` : '',
     failures.length ? `Your last design failed the office's check. Fix every point and return the whole room again:\n- ${failures.join('\n- ')}` : '',
   ]
@@ -94,7 +98,7 @@ export async function designRoom(ask: Ask, input: RepoInput, standing: string[] 
   for (let round = 0; round < 2; round++) {
     const started = now()
     const reply = await ask(guidelines, promptFor(input, standing, failures)).catch((error: unknown) => ({ error: String(error), output: undefined, usage: undefined }))
-    const design = reply.output as Design | undefined
+    const design = reply.output ? tidy(reply.output as Design) : undefined
     failures = design ? checkDesign(design) : [reply.error ?? 'No design came back']
     attempts.push({ ...(design ? { design } : {}), failures, ms: now() - started, ...(reply.error ? { error: reply.error } : {}), ...(reply.usage ? { usage: reply.usage } : {}) })
     if (!failures.length || !design) break
