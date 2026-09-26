@@ -141,7 +141,7 @@ async function start(): Promise<void> {
       const updateReady = welcome.build !== hostBuild(__dirname)
       setStatus({ connected: true, updateReady })
       changed()
-      if (updateReady) void host.call('exitWhenIdle').catch(() => {})
+      if (updateReady) void host.call(process.argv.includes('--restart-host') ? 'exit' : 'exitWhenIdle').catch(() => {})
       if (!everConnected) return void (everConnected = true)
       send(win, 'windowVisibility', { visible: win.isVisible() })
       void host.call('setOpenChat', openChat).catch(() => {})
