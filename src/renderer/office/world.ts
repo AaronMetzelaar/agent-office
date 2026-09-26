@@ -759,7 +759,8 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
     const zone = shown().find((d) => floor.zones[d.id] && inside(floor.zones[d.id]!.box))
     setHoverDept(zone?.id ?? (lounge.want && inside(floor.lounge.box) ? 'lounge' : undefined))
   }
-  const onLeave = () => {
+  const onLeave = (e: PointerEvent) => {
+    if (e.relatedTarget instanceof Node && (e.relatedTarget === canvas || labelsEl.contains(e.relatedTarget))) return
     setHovered(undefined)
     setHoverDept(undefined)
   }
@@ -767,6 +768,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   canvas.addEventListener('pointerup', onUp)
   canvas.addEventListener('pointermove', onMove)
   canvas.addEventListener('pointerleave', onLeave)
+  labelsEl.addEventListener('pointerleave', onLeave)
 
   const deskCentre = (job: { dept: DeptId; slot: number }) => {
     const s = S(job.dept).slots[job.slot]
@@ -999,6 +1001,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       canvas.removeEventListener('pointerup', onUp)
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerleave', onLeave)
+      labelsEl.removeEventListener('pointerleave', onLeave)
       controls.dispose()
       labelsEl.replaceChildren()
     },
