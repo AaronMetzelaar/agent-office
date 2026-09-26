@@ -52,6 +52,7 @@ const noStop: StopReport = { freedBytes: 0, stopped: 0, stubborn: [] }
 const noVisitors: VisitorList = { views: () => [], view: () => undefined, archive: () => false, finish: () => false }
 const gitTtlMs = 60_000
 const gone = 'That chat isn’t in the office any more.'
+const refuse: Confirm = async () => false
 
 interface FinishPlan {
   chat: Readonly<ChatView>
@@ -223,10 +224,10 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     return safety.safe ? undefined : safety.blocked
   }
 
-  async function remove(tree: Listed, archiveVisitors = true): Promise<string | undefined> {
+  async function remove(tree: Listed, archiveVisitors = true, force = false): Promise<string | undefined> {
     const resting = sharers(tree.path)
     await Promise.all(resting.map((chat) => stopTree(chat.id, true)))
-    const error = await removeWorktree(system.run, tree.repo, tree.path)
+    const error = await removeWorktree(system.run, tree.repo, tree.path, force)
     if (error) return error
     for (const chat of resting) store.finish(chat.id)
     git.delete(tree.path)
@@ -234,10 +235,15 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     return undefined
   }
 
-  async function removeListed(tree: Listed): Promise<{ error?: string; bytes?: number }> {
+  const discardable = (tree: Listed, blocked: string) => git.get(tree.path)?.discardable === true && git.get(tree.path)?.blocked === blocked
+  const askDiscard = (tree: Listed, blocked: string, ask: Confirm) =>
+    ask(`Discard ${blocked} in ${basename(tree.path)}?`, 'They’re deleted with the worktree. The branch and its commits stay.', 'Discard and remove')
+
+  async function removeListed(tree: Listed, ask: Confirm): Promise<{ error?: string; bytes?: number } | undefined> {
     const blocked = await blockedReason(tree)
-    if (blocked) return { error: `Can’t remove the worktree: ${blocked}.` }
-    const error = await remove(tree)
+    if (blocked && !discardable(tree, blocked)) return { error: `Can’t remove the worktree: ${blocked}.` }
+    if (blocked && !(await askDiscard(tree, blocked, ask))) return undefined
+    const error = await remove(tree, true, !!blocked)
     if (error) return { error }
     const bytes = sizes.get(tree.path)?.bytes
     sizes.delete(tree.path)
@@ -321,7 +327,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       return report
     },
 
-    async cleanUp(chatIds?: unknown): Promise<CleanupSummary> {
+    async cleanUp(chatIds?: unknown, ask: Confirm = refuse): Promise<CleanupSummary> {
       await sample()
       const chosen = Array.isArray(chatIds) ? chatIds.filter((id): id is string => typeof id === 'string') : view().safe
       const summary: CleanupSummary = { chats: 0, visitors: 0, freedBytes: 0, diskBytes: 0, removed: 0, skipped: [], stubborn: [] }
@@ -335,7 +341,8 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
         }
         const tree = worktreeOf(chat.cwd)
         const blocked = tree && (await blockedReason(tree))
-        if (blocked) {
+        const force = !!blocked && discardable(tree, blocked) && (await askDiscard(tree, blocked, ask))
+        if (blocked && !force) {
           skip(chatId, blocked)
           continue
         }
@@ -351,7 +358,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
         if (report.stubborn.length) skip(chatId, 'a process didn’t exit, so the worktree was kept')
         else if (busyIn(tree.path)) skip(chatId, 'another chat still works in the worktree, so it was kept')
         else {
-          const error = await remove(tree)
+          const error = await remove(tree, true, force)
           if (error) skip(chatId, error)
           else {
             summary.removed++
@@ -364,22 +371,22 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       return summary
     },
 
-    async removeWorktree(path: unknown): Promise<{ error?: string; bytes?: number }> {
+    async removeWorktree(path: unknown, ask: Confirm = refuse): Promise<{ error?: string; bytes?: number } | undefined> {
       await sample()
       const tree = worktrees.find((listed) => listed.path === path)
       if (!tree) return { error: 'That worktree isn’t in the list any more.' }
       if (live().some((chat) => inside(chat.cwd, tree.path))) return { error: 'A chat still works in it. Clean up the chat instead.' }
-      return removeListed(tree)
+      return removeListed(tree, ask)
     },
 
-    async removeVisitorWorktree(chatId: unknown): Promise<{ error?: string; bytes?: number }> {
+    async removeVisitorWorktree(chatId: unknown, ask: Confirm = refuse): Promise<{ error?: string; bytes?: number } | undefined> {
       const visitor = typeof chatId === 'string' ? visitors.view(chatId) : undefined
       if (!visitor) return { error: 'That chat isn’t in the office any more.' }
       await sample()
       const tree = worktreeOf(visitor.cwd)
       if (!tree) return { error: 'This chat doesn’t work in a git worktree.' }
       if (busyIn(tree.path)) return { error: 'An office chat still works in it. Clean up that chat instead.' }
-      return removeListed(tree)
+      return removeListed(tree, ask)
     },
 
     async finish(chatId: unknown, removing: unknown, ask: Confirm): Promise<Finished | undefined> {
@@ -447,15 +454,15 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   }
 }
 
-export function wireHousekeeping(hub: Hub, house: Housekeeping, confirm: Confirm = async () => false): void {
+export function wireHousekeeping(hub: Hub, house: Housekeeping, confirm: Confirm = refuse): void {
   hub.handle('finishChat', (chatId, removing) => house.finish(chatId, removing, confirm))
   hub.handle('finishChats', (chatIds, removing) => house.finishMany(chatIds, removing, confirm))
   hub.handle('getHousekeeping', async (fresh) => (fresh === true ? house.refresh() : house.view()))
   hub.handle('stopProcesses', house.stopChat)
   hub.handle('archiveChat', house.archive)
-  hub.handle('cleanUp', house.cleanUp)
-  hub.handle('removeWorktree', house.removeWorktree)
-  hub.handle('removeVisitorWorktree', house.removeVisitorWorktree)
+  hub.handle('cleanUp', (chatIds) => house.cleanUp(chatIds, confirm))
+  hub.handle('removeWorktree', (path) => house.removeWorktree(path, confirm))
+  hub.handle('removeVisitorWorktree', (chatId) => house.removeVisitorWorktree(chatId, confirm))
   hub.handle('setThresholds', house.setThresholds)
   house.events.on('view', (view) => hub.send('housekeeping', view))
 }

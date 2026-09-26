@@ -45,6 +45,7 @@ export interface GitSafety {
   label: string
   safe: boolean
   blocked?: string
+  discardable?: boolean
 }
 
 export interface WorktreeView {

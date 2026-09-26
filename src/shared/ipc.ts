@@ -128,8 +128,8 @@ export interface Commands {
   stopProcesses(chatId: string): Promise<StopReport>
   archiveChat(chatId: string): Promise<StopReport>
   cleanUp(chatIds?: string[]): Promise<CleanupSummary>
-  removeWorktree(path: string): Promise<{ error?: string; bytes?: number }>
-  removeVisitorWorktree(chatId: string): Promise<{ error?: string; bytes?: number }>
+  removeWorktree(path: string): Promise<{ error?: string; bytes?: number } | undefined>
+  removeVisitorWorktree(chatId: string): Promise<{ error?: string; bytes?: number } | undefined>
   setThresholds(thresholds: Thresholds): HousekeepingView
   finishChat(chatId: string, removeWorktree?: boolean): Promise<Finished | undefined>
   finishChats(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>

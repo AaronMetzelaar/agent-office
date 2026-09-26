@@ -44,17 +44,19 @@ export async function gitSafety(path: string, gh: Run): Promise<GitSafety> {
     return { label: 'Git state unknown', safe: false, blocked: 'its git state couldn’t be read' }
   }
   if (!Number.isFinite(unpushed)) return { label: 'Git state unknown', safe: false, blocked: 'its git state couldn’t be read' }
-  if (uncommitted) return { label: `${uncommitted} uncommitted`, safe: false, blocked: plural(uncommitted, 'uncommitted change') }
-  if (!unpushed) return { label: 'Clean', safe: true }
-  const { pr, notice } = await pullRequest(path, gh)
-  if (pr?.state === 'merged') return { label: 'PR merged', safe: true }
-  const why = plural(unpushed, 'unpushed commit')
-  return { label: `${unpushed} unpushed`, safe: false, blocked: notice ? `${why}, and the PR state is unknown` : why }
+  let commits: GitSafety = { label: 'Clean', safe: true }
+  if (unpushed) {
+    const { pr, notice } = await pullRequest(path, gh)
+    const why = plural(unpushed, 'unpushed commit')
+    commits = pr?.state === 'merged' ? { label: 'PR merged', safe: true } : { label: `${unpushed} unpushed`, safe: false, blocked: notice ? `${why}, and the PR state is unknown` : why }
+  }
+  if (!uncommitted) return commits
+  return { label: `${uncommitted} uncommitted`, safe: false, blocked: plural(uncommitted, 'uncommitted change'), ...(commits.safe ? { discardable: true } : {}) }
 }
 
-export async function removeWorktree(run: Run, repo: string, path: string): Promise<string | undefined> {
+export async function removeWorktree(run: Run, repo: string, path: string, force = false): Promise<string | undefined> {
   try {
-    await run('git', ['worktree', 'remove', path], repo)
+    await run('git', ['worktree', 'remove', ...(force ? ['--force'] : []), path], repo)
     return undefined
   } catch (error) {
     return gitError(error)

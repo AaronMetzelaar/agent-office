@@ -172,7 +172,7 @@ describe('visitors in worktrees', () => {
     visitors.hook({ session_id: ids.asking, hook_event_name: 'Notification', notification_type: 'permission_prompt', message: 'Claude needs your permission' })
     const { house } = openHousekeeping(office, {}, visitors)
 
-    expect(await house.removeVisitorWorktree(ids.dirty)).toEqual({ error: 'Can’t remove the worktree: 1 uncommitted change.' })
+    expect(await house.removeVisitorWorktree(ids.dirty)).toBeUndefined()
     expect(await house.removeVisitorWorktree(ids.ahead)).toEqual({ error: 'Can’t remove the worktree: 1 unpushed commit, and the PR state is unknown.' })
     expect(await house.removeVisitorWorktree(ids.busy)).toEqual({ error: 'Can’t remove the worktree: the chat is working in the desktop app.' })
     expect(await house.removeVisitorWorktree(ids.asking)).toEqual({ error: 'Can’t remove the worktree: the chat is waiting for you in the desktop app.' })

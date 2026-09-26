@@ -99,11 +99,13 @@ const archiveVisitor = (row: Row) =>
 const removeVisitorTree = (row: Row) =>
   act(async () => {
     const result = await window.office.removeVisitorWorktree(row.chat.id)
+    if (!result) return ''
     return result.error ?? `Removed ${folderName(row.tree?.path ?? '')}${result.bytes ? ` · ${size(result.bytes)}` : ''} · chat archived`
   })
 const removeTree = (tree: WorktreeView) =>
   act(async () => {
     const result = await window.office.removeWorktree(tree.path)
+    if (!result) return ''
     return result.error ?? `Removed ${folderName(tree.path)}${result.bytes ? ` · ${size(result.bytes)}` : ''}`
   })
 
@@ -203,18 +205,19 @@ onUnmounted(() => {
           <span v-if="row.tree" :class="['gc', { safe: row.tree.git?.safe, block: row.tree.git?.blocked }]">{{ row.tree.git?.label ?? 'checking…' }}</span>
         </div>
         <div class="hr3" :title="row.chat.cwd">{{ processLine(row) }}</div>
-        <p v-if="row.tree?.git?.blocked" class="hwhy">Can’t remove the worktree: {{ row.tree.git.blocked }}. {{ row.chat.visitor ? `Commit or push in ${runsIn(row.chat)} first.` : 'Open the chat to commit or push first.' }}</p>
+        <p v-if="row.tree?.git?.discardable" class="hwhy">Removing it discards {{ row.tree.git.blocked }}.</p>
+        <p v-else-if="row.tree?.git?.blocked" class="hwhy">Can’t remove the worktree: {{ row.tree.git.blocked }}. {{ row.chat.visitor ? `Commit or push in ${runsIn(row.chat)} first.` : 'Open the chat to commit or push first.' }}</p>
         <p v-else-if="row.tree && hold(row)" class="hwhy">Can’t remove the worktree: {{ hold(row) }}.</p>
         <p v-for="proc in row.stubborn" :key="proc.pid" class="hwhy">{{ proc.command }} (pid {{ proc.pid }}) kept running after a stop request. Quit it yourself if you don’t need it.</p>
         <div v-if="row.chat.visitor" class="hr4">
           <button type="button" class="btn sm" :disabled="busy" @click="archiveVisitor(row)">Archive chat</button>
-          <button v-if="row.tree" type="button" class="btn sm" :disabled="!row.tree.git?.safe || !!hold(row) || busy" @click="removeVisitorTree(row)">Remove worktree</button>
+          <button v-if="row.tree" type="button" class="btn sm" :disabled="!(row.tree.git?.safe || row.tree.git?.discardable) || !!hold(row) || busy" @click="removeVisitorTree(row)">Remove worktree</button>
         </div>
         <div v-else class="hr4">
           <button v-if="row.memory?.processes.length" type="button" class="btn sm" :disabled="busy" @click="stop(row)">Stop processes</button>
           <button type="button" class="btn sm" :disabled="busy" @click="archive(row)">Archive chat</button>
           <button v-if="row.tree?.git?.blocked" type="button" class="btn sm primary" @click="emit('select', row.chat.id)">Open chat</button>
-          <button v-else-if="row.tree" type="button" class="btn sm" :disabled="!row.tree.git?.safe || busy" @click="cleanUp([row.chat.id])">Remove worktree</button>
+          <button v-if="row.tree && (!row.tree.git?.blocked || row.tree.git.discardable)" type="button" class="btn sm" :disabled="!(row.tree.git?.safe || row.tree.git?.discardable) || busy" @click="cleanUp([row.chat.id])">Remove worktree</button>
         </div>
       </article>
     </section>
@@ -243,9 +246,10 @@ onUnmounted(() => {
           <span>{{ folderName(tree.repo) }}</span><template v-if="tree.branch"><span>·</span><span>{{ tree.branch }}</span></template>
           <span :class="['gc', { safe: tree.git?.safe, block: tree.git?.blocked }]">{{ tree.locked ? 'Locked' : (tree.git?.label ?? 'checking…') }}</span>
         </div>
-        <p v-if="tree.git?.blocked" class="hwhy">Kept: {{ tree.git.blocked }}.</p>
-        <div v-else class="hr4">
-          <button type="button" class="btn sm" :disabled="!tree.git?.safe || tree.locked || busy" @click="removeTree(tree)">Remove worktree</button>
+        <p v-if="tree.git?.discardable" class="hwhy">Removing it discards {{ tree.git.blocked }}.</p>
+        <p v-else-if="tree.git?.blocked" class="hwhy">Kept: {{ tree.git.blocked }}.</p>
+        <div v-if="!tree.git?.blocked || tree.git.discardable" class="hr4">
+          <button type="button" class="btn sm" :disabled="!(tree.git?.safe || tree.git?.discardable) || tree.locked || busy" @click="removeTree(tree)">Remove worktree</button>
         </div>
       </div>
     </template>

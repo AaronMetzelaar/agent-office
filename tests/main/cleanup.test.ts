@@ -131,6 +131,25 @@ describe('clean up safe', () => {
     expect(await house.removeWorktree(dirtyTree)).toEqual({ error: 'A chat still works in it. Clean up the chat instead.' })
   })
 
+  it('discards uncommitted changes only after asking, and never when commits are unpushed', async () => {
+    const { house, clock } = openHousekeeping(office)
+    const dirtyTree = worktree('dirty', 'uncommitted')
+    const bothTree = worktree('both', 'unpushed')
+    writeFileSync(join(bothTree, 'more.ts'), 'more\n')
+    const dirty = staleChat('Dirty', dirtyTree)
+    const both = staleChat('Both', bothTree)
+    clock.now += 4 * day
+    await house.refresh()
+    const asked: string[] = []
+
+    const summary = await house.cleanUp([dirty, both], async (message) => (asked.push(message), true))
+
+    expect(asked).toEqual(['Discard 1 uncommitted change in dirty?'])
+    expect(summary).toMatchObject({ chats: 1, removed: 1, skipped: [{ chatId: both, reason: '1 uncommitted change' }] })
+    expect(existsSync(dirtyTree)).toBe(false)
+    expect(existsSync(bothTree)).toBe(true)
+  })
+
   it('keeps the worktree and reports a process that won’t exit, without force-killing it', async () => {
     const { house, clock } = openHousekeeping(office)
     const path = worktree('stubborn')
