@@ -66,23 +66,31 @@ export interface LabelItem {
   distance: number
 }
 
+export type ScreenRect = [number, number, number, number]
+
 export interface Placed {
   show: boolean
   dx: number
   lift: number
   mini: boolean
-  rect?: [number, number, number, number]
+  rect?: ScreenRect
 }
 
 const offsets = [[0, 0], [0, 24], [0, 48], [-1, 0], [1, 0], [0, 72], [-1, 24], [1, 24], [-1, 48], [1, 48], [0, 96], [0, -64], [-1, -64], [1, -64], [0, -88], [-1, 72], [1, 72], [0, 120], [-1, -88], [1, -88]] as const
 
-export function placeLabels(signs: readonly [number, number, number, number][], items: readonly LabelItem[]): Map<string, Placed> {
+export function bodyBox(head: readonly [number, number], waist: readonly [number, number]): ScreenRect {
+  const half = Math.max(6, (waist[1] - head[1]) * 0.42)
+  return [head[0] - half, head[1], head[0] + half, waist[1]]
+}
+
+export function placeLabels(signs: readonly ScreenRect[], items: readonly LabelItem[], bodies: readonly ScreenRect[] = []): Map<string, Placed> {
   const placed = [...signs]
   const out = new Map<string, Placed>()
   const fits = (it: LabelItem, hw: number, dx: number, lift: number) =>
-    !placed.some((r) => it.x + dx - hw < r[2] + 6 && it.x + dx + hw > r[0] - 6 && it.y - it.h - lift < r[3] + 4 && it.y - lift > r[1] - 4)
+    !placed.some((r) => it.x + dx - hw < r[2] + 6 && it.x + dx + hw > r[0] - 6 && it.y - it.h - lift < r[3] + 4 && it.y - lift > r[1] - 4) &&
+    !bodies.some((r) => it.x + dx - hw < r[2] && it.x + dx + hw > r[0] && it.y - it.h - lift < r[3] && it.y - lift > r[1])
   const put = (it: LabelItem, hw: number, dx: number, lift: number, mini: boolean) => {
-    const rect: [number, number, number, number] = [it.x + dx - hw, it.y - it.h - lift, it.x + dx + hw, it.y - lift]
+    const rect: ScreenRect = [it.x + dx - hw, it.y - it.h - lift, it.x + dx + hw, it.y - lift]
     placed.push(rect)
     out.set(it.key, { show: true, dx, lift, mini, rect })
   }

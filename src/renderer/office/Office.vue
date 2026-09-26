@@ -16,6 +16,7 @@ import { buildInbox, emptyInbox, finishedOf } from '../state/inbox'
 import { cycleAgent, keyAction } from '../state/keys'
 import { hasNewArtifact } from '../state/artifacts'
 import { createProjection, toAgents, type ChatSource } from '../state/projection'
+import { terminalShown } from '../state/terminal'
 import { createCamera, type View } from './camera'
 import { isWarning, tightest } from '../../shared/guardrails'
 import { stateKey, type ChipAction, type StateKey } from './labels'
@@ -218,8 +219,8 @@ const captions = setInterval(push, 60_000)
 
 function region() {
   const bottom = barEl.value?.getBoundingClientRect().bottom ?? 56
-  const drawer = inboxEl.value?.getBoundingClientRect()
-  return { x0: 12, y0: bottom + 8, x1: drawer?.width ? drawer.left - 12 : innerWidth - 12, y1: innerHeight - 12 }
+  const right = Math.min(...[inboxEl.value, ...document.querySelectorAll<HTMLElement>('[data-dock]')].flatMap((el) => (el?.offsetWidth ? [el.getBoundingClientRect().left] : [])), innerWidth)
+  return { x0: 12, y0: bottom + 8, x1: right - 12, y1: innerHeight - 12 }
 }
 
 const Scene = defineComponent({
@@ -356,9 +357,18 @@ void window.office.getHousekeeping().then((view) => (house.value ??= view))
 const offReviews = window.office.onReviewRequests((queue) => (reviews.value = queue))
 void window.office.getReviewRequests().then((queue) => (reviews.value ??= queue))
 watch([reviews, world], () => world.value?.setReviews(reviews.value?.requests ?? []))
-onMounted(() => addEventListener('keydown', onKey))
+const barSize = new ResizeObserver(() => document.documentElement.style.setProperty('--bar-bottom', `${barEl.value?.getBoundingClientRect().bottom ?? 56}px`))
+watch(
+  () => terminalShown.value && !!openChat.value,
+  () => void nextTick(() => world.value?.relayoutView()),
+)
+onMounted(() => {
+  addEventListener('keydown', onKey)
+  if (barEl.value) barSize.observe(barEl.value)
+})
 onUnmounted(() => {
   removeEventListener('keydown', onKey)
+  barSize.disconnect()
   offNavigate()
   offHousekeeping()
   offReviews()

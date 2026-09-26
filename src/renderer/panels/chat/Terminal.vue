@@ -5,8 +5,8 @@ import '@xterm/xterm/css/xterm.css'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { Icon } from '../../icons'
 
-const props = defineProps<{ chatId: string; title: string; buffer: string }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{ chatId: string; title: string; buffer: string; resumable?: boolean }>()
+const emit = defineEmits<{ close: []; resume: [] }>()
 
 const host = ref<HTMLElement>()
 const exited = ref(false)
@@ -43,12 +43,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="term" aria-label="Terminal" @keydown.esc.stop>
+  <section class="term" aria-label="Terminal" data-dock @keydown.esc.stop>
     <header>
       <Icon name="terminal" />
       <span class="tn">{{ title }}</span>
       <span v-if="exited" class="tx">exited</span>
-      <button type="button" class="ib" aria-label="Hide terminal" title="Hide. The shell keeps running." @click="emit('close')"><Icon name="minus" :size="16" /></button>
+      <button v-if="resumable" type="button" class="ib" aria-label="Resume in Terminal app" title="Resume this session in the Terminal app, on its own account. The office chat is untouched." @click="emit('resume')"><Icon name="external" :size="16" /></button>
+      <button type="button" class="ib" aria-label="Hide terminal" title="Hide (⌃`). The shell keeps running." @click="emit('close')"><Icon name="minus" :size="16" /></button>
       <button type="button" class="ib" aria-label="Close terminal" title="Close and end the shell" @click="close"><Icon name="close" :size="16" /></button>
     </header>
     <div ref="host" class="screen" />
@@ -59,10 +60,10 @@ onUnmounted(() => {
 .term {
   position: fixed;
   z-index: 6;
-  top: 64px;
+  top: calc(var(--bar-bottom, 56px) + 8px);
   bottom: 12px;
   right: calc(24px + clamp(420px, 34vw, 560px));
-  width: clamp(360px, 34vw, 640px);
+  width: clamp(340px, 28vw, 560px);
   display: flex;
   flex-direction: column;
   background: #111827;
@@ -94,8 +95,6 @@ header {
 }
 
 header .ib {
-  width: 26px;
-  height: 26px;
   color: #9ca3af;
 }
 

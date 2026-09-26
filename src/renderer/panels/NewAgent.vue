@@ -204,7 +204,9 @@ onMounted(async () => {
   font: 13px Geist, system-ui, sans-serif;
   border: 1px solid var(--line);
   border-radius: 9px;
-  padding: 7px 8px;
+  height: var(--h);
+  box-sizing: border-box;
+  padding: 0 8px;
   background: #fff;
   color: var(--ink);
   min-width: 0;

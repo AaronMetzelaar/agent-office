@@ -367,7 +367,9 @@ onUnmounted(() => {
   font: 12px Geist, system-ui, sans-serif;
   border: 1px solid var(--line);
   border-radius: 7px;
-  padding: 4px 6px;
+  height: var(--h-sm);
+  box-sizing: border-box;
+  padding: 0 6px;
   background: #fff;
   color: var(--ink);
 }
@@ -385,7 +387,6 @@ onUnmounted(() => {
 
 .hk .hcta > .btn {
   justify-content: center;
-  padding: 9px 12px;
 }
 
 .hk .hconf {

@@ -59,10 +59,6 @@ async function submit(useClaudeLogin = false) {
   gap: 8px;
 }
 
-.add .btn {
-  padding: 9px 14px;
-}
-
 .progress {
   color: var(--accent);
 }

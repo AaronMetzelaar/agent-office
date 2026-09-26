@@ -1,3 +1,25 @@
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import csharp from 'highlight.js/lib/languages/csharp'
+import css from 'highlight.js/lib/languages/css'
+import diff from 'highlight.js/lib/languages/diff'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import go from 'highlight.js/lib/languages/go'
+import ini from 'highlight.js/lib/languages/ini'
+import java from 'highlight.js/lib/languages/java'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import kotlin from 'highlight.js/lib/languages/kotlin'
+import markdownLang from 'highlight.js/lib/languages/markdown'
+import python from 'highlight.js/lib/languages/python'
+import ruby from 'highlight.js/lib/languages/ruby'
+import rust from 'highlight.js/lib/languages/rust'
+import scss from 'highlight.js/lib/languages/scss'
+import sql from 'highlight.js/lib/languages/sql'
+import swift from 'highlight.js/lib/languages/swift'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
+import yaml from 'highlight.js/lib/languages/yaml'
 import { Lexer, type Token, type Tokens } from 'marked'
 import { computed, defineComponent, h, onUnmounted, ref, type VNodeArrayChildren, type VNodeChild } from 'vue'
 import { Icon } from '../../icons'
@@ -33,6 +55,36 @@ function withFiles(text: string): VNodeChild {
 
 const shells = new Set(['', 'sh', 'bash', 'zsh', 'shell', 'console', 'terminal'])
 
+const languages = { bash, csharp, css, diff, dockerfile, go, ini, java, javascript, json, kotlin, markdown: markdownLang, python, ruby, rust, scss, sql, swift, typescript, xml, yaml }
+for (const [name, language] of Object.entries(languages)) hljs.registerLanguage(name, language)
+hljs.registerAliases(['tsx', 'mts', 'cts'], { languageName: 'typescript' })
+hljs.registerAliases(['jsx', 'mjs', 'cjs'], { languageName: 'javascript' })
+hljs.registerAliases(['vue', 'svelte', 'svg', 'plist'], { languageName: 'xml' })
+hljs.registerAliases(['jsonc', 'json5'], { languageName: 'json' })
+hljs.registerAliases(['toml', 'env'], { languageName: 'ini' })
+hljs.registerAliases(['sh', 'zsh', 'shell', 'console', 'terminal'], { languageName: 'bash' })
+
+const names: Record<string, string> = { bash: 'Shell', csharp: 'C#', css: 'CSS', diff: 'Diff', dockerfile: 'Dockerfile', go: 'Go', ini: 'Config', java: 'Java', javascript: 'JavaScript', json: 'JSON', kotlin: 'Kotlin', markdown: 'Markdown', python: 'Python', ruby: 'Ruby', rust: 'Rust', scss: 'SCSS', sql: 'SQL', swift: 'Swift', typescript: 'TypeScript', xml: 'HTML', yaml: 'YAML', tsx: 'TSX', jsx: 'JSX', vue: 'Vue', svelte: 'Svelte', svg: 'SVG', toml: 'TOML', html: 'HTML' }
+const autoLimit = 4000
+const paintCache = new Map<string, { html: string; label: string }>()
+const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' }
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => entities[char]!)
+
+export function highlight(text: string, lang = ''): { html: string; label: string } {
+  const tag = lang.trim().split(/\s+/)[0]!.toLowerCase()
+  const key = `${tag}\0${text}`
+  const cached = paintCache.get(key)
+  if (cached) return cached
+  const known = tag ? hljs.getLanguage(tag) : undefined
+  const result = known ? hljs.highlight(text, { language: tag, ignoreIllegals: true }) : !tag && text.length <= autoLimit ? hljs.highlightAuto(text) : undefined
+  const detected = result?.language && Object.keys(languages).find((name) => hljs.getLanguage(name) === hljs.getLanguage(result.language!))
+  const used = !!result && (!!known || result.relevance >= 5)
+  const out = { html: used ? result.value : escapeHtml(text), label: names[tag] ?? (used && detected ? names[detected] : undefined) ?? tag }
+  if (paintCache.size > 400) paintCache.clear()
+  paintCache.set(key, out)
+  return out
+}
+
 export const runnable = (lang: string | undefined) => shells.has((lang ?? '').trim().toLowerCase())
 
 export const commandOf = (text: string) => text.replace(/^\$ /gm, '')
@@ -49,12 +101,14 @@ const CodeBlock = defineComponent({
       timer = setTimeout(() => (copied.value = false), 1500)
     }
     onUnmounted(() => clearTimeout(timer))
+    const painted = computed(() => highlight(props.text, props.lang))
     return () =>
       h('div', { class: 'code' }, [
-        h('pre', h('code', props.text)),
-        h('span', { class: 'cacts' }, [
-          runnable(props.lang) ? h('button', { type: 'button', 'aria-label': 'Run in terminal', title: 'Run in a terminal next to the chat', 'data-run': commandOf(props.text) }, h(Icon, { name: 'play' })) : null,
-          h('button', { type: 'button', 'aria-label': copied.value ? 'Copied' : 'Copy code', title: copied.value ? 'Copied' : 'Copy', onClick: copy }, h(Icon, { name: copied.value ? 'check' : 'copy' })),
+        h('pre', h('code', { class: 'hljs', innerHTML: painted.value.html })),
+        h('div', { class: 'cfoot' }, [
+          h('span', { class: 'clang' }, painted.value.label),
+          runnable(props.lang) ? h('button', { type: 'button', title: 'Run in a terminal next to the chat', 'data-run': commandOf(props.text) }, [h(Icon, { name: 'play' }), 'Run']) : null,
+          h('button', { type: 'button', 'aria-live': 'polite', onClick: copy }, [h(Icon, { name: copied.value ? 'check' : 'copy' }), copied.value ? 'Copied' : 'Copy']),
         ]),
       ])
   },

@@ -9,7 +9,7 @@ import type { Agent } from '../state/projection'
 import { createRig, VIEW, type Region, type View } from './camera'
 import { animate, createKit, type Character, type Target } from './characters'
 import { createGuard } from './guard'
-import { chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, setSignName, signNames, stateKey, type Chip, type ChipAction, type Focus, type Labelled, type LabelItem, type Sign, type StateKey } from './labels'
+import { bodyBox, chipHalfWidth, chipMode, countsFor, createChip, createDeskChip, createSign, isDim, loud, placeLabels, renderChip, renderSign, ringColourOf, setChipActions, setChipPlacement, setSignName, signNames, stateKey, type Chip, type ChipAction, type Focus, type Labelled, type ScreenRect, type LabelItem, type Sign, type StateKey } from './labels'
 import { deptOf, depts, door, gymCooler, kindOf, layoutFloor, loungeSeat, loungeSpots, minWidth, standBy, visitSpot, queueSpots, shellOf, ZF, type Bounds, type Box, type DeptDef, type DeptId, type Floor, type StandSpot, type YardSide } from './layout'
 import { createIntray } from './intray'
 import { dozeFor, errandAt, lookFor, type SeatLook } from './lounge'
@@ -808,6 +808,10 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
   }
 
   const projected = new THREE.Vector3()
+  const toScreen = (x: number, y: number, z: number, w: number, h: number): [number, number] | undefined => {
+    projected.set(x, y, z).project(camera)
+    return projected.z < 1 ? [((projected.x + 1) / 2) * w, ((1 - projected.y) / 2) * h] : undefined
+  }
   function layoutChips() {
     const zoomed = rig.zoomed(), far = !zoomed, w = innerWidth, h = innerHeight
     layoutDeskChips(zoomed)
@@ -815,7 +819,14 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       labelsEl.classList.toggle('far', far)
       renderSigns()
     }
-    const rects: [number, number, number, number][] = []
+    const rects: ScreenRect[] = []
+    const bodies: ScreenRect[] = []
+    for (const l of live.values()) {
+      if (l.gone) continue
+      const at = l.c.chipAt
+      const head = toScreen(at.x, at.y - 0.29, at.z, w, h), waist = toScreen(at.x, at.y - 1.07, at.z, w, h)
+      if (head && waist) bodies.push(bodyBox(head, waist))
+    }
     for (const sign of signs.values()) {
       if (!sign.obj.visible) continue
       projected.copy(sign.obj.position).project(camera)
@@ -854,7 +865,7 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
       }
       l.chip.obj.visible = false
     }
-    for (const [key, p] of placeLabels(rects, items)) setChipPlacement(byKey.get(key)!.chip, p)
+    for (const [key, p] of placeLabels(rects, items, bodies)) setChipPlacement(byKey.get(key)!.chip, p)
   }
 
   function step(dt: number, now: number) {

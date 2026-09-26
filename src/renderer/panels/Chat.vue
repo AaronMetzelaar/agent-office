@@ -3,6 +3,7 @@ import { computed, nextTick, onUnmounted, reactive, ref, shallowReactive, watch 
 import { simulatorOf, usingSimulator, type ChatView } from '../../shared/chat'
 import { canRest } from '../office/standby'
 import { hasNewArtifact, sawArtifacts } from '../state/artifacts'
+import { terminalShown } from '../state/terminal'
 import { runsIn } from '../../shared/housekeeping'
 import type { Decision, PendingRequestView } from '../../shared/permissions'
 import type { AgentEntry } from '../office/world'
@@ -66,6 +67,33 @@ async function run(command: string) {
   if ('error' in result) return say(result.error)
   const title = command.trim().split('\n')[0]!
   terminal.value = { title, buffer: terminal.value ? '' : result.buffer }
+  terminalShown.value = true
+}
+
+async function showShell() {
+  const chat = props.chat
+  if (!chat || terminal.value) return
+  const result = await window.office.openShell(chat.id)
+  if ('error' in result) return say(result.error)
+  if (props.chat?.id === chat.id && terminalShown.value) terminal.value = { title: chat.cwd.split('/').pop() ?? chat.cwd, buffer: result.buffer }
+}
+
+function toggleTerminal() {
+  terminalShown.value = !terminalShown.value
+  if (terminalShown.value) void showShell()
+  else terminal.value = undefined
+}
+
+function hideTerminal() {
+  terminalShown.value = false
+  terminal.value = undefined
+}
+
+function onKey(event: KeyboardEvent) {
+  if (event.ctrlKey && !event.metaKey && !event.altKey && event.key === '`') {
+    event.preventDefault()
+    toggleTerminal()
+  }
 }
 
 function step(delta: number) {
@@ -133,6 +161,12 @@ watch(
   { immediate: true },
 )
 watch(
+  () => terminalShown.value && props.chat?.id,
+  (chatId) => chatId && void showShell(),
+  { immediate: true },
+)
+addEventListener('keydown', onKey)
+watch(
   () => tab.value === 'artifacts' && props.chat,
   (chat) => {
     if (chat && sawArtifacts(chat)) emit('saw')
@@ -148,13 +182,14 @@ watch(
 )
 onUnmounted(() => {
   clearTimeout(flashTimer)
+  removeEventListener('keydown', onKey)
   void window.office.setOpenChat()
 })
 </script>
 
 <template>
   <div class="chatp" @click="onClick">
-    <Terminal v-if="terminal && chat" :key="chat.id" :chat-id="chat.id" :title="terminal.title" :buffer="terminal.buffer" @close="terminal = undefined" />
+    <Terminal v-if="terminal && chat" :key="chat.id" :chat-id="chat.id" :title="terminal.title" :buffer="terminal.buffer" :resumable="!!chat.sessionId" @close="hideTerminal" @resume="openInTerminal" />
     <Preview v-if="preview && chat" :chat-id="chat.id" :path="preview" @close="preview = undefined" />
     <nav v-if="waiting.length" class="qstrip" aria-label="Waiting chats">
       <button type="button" class="ib" aria-label="Previous waiting chat" :disabled="at <= 0" @click="step(-1)">‹</button>
@@ -169,7 +204,7 @@ onUnmounted(() => {
         <p class="meta">{{ agent.dept }}<template v-if="chat"> · {{ chat.cwd.split('/').pop() }}</template><span v-if="chat?.visitor" class="vb">Visitor</span></p>
       </div>
       <div class="hact">
-        <button v-if="chat?.sessionId" type="button" class="ib" aria-label="Open in terminal" title="Open in terminal. Resumes this session on its own account; the office chat is untouched." @click="openInTerminal"><Icon name="terminal" :size="16" /></button>
+        <button v-if="chat" type="button" class="ib" aria-label="Terminal" :aria-pressed="terminalShown" title="Terminal in this chat’s folder (⌃`). Stays open as you switch chats." @click="toggleTerminal"><Icon name="terminal" :size="16" /></button>
         <button v-if="chat?.visitor === 'desktop'" type="button" class="ib" aria-label="Open in Claude desktop" title="Open in Claude desktop. Focuses the right window; it can't jump to this exact chat yet." @click="openInDesktop"><Icon name="desktop" :size="16" /></button>
         <template v-if="chat && chat.finished === undefined && !chat.archived">
           <button v-if="canRest(chat.state)" type="button" class="ib" aria-label="Lounge" title="Lounge: move it to the lounge, keeping its desk" @click="emit('lounge', chat.id)"><Icon name="lounge" :size="16" /></button>
@@ -266,11 +301,6 @@ onUnmounted(() => {
   color: var(--needs-ink);
 }
 
-.chatp .qstrip .ib {
-  width: 26px;
-  height: 26px;
-}
-
 .chatp .qstrip .ib:disabled {
   opacity: 0.35;
   cursor: default;
@@ -295,9 +325,12 @@ onUnmounted(() => {
 .chatp .tabs button {
   all: unset;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  height: calc(var(--h-sm) - 4px);
   font: 500 12px Geist, system-ui, sans-serif;
   color: var(--muted);
-  padding: 4px 10px;
+  padding: 0 10px;
   border-radius: 7px;
 }
 

@@ -21,6 +21,19 @@ it('turns a multi-line block into lines the shell runs one by one', () => {
   expect(commandInput('cd a\nls')).toBe('cd a\rls\r')
 })
 
+it('opens a shell in the chat folder without running anything, and reuses it', async () => {
+  const { fake, sent, call } = hub()
+  close = wireTerminal(fake, { chat: (id) => (id === 'c2' ? ({ cwd: dir } as ChatView) : undefined) }).close
+  expect(call('openShell', 'nope')).toEqual({ error: 'That chat isn’t open any more.' })
+  expect(call('openShell', 'c2')).toHaveProperty('buffer')
+  call('terminalInput', 'c2', 'echo "shell in $(basename $PWD)"\r')
+  const output = () => sent.filter((event) => event.name === 'terminalData').map((event) => event.payload.data).join('')
+  await expect.poll(output, { timeout: 10_000 }).toContain(`shell in ${dir.split('/').pop()}`)
+  expect((call('openShell', 'c2') as { buffer: string }).buffer).toContain('shell in')
+  call('closeTerminal', 'c2')
+  await expect.poll(() => sent.some((event) => event.name === 'terminalExit'), { timeout: 5_000 }).toBe(true)
+})
+
 it('runs a code block in a real shell in the chat folder and streams its output', async () => {
   const { fake, sent, call } = hub()
   close = wireTerminal(fake, { chat: (id) => (id === 'c1' ? ({ cwd: dir } as ChatView) : undefined) }).close

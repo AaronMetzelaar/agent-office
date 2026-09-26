@@ -73,6 +73,7 @@ const office: OfficeApi = {
   moveIntoOffice: (chatId) => ipcRenderer.invoke('moveIntoOffice', chatId),
   archiveVisitor: (chatId) => ipcRenderer.invoke('archiveVisitor', chatId),
   openInTerminal: (chatId) => ipcRenderer.invoke('openInTerminal', chatId),
+  openShell: (chatId) => ipcRenderer.invoke('openShell', chatId),
   runInTerminal: (chatId, command) => ipcRenderer.invoke('runInTerminal', chatId, command),
   terminalBuffer: (chatId) => ipcRenderer.invoke('terminalBuffer', chatId),
   terminalInput: (chatId, data) => ipcRenderer.invoke('terminalInput', chatId, data),

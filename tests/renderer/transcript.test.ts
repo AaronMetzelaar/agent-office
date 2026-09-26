@@ -170,14 +170,16 @@ describe('untrusted content', () => {
         render: () =>
           h(
             'div',
-            markdown('# Title\n\n| a | b |\n|:-|-:|\n| 1 | 2 |\n\n- [x] done\n- two\n\n```js\nconst a = "<b>"\n```\n\n<div onclick="x()">raw</div>\n\n[mail](mailto:a@b.c) [file](file:///etc/passwd)'),
+            markdown('# Title\n\n| a | b |\n|:-|-:|\n| 1 | 2 |\n\n- [x] done\n- two\n\n```js\nconst a = "<b>"\n```\n\n```nope\n<img src=x onerror=alert(1)>\n```\n\n<div onclick="x()">raw</div>\n\n[mail](mailto:a@b.c) [file](file:///etc/passwd)'),
           ),
       }),
     )
     expect(html).toContain('<h1>Title</h1>')
     expect(html).toContain('<th style="text-align:left;">a</th>')
     expect(html).toContain('<input type="checkbox" checked disabled>')
-    expect(html).toContain('const a = &quot;&lt;b&gt;&quot;')
+    expect(html).toContain('<span class="hljs-keyword">const</span> a = <span class="hljs-string">&quot;&lt;b&gt;&quot;</span>')
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(html).not.toMatch(/<b>|<img/)
     expect(html).toContain('&lt;div onclick=&quot;x()&quot;&gt;raw&lt;/div&gt;')
     expect(html).not.toMatch(/href="(?:mailto|file):/)
     expect(html).not.toMatch(/<div onclick/)

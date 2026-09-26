@@ -69,6 +69,7 @@ const WL = -13.61
 
 export const hexCss = (h: number) => '#' + h.toString(16).padStart(6, '0')
 export const lighten = (h: number, a: number) => new THREE.Color(h).lerp(new THREE.Color(0xffffff), a)
+const muted = (h: number, a: number) => new THREE.Color(h).lerp(new THREE.Color(0x4a5260), a).getHex()
 const q2 = (v: number) => Math.round(v * 100) / 100
 const rr = (x: CanvasRenderingContext2D, X: number, Y: number, w: number, h: number, r: number) => {
   x.beginPath()
@@ -134,7 +135,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   const mat = {
     wall: M(0xf4f3f0, 0.95), cap: M(0xdcdad5, 0.9), slab: M(0xe6e4df, 0.8), base: M(0xe2e0db, 0.7), wood: M(0xcda274, 0.55), woodD: M(0xa9804f, 0.6),
     white: M(0xf6f6f4, 0.45), offw: M(0xeae9e5, 0.6), paper: M(0xfbfbf9, 0.8), dark: M(0x2a2e36, 0.4), frame: M(0x3a3f48, 0.45), metal: M(0xbcc1c8, 0.32, 0.6),
-    black: M(0x25282e, 0.55), chair: M(0x4a5260, 0.85), fabric: M(0x93a0ae, 0.95), fabric2: M(0xa3afbc, 0.95), leafA: M(0x3f9a55, 0.62), leafB: M(0x2e7d45, 0.66),
+    black: M(0x25282e, 0.55), fabric: M(0x93a0ae, 0.95), fabric2: M(0xa3afbc, 0.95), leafA: M(0x3f9a55, 0.62), leafB: M(0x2e7d45, 0.66),
     leafC: M(0x5db36b, 0.6), snake: M(0x2f6b43, 0.6), snakeL: M(0x7fa85a, 0.6), sage: M(0x8db59a, 0.7), trunk: M(0x7a5a3e, 0.8), soil: M(0x3b2f28, 1), pot: M(0xefece6, 0.7),
     potD: M(0x3a3f47, 0.6), terra: M(0xc9714b, 0.8), screenOff: M(0x1e232c, 0.3), mat1: M(0x2dd4bf, 0.85), mat2: M(0xa78bfa, 0.85), mat3: M(0xfb923c, 0.85),
     teal: M(0x1f8a7e, 0.6), red: M(0xe0463c, 0.5), kraft: M(0xd6c3a0, 0.85), doormat: M(0x50565f, 1),
@@ -292,9 +293,70 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   mesh(RB(1.3, 0.016, 0.7, 0.008), mat.doormat, door[0], 0.008, 12.45).castShadow = false
 
   const carpet = carpetTex()
+  const floorMaps: Partial<Record<Look, THREE.Texture>> = {}
+  function tiles(n: number, seam: string, shade: number, extra?: (x: CanvasRenderingContext2D, X: number, Y: number, s: number) => void) {
+    const { x, t } = canvasTex(512, 512)
+    const s = 512 / n
+    for (let j = 0; j < n; j++)
+      for (let i = 0; i < n; i++) {
+        const v = 255 - Math.floor(rnd() * shade)
+        x.fillStyle = `rgb(${v},${v},${v})`
+        x.fillRect(i * s, j * s, s, s)
+        extra?.(x, i * s, j * s, s)
+      }
+    x.fillStyle = seam
+    for (let k = 0; k <= n; k++) {
+      x.fillRect(Math.round(k * s) - 1, 0, 2, 512)
+      x.fillRect(0, Math.round(k * s) - 1, 512, 2)
+    }
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    return t
+  }
+  function parquetTex() {
+    const { x, t } = canvasTex(512, 512)
+    const w = 512 / 12
+    for (let i = 0; i < 12; i++)
+      for (let y = -rnd() * 200; y < 512; ) {
+        const len = 120 + rnd() * 180, v = rnd()
+        x.fillStyle = `rgb(${Math.round(214 + v * 22)},${Math.round(176 + v * 22)},${Math.round(134 + v * 20)})`
+        x.fillRect(i * w, y, w, len)
+        x.fillStyle = 'rgba(120,80,40,.25)'
+        x.fillRect(i * w, y, w, 1.5)
+        y += len
+      }
+    x.fillStyle = 'rgba(120,80,40,.22)'
+    for (let i = 0; i <= 12; i++) x.fillRect(Math.round(i * w) - 1, 0, 1.5, 512)
+    for (let k = 0; k < 5000; k++) {
+      x.fillStyle = `rgba(90,60,30,${0.03 + rnd() * 0.05})`
+      x.fillRect(rnd() * 512, rnd() * 512, 1, 3 + rnd() * 9)
+    }
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    return t
+  }
+  function stripesTex() {
+    const t = carpetTex(), x = (t.image as HTMLCanvasElement).getContext('2d')!
+    x.fillStyle = 'rgba(0,0,0,.07)'
+    x.fillRect(0, 0, 512, 256)
+    t.needsUpdate = true
+    return t
+  }
+  function floorMapOf(look: Look): THREE.Texture {
+    const make: Partial<Record<Look, () => THREE.Texture>> = {
+      servers: () => tiles(3, 'rgba(70,78,90,.35)', 10, (x, X, Y, s) => {
+        if (rnd() > 0.28) return
+        x.fillStyle = 'rgba(60,66,76,.28)'
+        for (let a = s * 0.18; a < s * 0.84; a += s / 9) for (let b = s * 0.18; b < s * 0.84; b += s / 9) x.fillRect(X + a, Y + b, 3, 3)
+      }),
+      devices: () => tiles(4, 'rgba(90,100,110,.22)', 6),
+      reading: parquetTex,
+      showroom: stripesTex,
+    }
+    return (floorMaps[look] ??= make[look]?.() ?? carpet)
+  }
+  const floorTint: Partial<Record<Look, [number, number]>> = { reading: [0.9, 0.8], servers: [0.7, 0.6], devices: [0.74, 0.64] }
 
-  function wallPiece(p: THREE.Object3D) {
-    return { body: mesh(BX(1, 0.58, 1), mat.white, 0, 0.29, 0, p), cap: mesh(BX(1, 0.035, 1), mat.wood, 0, 0.597, 0, p) }
+  function wallPiece(p: THREE.Object3D, accent: number) {
+    return { body: mesh(BX(1, 0.58, 1), M(lighten(accent, 0.86).getHex(), 0.6), 0, 0.29, 0, p), cap: mesh(BX(1, 0.035, 1), M(lighten(accent, 0.12).getHex(), 0.5), 0, 0.597, 0, p) }
   }
   function setWall(w: { body: THREE.Mesh; cap: THREE.Mesh }, x0: number, z0: number, x1: number, z1: number) {
     const lx = Math.max(x1 - x0, 0.07), lz = Math.max(z1 - z0, 0.07), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2
@@ -480,13 +542,14 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
       mesh(CY(0.03, 0.075, 0.1, 18), mat.black, 0, 1.12, 0.15, lg).rotation.x = 0.5
     }
     if (v % 2 === 0) for (let k = 0; k < 3; k++) mesh(BX(0.21, 0.004, 0.29), k % 2 ? mat.paper : mat.offw, -0.42 + k * 0.01, 0.772 + k * 0.005, -0.1, g).rotation.y = (k - 1) * 0.09
-    if (v % 3 === 1 && !bare) mesh(CY(0.04, 0.036, 0.09, 14), [mat.white, mat.terra, M(0x1b34ff, 0.5)][i % 3]!, 0.62, 0.815, -0.12, g)
+    if (v % 3 === 1 && !bare) mesh(CY(0.04, 0.036, 0.09, 14), [mat.white, mat.terra, M(d.accent, 0.5)][i % 3]!, 0.62, 0.815, -0.12, g)
     if ((v === 2 || v === 5) && !bare) succ(-0.64, 0.77, 0.12, g)
     if (v === 3 && !bare) mesh(RB(0.18, 0.016, 0.24, 0.006), M(0xe0463c, 0.7), -0.45, 0.779, -0.08, g).rotation.y = 0.25
     const ch = grp(0, -0.68, 0, g)
     s.chair = ch
-    mesh(RB(0.46, 0.07, 0.44, 0.03), mat.chair, 0, 0.46, 0, ch)
-    mesh(RB(0.44, 0.44, 0.06, 0.03), mat.chair, 0, 0.76, -0.27, ch)
+    const seat = M(muted(d.accent, 0.35), 0.85)
+    mesh(RB(0.46, 0.07, 0.44, 0.03), seat, 0, 0.46, 0, ch)
+    mesh(RB(0.44, 0.44, 0.06, 0.03), seat, 0, 0.76, -0.27, ch)
     mesh(CY(0.025, 0.025, 0.34, 10), mat.black, 0, 0.26, 0, ch)
     for (let k = 0; k < 5; k++) {
       const a = k * 1.2566
@@ -1540,7 +1603,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     p.add(tint)
     const lineM = M(lighten(d.def.accent, 0.3).getHex(), 0.8)
     const lines = [0, 1, 2, 3].map(() => ms(BX(1, 0.003, 1), lineM, 0, 0.006, 0, p))
-    const [front, left, right] = [wallPiece(p), wallPiece(p), wallPiece(p)]
+    const [front, left, right] = [wallPiece(p, d.def.accent), wallPiece(p, d.def.accent), wallPiece(p, d.def.accent)]
     const trough = planter(p)
     bake(trough, new Set())
     const sides = (dd: number) => [0, dd - 1.95] as [number, number]
@@ -1578,7 +1641,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     const tint = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), d.tint)
     tint.rotation.x = -Math.PI / 2
     p.add(tint)
-    const front = wallPiece(p)
+    const front = wallPiece(p, d.def.accent)
     const posts = [0, 1].map(() => mesh(BX(0.06, 2.4, 0.06), mat.frame, 0, 1.2, 0, p))
     const rails = [mesh(BX(0.07, 0.05, 1), mat.frame, 0, 2.4, 0, p), mesh(BX(0.07, 0.04, 1), mat.frame, 0, 0.02, 0, p)]
     const glass = plane(1, 2.3, glassM, 0, 1.2, 0, p)
@@ -1628,8 +1691,9 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
   function addRoom(def: DeptDef) {
     const gym = def.shell === 'gym', yard = def.shell === 'yard'
     const g = grp(0, 0, 0, root), gi = grp(0, 0, 0, g), shell = grp(0, 0, 0, gi)
-    const tintLo = yard ? new THREE.Color(0x9ccc84) : lighten(def.accent, gym ? 0.55 : 0.62), tintHi = yard ? new THREE.Color(0xb4dc9c) : lighten(def.accent, gym ? 0.42 : 0.5)
-    const tint = new THREE.MeshStandardMaterial({ map: gym ? rubberTex() : carpet.clone(), roughness: gym ? 0.95 : 1 })
+    const [lo, hi] = gym ? [0.55, 0.42] : (floorTint[def.look] ?? [0.54, 0.44])
+    const tintLo = yard ? new THREE.Color(0x9ccc84) : lighten(def.accent, lo), tintHi = yard ? new THREE.Color(0xb4dc9c) : lighten(def.accent, hi)
+    const tint = new THREE.MeshStandardMaterial({ map: gym ? rubberTex() : floorMapOf(def.look).clone(), roughness: gym ? 0.95 : def.look === 'reading' ? 0.7 : 1 })
     tint.color.copy(tintLo)
     const d: DeptScene = { def, g, gi, shell, tint, tintLo, tintHi, slots: [], tier: 0, reach: [0.3, 0.3, 0.3, 0.3], resize: () => {}, block: () => {} }
     ;(gym ? gymShell : yard ? yardShell : deskShell)(d)

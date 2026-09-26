@@ -310,56 +310,152 @@ watch(
 }
 
 .md pre {
-  font: 12px/1.55 var(--mono);
+  font: 12.5px/1.6 var(--mono);
   color: var(--ink2);
   background: var(--soft);
-  border-radius: 8px;
-  padding: 9px 11px;
+  border-radius: 12px;
+  padding: 10px 14px;
   overflow: auto;
   white-space: pre;
+  scrollbar-width: thin;
 }
 
 .md .code {
-  position: relative;
+  background: #f3f5f9;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .md .code pre {
   margin: 0;
+  background: none;
+  border-radius: 0;
+  padding: 12px 14px 10px;
 }
 
-.md .cacts {
-  position: absolute;
-  top: 5px;
-  right: 5px;
+.md .cfoot {
   display: flex;
+  align-items: center;
   gap: 2px;
-  opacity: 0;
+  padding: 4px 6px 4px 14px;
+  box-shadow: inset 0 1px 0 rgba(17, 24, 39, 0.06);
 }
 
-.md .code:hover .cacts,
-.md .cacts:focus-within {
-  opacity: 1;
+.md .clang {
+  margin-right: auto;
+  font: 11px var(--mono);
+  color: #5f6672;
 }
 
-.md .cacts button {
+.md .cfoot button {
   all: unset;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  color: var(--muted);
-  background: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font: 500 12px Geist, system-ui, sans-serif;
+  color: var(--ink2);
   cursor: pointer;
+  transition: background-color 0.15s, scale 0.12s cubic-bezier(0.2, 0, 0, 1);
 }
 
-.md .cacts button:hover {
+.md .cfoot button:hover {
+  background: rgba(17, 24, 39, 0.06);
   color: var(--ink);
-  background: #fff;
 }
 
-.md .cacts button:focus-visible {
+.md .cfoot button:active {
+  scale: 0.96;
+}
+
+.md .cfoot button:focus-visible {
   outline: 2px solid var(--accent);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #5f6672;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-meta .hljs-keyword {
+  color: #8430ce;
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-template-tag,
+.hljs-meta .hljs-string {
+  color: #137333;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: #b3261e;
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-name {
+  color: #1a5fd6;
+}
+
+.hljs-type,
+.hljs-title.class_,
+.hljs-built_in,
+.hljs-selector-class {
+  color: #9a4d00;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-selector-id,
+.hljs-params {
+  color: #0b6e79;
+}
+
+.hljs-meta,
+.hljs-tag {
+  color: #5b6472;
+}
+
+.hljs-addition {
+  color: #146c2e;
+  background: #e6f4ea;
+}
+
+.hljs-deletion {
+  color: #a50e0e;
+  background: #fce8e6;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md .cfoot button {
+    transition: none;
+  }
+
+  .md .cfoot button:active {
+    scale: none;
+  }
 }
 
 .md pre code {

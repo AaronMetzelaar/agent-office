@@ -99,6 +99,32 @@ const request = (id: string, tool: string, summary: string, createdAt: number, d
   alwaysAllow: tool !== 'WebFetch' && !dangerous,
 })
 
+const reply = (id: string): ChatView['rows'] => [
+  { kind: 'user', id: `${id}-u`, text: 'Round bids to the nearest euro before we compare them.' },
+  {
+    kind: 'text',
+    id: `${id}-a`,
+    text: [
+      'Bids now round before the comparison, so `€12.49` and `€12.51` no longer tie.',
+      '',
+      '```ts',
+      'export function roundBid(amount: number): number {',
+      '  // Round half up to whole euros',
+      '  return Math.round(amount)',
+      '}',
+      '',
+      "const winning = bids.filter((bid) => roundBid(bid.amount) >= reserve)",
+      '```',
+      '',
+      'Run the auction tests to check it:',
+      '',
+      '```bash',
+      'pnpm test auction --run',
+      '```',
+    ].join('\n'),
+  },
+]
+
 function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, index: number, now: number, visitors = false): ChatView {
   const at = now - minutes * 60_000
   const id = `demo-${index}`
@@ -120,11 +146,12 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     pendingRequests: ask ? [request(`${id}-ask`, ask[0], ask[1], at, ask[2])] : [],
     ...(ask ? { oldestPendingAt: at } : {}),
     subagents: (state === 'working' ? (extra.subs ?? []) : []).map((description, k) => ({ id: `${id}-sub-${k}`, description })),
+    ...(state === 'working' || state === 'done' ? { context: { tokens: 84_000 + index * 3_000, max: 200_000, percent: 42 + index } } : {}),
     usage: emptyUsage(),
     partial: '',
     createdAt: at - index * 1000,
     lastActivityAt: at,
-    rows: [],
+    rows: state === 'done' ? reply(id) : [],
     ...(state === 'stuck' ? { stuck: { reason: 'error' as const, detail: 'pnpm build still failing' } } : {}),
     ...((state === 'idle' || state === 'done') && minutes >= 24 * 60 ? { parked: true } : {}),
   }

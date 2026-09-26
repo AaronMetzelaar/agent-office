@@ -1,4 +1,7 @@
 :root {
+  --h: 32px;
+  --h-sm: 28px;
+  --h-lg: 40px;
   --bg: #f6f8fc;
   --panel: #fff;
   --soft: #f5f6f8;
@@ -55,7 +58,9 @@ code {
 
 .btn {
   font: 500 12px Geist, system-ui, sans-serif;
-  padding: 7px 11px;
+  min-height: var(--h);
+  box-sizing: border-box;
+  padding: 4px 12px;
   border-radius: 9px;
   border: 1px solid var(--line);
   background: #fff;
@@ -105,7 +110,8 @@ code {
 }
 
 .btn.sm {
-  padding: 5px 10px;
+  min-height: var(--h-sm);
+  padding: 3px 10px;
   font-size: 11.5px;
   border-radius: 8px;
 }
@@ -131,9 +137,11 @@ code {
 
 .field input {
   font: 13px var(--mono);
+  height: var(--h);
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 9px;
-  padding: 8px 10px;
+  padding: 0 10px;
   background: #fff;
   color: var(--ink);
   min-width: 0;
@@ -158,7 +166,7 @@ code {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  min-height: 40px;
+  min-height: var(--h-lg);
   box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
   display: inline-flex;

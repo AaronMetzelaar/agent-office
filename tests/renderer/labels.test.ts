@@ -2,7 +2,7 @@ import { PerspectiveCamera, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { ChatState } from '../../src/shared/chat'
 import { applyRegion, fitOverview, VIEW } from '../../src/renderer/office/camera'
-import { chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, signNames, stateKey, type Labelled, type LabelItem } from '../../src/renderer/office/labels'
+import { bodyBox, chipHalfWidth, chipMode, countsFor, isDim, placeLabels, ringColourOf, ringColours, signNames, stateKey, type Labelled, type LabelItem, type ScreenRect } from '../../src/renderer/office/labels'
 import { anchorsFor, dept, depts, kindOf, layoutFloor, queueSpots, type DeptId } from '../../src/renderer/office/layout'
 import { noSeating, reseat } from '../../src/renderer/office/seating'
 import { placementFor } from '../../src/renderer/office/pose'
@@ -61,6 +61,7 @@ function overview(samples: Sample[], zoomed: boolean) {
       return [x, y - 40, x + 30 + dept[id]!.name.length * 6.5, y] as [number, number, number, number]
     })
   const items: LabelItem[] = []
+  const bodies: ScreenRect[] = []
   const labelled: Labelled[] = []
   for (const s of samples) {
     const queued = queue.get(s.id) ?? -1
@@ -71,12 +72,13 @@ function overview(samples: Sample[], zoomed: boolean) {
     const [bx, bz] = floor.zones[s.dept]!.world[seating.desks.get(s.id)!.slot]!
     const seat = anchorsFor(kindOf(s.dept), bx, bz).seat
     const [ax, az] = place.anchor === 'queue' ? queueSpots[queued]! : seat
+    bodies.push(bodyBox(screen(ax, 1.42 + place.y - 0.29, az), screen(ax, 1.42 + place.y - 1.07, az)))
     if (!mode) continue
     const [x, y] = screen(ax, 1.42 + place.y, az)
     const far = !zoomed
     items.push({ key: s.id, x, y, hw: chipHalfWidth(s.title, s.caption, far, false, queued >= 0), miniHw: queued >= 0 ? 22 : 14, h: (far ? 32 : 38) + (s.state === 'needs-you' ? (far ? 30 : 36) : 0), priority: who.queued ? 1 : 2, distance: 0 })
   }
-  return { signs, placed: placeLabels(signs, items), items, labelled }
+  return { signs, bodies, placed: placeLabels(signs, items, bodies), items, labelled }
 }
 
 describe('overview labels', () => {
@@ -91,6 +93,13 @@ describe('overview labels', () => {
       const rects = [...signs, ...[...placed.values()].filter((p) => p.show).map((p) => p.rect!)]
       for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) expect(overlaps(rects[i]!, rects[j]!), `${zoomed ? 'zoomed' : 'overview'} ${i}/${j}`).toBe(false)
       if (!zoomed) expect([...placed.values()].filter((p) => p.show && !p.mini).length).toBeGreaterThanOrEqual(14)
+    }
+  })
+
+  it('never covers an agent with any tag, its own or a neighbour’s', () => {
+    for (const zoomed of [false, true]) {
+      const { bodies, placed } = overview(fifteen, zoomed)
+      for (const [key, p] of placed) if (p.show) for (const body of bodies) expect(overlaps(p.rect!, body), `${zoomed ? 'zoomed' : 'overview'} ${key}`).toBe(false)
     }
   })
 

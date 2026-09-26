@@ -152,10 +152,10 @@ async function send() {
     </div>
     <div class="crow">
       <span v-if="mode !== 'auto' && mode !== 'plan'" class="mode">{{ modeLabels[mode] }}</span>
-      <button type="button" class="btn sm sq" aria-label="Commands" title="Commands & skills (/)" @click="slash?.browse()">/</button>
-      <button v-if="!waiting" type="button" class="btn sm sq" aria-label="Attach" title="Attach files or images (or paste / drop them)" @click="picker?.click()"><Icon name="paperclip" /></button>
+      <button type="button" class="btn sq" aria-label="Commands" title="Commands & skills (/)" @click="slash?.browse()">/</button>
+      <button v-if="!waiting" type="button" class="btn sq" aria-label="Attach" title="Attach files or images (or paste / drop them)" @click="picker?.click()"><Icon name="paperclip" /></button>
       <input ref="picker" type="file" multiple hidden @change="picked" />
-      <button type="button" class="btn sm" :aria-pressed="mode === 'plan'" title="Plan first: Claude proposes a plan and waits for your approval before editing" @click="togglePlan">Plan</button>
+      <button type="button" class="btn" :aria-pressed="mode === 'plan'" title="Plan first: Claude proposes a plan and waits for your approval before editing" @click="togglePlan">Plan</button>
       <select aria-label="Model" :value="chat.model || defaultModel" @change="setModel">
         <option v-for="model in models" :key="model" :value="model">{{ modelLabels[model] ?? model }}</option>
       </select>
@@ -163,10 +163,10 @@ async function send() {
         <option v-if="!chat.effort" value="" disabled>Effort</option>
         <option v-for="effort in efforts" :key="effort" :value="effort">{{ effortLabels[effort] }}</option>
       </select>
-      <span v-if="chat.context" :class="['ctx', { full: chat.context.percent >= 80 }]" :title="`${chat.context.tokens.toLocaleString()} of ${chat.context.max.toLocaleString()} tokens in context`">Context {{ chat.context.percent }}%</span>
+      <span v-if="chat.context" :class="['ctx', { full: chat.context.percent >= 80 }]" role="img" :aria-label="`Context ${chat.context.percent}% full`" :title="`Context: ${chat.context.tokens.toLocaleString()} of ${chat.context.max.toLocaleString()} tokens`"><i :style="{ '--p': chat.context.percent }" />{{ chat.context.percent }}%</span>
       <span class="sp" />
-      <button v-if="busy" type="button" class="btn sm" title="Stop this turn" @click="stop">Stop</button>
-      <button type="button" class="btn accent" :disabled="!canSend || sending" @click="send">{{ waiting ? 'Deny and send' : 'Send' }} <kbd>↵</kbd></button>
+      <button v-if="busy && !canSend && !waiting" type="button" class="btn" title="Stop this turn" @click="stop"><i class="stopi" />Stop</button>
+      <button v-else type="button" class="btn accent" :disabled="!canSend || sending" @click="send">{{ waiting ? 'Deny and send' : 'Send' }} <kbd>↵</kbd></button>
     </div>
   </div>
 </template>
@@ -241,8 +241,11 @@ async function send() {
 
 .comp select {
   min-width: 0;
-  font: 500 11.5px Geist, system-ui, sans-serif;
-  padding: 5px 4px;
+  max-width: 96px;
+  height: var(--h);
+  box-sizing: border-box;
+  font: 500 12px Geist, system-ui, sans-serif;
+  padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -256,8 +259,27 @@ async function send() {
 }
 
 .comp .ctx {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: 11px var(--mono);
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.comp .ctx i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: conic-gradient(currentColor calc(var(--p) * 1%), var(--line) 0);
+  mask: radial-gradient(circle, transparent 3.5px, #000 4px);
+}
+
+.comp .stopi {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
 }
 
 .comp .ctx.full {
@@ -266,14 +288,13 @@ async function send() {
 
 .comp .crow {
   flex-wrap: wrap;
-  row-gap: 6px;
+  gap: 6px 4px;
 }
 
 .comp .sq {
-  width: 27px;
+  width: var(--h);
   padding: 0;
   justify-content: center;
-  align-self: stretch;
   font-family: var(--mono);
 }
 

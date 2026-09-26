@@ -46,6 +46,12 @@ export function wireTerminal(hub: Hub, { chat }: TerminalDeps) {
     return terminal
   }
 
+  hub.handle('openShell', (chatId) => {
+    const view = typeof chatId === 'string' ? chat(chatId) : undefined
+    if (!view) return { error: 'That chat isn’t open any more.' }
+    if (!existsSync(view.cwd)) return { error: `${view.cwd} doesn’t exist any more.` }
+    return { buffer: open(chatId as string, view.cwd).buffer }
+  })
   hub.handle('runInTerminal', (chatId, command) => {
     const view = typeof chatId === 'string' ? chat(chatId) : undefined
     if (!view) return { error: 'That chat isn’t open any more.' }

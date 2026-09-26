@@ -771,13 +771,18 @@ onUnmounted(() => {
 .ib {
   all: unset;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: var(--h-sm);
+  height: var(--h-sm);
   border-radius: 8px;
   display: grid;
   place-items: center;
   color: var(--muted);
   font-size: 18px;
+}
+
+.ib[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .ib:hover {

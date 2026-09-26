@@ -144,6 +144,7 @@ export interface Commands {
   moveIntoOffice(chatId: string): Promise<{ chatId: string } | { error: string } | undefined>
   archiveVisitor(chatId: string): Promise<{ error?: string } | undefined>
   openInTerminal(chatId: string): Promise<{ error?: string } | undefined>
+  openShell(chatId: string): { buffer: string } | { error: string }
   runInTerminal(chatId: string, command: string): { buffer: string } | { error: string }
   terminalBuffer(chatId: string): string | undefined
   terminalInput(chatId: string, data: string): void

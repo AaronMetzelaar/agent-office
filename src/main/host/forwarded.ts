@@ -61,6 +61,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   moveIntoOffice: true,
   archiveVisitor: true,
   openInTerminal: true,
+  openShell: true,
   runInTerminal: true,
   terminalBuffer: true,
   terminalInput: true,

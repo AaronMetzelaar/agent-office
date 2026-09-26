@@ -14,7 +14,7 @@ import { floors, onFloor, type Floor, type FloorChat } from '../fixtures/floors'
 
 interface MainGlobals {
   store: { view(id: string): ChatView | undefined; sendMessage(id: string, text: string): unknown }
-  fakeEngine: { ask(chatId: string, toolName: string, input: Record<string, unknown>): Promise<unknown> }
+  fakeEngine: { askTool(chatId: string, toolName: string, input: Record<string, unknown>): Promise<unknown> }
   outside: { visitors: { view(id: string): ChatView | undefined; sync(seeds: VisitorSeed[]): void; hook(event: HookEvent): void } }
 }
 
@@ -122,7 +122,7 @@ async function seedLive(app: ElectronApplication, floor: Floor, now: number) {
   const states = () => app.evaluate((_electron, ids) => ids.map((id) => (globalThis as unknown as MainGlobals).store.view(id)?.state), office.map((chat) => chat.id))
   await expect.poll(states).toEqual(office.map(() => 'working'))
   await app.evaluate((_electron, { asks, input }) => {
-    for (const chat of asks) void (globalThis as unknown as MainGlobals).fakeEngine.ask(chat.id, chat.request ?? 'Bash', input)
+    for (const chat of asks) void (globalThis as unknown as MainGlobals).fakeEngine.askTool(chat.id, chat.request ?? 'Bash', input)
   }, { asks: office.filter((chat) => chat.state === 'needs-you'), input: requestInput })
   const expected = floor.chats.filter((chat) => chat.kind === 'office' || !chat.archived).map((chat) => (chat.state === 'starting' ? 'working' : chat.state))
   const actual = () =>

@@ -448,7 +448,9 @@ h2 {
   font: 13px Geist, system-ui, sans-serif;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 5px 8px;
+  height: var(--h);
+  box-sizing: border-box;
+  padding: 0 8px;
   background: #fff;
   color: var(--ink);
 }
