@@ -138,14 +138,10 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
     return loaded.unreadable ? playgroundRoom.id : { root }
   }
 
-  async function name(accountId: string, folder: string, task: string, root?: string): Promise<RoomDef | undefined> {
-    const reply = ask ? await ask(accountId, namePrompt, `Folder: ${folder}\n\nTask: ${task.slice(0, 4000)}`).catch(() => undefined) : undefined
+  async function name(accountId: string, root: string, task: string): Promise<RoomDef | undefined> {
+    const reply = ask ? await ask(accountId, namePrompt, `Folder: ${root}\n\nTask: ${task.slice(0, 4000)}`).catch(() => undefined) : undefined
     const [title, about] = (reply ?? '').split('\n').map(clean).filter(Boolean)
-    const named = title?.slice(0, 28)
-    if (root) return built.find((room) => room.root === root) ?? byId(build(root, named || undefined, about))
-    if (!named) return undefined
-    const id = `r-${createHash('sha256').update(`${folder}\n${named}\n${Date.now()}`).digest('hex').slice(0, 10)}`
-    return byId(add({ id, name: named, about: about ?? named, subtitle: 'room made by Claude', accent: freeAccent(list(), new Set(occupied())), look: 'plain', createdAt: Date.now() }))
+    return built.find((room) => room.root === root) ?? byId(build(root, title?.slice(0, 28) || undefined, about))
   }
 
   const decide = (cwd: string, label: string | undefined, { review, chosen }: Choice) => (review ? reviewRoom.id : chosen && byId(chosen) ? chosen : (tiedRoom(label) ?? home(cwd)))
@@ -173,11 +169,12 @@ export function createRooms(settings: Pick<Db, 'setting' | 'saveSetting'>, loade
     },
     make(accountId: string, cwd: string, task: string): Promise<RoomDef | undefined> {
       if (loaded.unreadable) return Promise.resolve(undefined)
-      const { path, root = path } = locate(cwd)
-      if (longest(path, [...configEntries, ...mwsEntries()])) return name(accountId, path, task)
-      const known = built.find((room) => room.root === root)
+      const { root } = locate(cwd)
+      const known = root && built.find((room) => room.root === root)
       if (known) return Promise.resolve(known)
-      const pending = making.get(root) ?? name(accountId, root, task, root).finally(() => making.delete(root))
+      const room = home(cwd)
+      if (!root || (typeof room === 'string' && room !== playgroundRoom.id)) return Promise.resolve(undefined)
+      const pending = making.get(root) ?? name(accountId, root, task).finally(() => making.delete(root))
       making.set(root, pending)
       return pending
     },

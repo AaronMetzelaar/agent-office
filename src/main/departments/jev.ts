@@ -27,7 +27,8 @@ function criteriaFor(rooms: Registry): Record<string, string> {
   const choices = rooms.list().filter((room) => room.id !== playgroundRoom.id && room.id !== reviewRoom.id && !room.account)
   return {
     ...Object.fromEntries(choices.map((room) => [room.id, inFolders(room.id, monorepo[room.id] ?? (room.about ? `${room.name}: ${room.about}` : room.name))])),
-    new: 'None of the rooms above: the agent works in a repository none of them cover, or on work that clearly fits none of them, so it gets a new room',
+    [playgroundRoom.id]: 'Side projects: quick questions, one-off scripts and experiments, and anything that isn’t ongoing work in one repository',
+    new: 'A new room: ongoing project work in a repository that none of the rooms above cover. Never for a quick question or a one-off task, and never for a folder a room above already covers',
   }
 }
 

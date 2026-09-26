@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -25,12 +25,12 @@ const floor = registry([...mwsRooms, playgroundRoom, reviewRoom, legacyRooms.fin
 const none = registry([playgroundRoom, reviewRoom])
 
 describe('Jev room pick', () => {
-  it('asks Jev for every chat, offering the rooms on the floor but not Side projects, PR reviews or account rooms', async () => {
+  it('asks Jev for every chat, offering the rooms on the floor and Side projects, but not PR reviews or account rooms', async () => {
     const api = jevApi({ choice: 'mob', confidence: 0.9 })
     expect(await createJev(() => 'ts_key', floor, api.post)(`${root}/frontend/admin/.claude/worktrees/x`, 'Fix the bid screen crash')).toBe('mob')
     expect(api.calls[0]!.headers.authorization).toBe('Bearer ts_key')
     expect(api.calls[0]!.body.state).toEqual({ task: 'Fix the bid screen crash', folder: `${root}/frontend/admin` })
-    expect(Object.keys(api.calls[0]!.body.questions.room.criteria)).toEqual(['mkt', 'adm', 'mob', 'plat', 'new'])
+    expect(Object.keys(api.calls[0]!.body.questions.room.criteria)).toEqual(['mkt', 'adm', 'mob', 'plat', 'side', 'new'])
     expect(api.calls[0]!.body.questions.room.criteria.adm).toContain('monorepo/frontend/admin')
   })
 
@@ -38,7 +38,7 @@ describe('Jev room pick', () => {
     const api = jevApi({ choice: 'r1', confidence: 0.8 })
     expect(await createJev(() => 'k', registry([playgroundRoom, office], { r1: [office.root!] }), api.post)('/Users/me/code/agent-office', 'x')).toBe('r1')
     expect(api.calls[0]!.body.questions.room.criteria.r1).toBe('Agent Office: The Electron office app. Its agents work in /Users/me/code/agent-office')
-    expect(Object.keys(api.calls[0]!.body.questions.room.criteria)).toEqual(['r1', 'new'])
+    expect(Object.keys(api.calls[0]!.body.questions.room.criteria)).toEqual(['r1', 'side', 'new'])
   })
 
   it('leaves the choice to the desk or folder when Jev is unsure, fails, answers outside the options or has no key', async () => {
@@ -86,15 +86,17 @@ describe('rooms Claude makes', { timeout: 60_000 }, () => {
     expect(await setup([undefined]).rooms.make('main', repo, 't')).toMatchObject({ name: 'shop', root: repo })
   })
 
-  it('makes a room without a folder for work inside a folder a room already covers, and none without a name', async () => {
+  it('makes no room for work in a folder a room already covers, or outside git', async () => {
     const mono = mwsMonorepo(join(dir, 'monorepo'))
-    const { rooms } = setup(['Docs\nHandbooks and guides', undefined])
+    const loose = join(dir, 'notes')
+    mkdirSync(loose)
+    const { rooms, asked, settings } = setup(['Docs\nHandbooks and guides'])
+    expect(await rooms.make('main', mono, 'Write the handbook')).toBeUndefined()
+    expect(await rooms.make('main', loose, 'Sort my notes')).toBeUndefined()
     expect(rooms.resolve(mono, 'main')).toBe('plat')
-    const docs = await rooms.make('main', mono, 'Write the handbook')
-    expect(docs).toMatchObject({ name: 'Docs', about: 'Handbooks and guides', subtitle: 'room made by Claude' })
-    expect(docs!.root).toBeUndefined()
-    expect(rooms.resolve(mono, 'main')).toBe('plat')
-    expect(await rooms.make('main', mono, 'More')).toBeUndefined()
+    expect(rooms.resolve(loose, 'main')).toBe('side')
+    expect(asked).toEqual([])
+    expect(settings.get('rooms')).toBeUndefined()
   })
 
   it('carries over rooms saved by the six-slot version, and drops entries it can’t read', () => {
