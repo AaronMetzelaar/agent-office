@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { Look } from '../../shared/departments'
-import { arrange, placed, type Design, type Part } from '../../shared/looks'
 import { anchorsFor, chairFootprint, cloakroom as CR, depts, door, gymRelaxZ, kindOf, loungeDecor, loungeSeat, minWidth, office as OF, queueSpots, queueZ, shellOf, type Bounds, type DeptDef, type DeptId, type SlotKind, type Tier } from './layout'
 import { lookKey, type SeatLook } from './lounge'
 import type { Nav } from './nav'
@@ -1314,157 +1313,6 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
         snake(W - 1, 5.4, 0.9)
       })
   }
-  const finish = { matte: [0.8, 0], satin: [0.5, 0], metal: [0.35, 0.6] } as const
-  const deg = (v = 0) => (v * Math.PI) / 180
-  function paint(x: CanvasRenderingContext2D, p: Part, X: number, Y: number, w: number, h: number) {
-    const ink = p.textColor ?? '#2a2e36', accent = p.accent ?? '#3b7bff'
-    let n = 0
-    for (const c of `${p.picture}${p.text ?? ''}`) n = (n * 31 + c.charCodeAt(0)) % 9973
-    const rand = () => ((n = (n * 16807) % 2147483647) % 1000) / 1000
-    const card = (cx: number, cy: number, cw: number, ch: number, fill: string) => {
-      x.fillStyle = fill
-      rr(x, cx, cy, cw, ch, Math.min(cw, ch) * 0.12)
-      x.fill()
-    }
-    if (p.picture === 'shirt') {
-      const S = Math.min(w, h), ox = X + (w - S) / 2, oy = Y + (h - S) / 2, P = (u: number, v: number) => [ox + u * S, oy + (1 - v) * S] as const
-      x.beginPath()
-      shirtShape.forEach(([u, v], i) => (i ? x.lineTo(...P(u, v)) : x.moveTo(...P(u, v))))
-      x.closePath()
-      x.fillStyle = accent
-      x.fill()
-      x.fillStyle = ink
-      for (const side of [[[0.15, 0.95], [0, 0.77], [0.11, 0.6], [0.22, 0.67], [0.36, 1]], [[0.85, 0.95], [1, 0.77], [0.89, 0.6], [0.78, 0.67], [0.64, 1]]] as const) {
-        x.beginPath()
-        side.forEach(([u, v], i) => (i ? x.lineTo(...P(u, v)) : x.moveTo(...P(u, v))))
-        x.closePath()
-        x.fill()
-      }
-      x.beginPath()
-      x.moveTo(...P(0.36, 1))
-      x.quadraticCurveTo(...P(0.5, 0.86), ...P(0.64, 1))
-      x.strokeStyle = ink
-      x.lineWidth = S * 0.04
-      x.stroke()
-      if (p.text) {
-        x.fillStyle = ink
-        x.font = `700 ${S * 0.3}px Geist, sans-serif`
-        x.textAlign = 'center'
-        x.textBaseline = 'middle'
-        x.fillText(p.text.slice(0, 3), ...P(0.5, 0.45))
-      }
-      return
-    }
-    if (p.picture === 'pitch') {
-      card(X, Y, w, h, accent)
-      x.strokeStyle = ink
-      x.lineWidth = Math.max(3, w * 0.012)
-      x.strokeRect(X + w * 0.05, Y + h * 0.08, w * 0.9, h * 0.84)
-      x.beginPath()
-      x.moveTo(X + w / 2, Y + h * 0.08)
-      x.lineTo(X + w / 2, Y + h * 0.92)
-      x.stroke()
-      x.beginPath()
-      x.arc(X + w / 2, Y + h / 2, h * 0.16, 0, Math.PI * 2)
-      x.stroke()
-      for (const side of [0, 1]) x.strokeRect(side ? X + w * 0.95 - w * 0.14 : X + w * 0.05, Y + h * 0.3, w * 0.14, h * 0.4)
-      return
-    }
-    if (p.picture === 'dashboard') {
-      const cw = (w - w * 0.06) / 2, ch = (h - h * 0.06) / 2
-      for (let i = 0; i < 4; i++) {
-        const cx = X + (i % 2) * (cw + w * 0.06), cy = Y + Math.floor(i / 2) * (ch + h * 0.06)
-        card(cx, cy, cw, ch, 'rgba(255,255,255,.85)')
-        x.fillStyle = ink
-        x.fillRect(cx + cw * 0.1, cy + ch * 0.2, cw * (0.35 + rand() * 0.3), ch * 0.2)
-        x.fillStyle = accent
-        for (let k = 0; k < 5; k++) {
-          const bh = ch * (0.12 + rand() * 0.3)
-          x.fillRect(cx + cw * (0.1 + k * 0.16), cy + ch * 0.85 - bh, cw * 0.1, bh)
-        }
-      }
-      return
-    }
-    if (p.picture === 'chart') {
-      card(X, Y, w, h, 'rgba(255,255,255,.85)')
-      const bars = 6
-      x.fillStyle = accent
-      for (let k = 0; k < bars; k++) {
-        const bh = h * (0.25 + rand() * 0.55)
-        x.fillRect(X + w * (0.08 + (k * 0.86) / bars), Y + h * 0.88 - bh, (w * 0.86) / bars - w * 0.03, bh)
-      }
-      x.fillStyle = ink
-      x.fillRect(X + w * 0.06, Y + h * 0.88, w * 0.88, Math.max(3, h * 0.02))
-      return
-    }
-    if (p.picture === 'code') {
-      card(X, Y, w, h, 'rgba(255,255,255,.9)')
-      const rows = Math.max(4, Math.min(9, Math.round(h / (w * 0.09))))
-      for (let k = 0; k < rows; k++) {
-        const kind = rand(), ry = Y + h * 0.08 + (k * h * 0.84) / rows, rh = (h * 0.84) / rows - h * 0.02
-        if (kind > 0.62) card(X + w * 0.04, ry, w * 0.92, rh, kind > 0.82 ? '#f3c9c4' : '#cfe8d2')
-        x.fillStyle = ink
-        x.fillRect(X + w * (0.1 + (k % 3) * 0.05), ry + rh * 0.3, w * (0.25 + rand() * 0.5), rh * 0.4)
-      }
-      return
-    }
-    const pw = Math.min(w, h * 0.5), px = X + (w - pw) / 2
-    card(px, Y, pw, h, ink)
-    card(px + pw * 0.06, Y + h * 0.04, pw * 0.88, h * 0.92, '#f7f5f0')
-    card(px + pw * 0.06, Y + h * 0.04, pw * 0.88, h * 0.12, accent)
-    for (let k = 0; k < 3; k++) {
-      const cy = Y + h * (0.2 + k * 0.25)
-      card(px + pw * 0.12, cy, pw * 0.76, h * 0.2, '#ffffff')
-      card(px + pw * 0.16, cy + h * 0.03, pw * 0.26, h * 0.14, accent)
-      x.fillStyle = ink
-      x.fillRect(px + pw * 0.48, cy + h * 0.05, pw * 0.34, h * 0.03)
-      x.fillRect(px + pw * 0.48, cy + h * 0.11, pw * 0.22, h * 0.03)
-    }
-  }
-  function panelArt(p: Part, o: THREE.Object3D) {
-    const [w, h] = p.size, W = 512, H = Math.max(64, Math.min(1024, Math.round((W * h) / w)))
-    const { x, t } = canvasTex(W, H)
-    x.fillStyle = p.color
-    x.fillRect(0, 0, W, H)
-    const caption = p.picture && p.picture !== 'shirt' && p.text ? H * 0.18 : 0
-    if (p.picture) paint(x, p, W * 0.07, H * 0.07, W * 0.86, H * 0.86 - caption)
-    if (p.text && p.picture !== 'shirt') {
-      const room = caption || H
-      let size = room * (caption ? 0.7 : 0.62)
-      x.font = `700 ${size}px Geist, sans-serif`
-      while (size > 12 && x.measureText(p.text).width > W * 0.86) x.font = `700 ${(size -= 4)}px Geist, sans-serif`
-      x.fillStyle = p.textColor ?? '#2a2e36'
-      x.textAlign = 'center'
-      x.textBaseline = 'middle'
-      x.fillText(p.text, W / 2, caption ? H - caption * 0.55 : H / 2)
-    }
-    t.needsUpdate = true
-    plane(w * 0.94, h * 0.9, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }), 0, 0, 0.017, o)
-  }
-  function part(p: Part, g: THREE.Object3D) {
-    const [w, h, d] = p.size, [r, m] = finish[p.finish ?? 'matte'], mt = M(Number.parseInt(p.color.slice(1), 16), r, m)
-    const geo = p.shape === 'box' ? BX(w, h, d) : p.shape === 'rounded' ? RB(w, h, d, Math.min(0.06, Math.min(w, h, d) * 0.2)) : p.shape === 'cylinder' ? CY(0.5 * (p.taper ?? 1), 0.5, 1) : p.shape === 'sphere' ? SP(0.5) : RB(w, h, 0.03, 0.01)
-    const [rx, ry, rz] = p.rot ?? []
-    const holder = new THREE.Group()
-    holder.position.set(p.at[0], p.at[1], p.at[2])
-    holder.rotation.set(deg(rx), deg(ry), deg(rz))
-    g.add(holder)
-    const o = mesh(geo, mt, 0, 0, 0, holder)
-    if (p.shape === 'cylinder' || p.shape === 'sphere') o.scale.set(w, h, d)
-    if ((p.text || p.picture) && p.shape === 'panel') panelArt(p, holder)
-  }
-  const designed = (design: Design): Build => (t, W, strip) => {
-    if (!t) return
-    for (const prop of arrange(design, t)) {
-      const draw = () => {
-        const g = grp(prop.zone === 'back' ? prop.x! : W - prop.x!, prop.z!, deg(prop.rotate))
-        prop.parts.forEach((p) => part(p, g))
-        if (prop.parts.some((p) => p.at[1] - p.size[1] / 2 < 0.3)) block(...placed(prop, W), 0.15)
-      }
-      if (prop.zone === 'side') strip(draw)
-      else draw()
-    }
-  }
   const build: Record<Look, Build> = {
     plain: room,
     showroom(t, W, strip) {
@@ -1942,7 +1790,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     cur = back
     owner = id
     tag = `props:${id}`
-    ;(d.def.design ? designed(d.def.design) : build[d.def.look])(tier, minWidth(id, tier), (fn) => {
+    build[d.def.look](tier, minWidth(id, tier), (fn) => {
       const was = [cur, owner] as const
       cur = side
       owner = `${id}:side`

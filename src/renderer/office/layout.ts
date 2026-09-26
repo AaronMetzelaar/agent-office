@@ -1,8 +1,6 @@
-import { deskGrid, type Design } from '../../shared/looks'
 import { legacyRooms, playgroundRoom, type DeptId, type Look, type RoomDef } from '../../shared/departments'
 
 export type { DeptId } from '../../shared/departments'
-export { deskGrid }
 export type SlotKind = 'desk' | 'gym'
 export type Tier = 0 | 1 | 2 | 3
 export type Shell = 'room' | 'gym' | 'yard'
@@ -17,7 +15,6 @@ export interface DeptDef {
   look: Look
   account?: string
   parent?: string
-  design?: Design
 }
 
 export const X0 = -13.5
@@ -45,7 +42,6 @@ const defOf = (room: RoomDef): DeptDef => ({
   shell: room.id === yardId ? 'yard' : room.look === 'gym' ? 'gym' : 'room',
   ...(room.account ? { account: room.account } : {}),
   ...(room.parent ? { parent: room.parent } : {}),
-  ...(room.design ? { design: room.design } : {}),
 })
 
 export let depts: readonly DeptDef[] = []
@@ -65,6 +61,7 @@ export const deptOf = (id: DeptId | undefined): DeptDef => (id && dept[id]) || d
 export const shellOf = (id: DeptId): Shell => dept[id]?.shell ?? 'room'
 export const kindOf = (id: DeptId): SlotKind => (shellOf(id) === 'gym' ? 'gym' : 'desk')
 
+export const deskGrid = { cw: 3.2, cd: 2.6, left: 0.3, right: 0.3, back: 2, front: 1.3, side: 1.4 }
 export const gymGrid = { cw: 2, cd: 2.4, left: 0.6, right: 1.2, back: 1.2, relax: 1.5, front: 0.5 }
 export const yardGrid = { cw: 2.7, cd: 2.5, left: 0.4, right: 0.4, back: 1.6, front: 0.8, side: 1.6 }
 export const loungeGrid = { pitchX: 1.2, pair: 0.7, pitchZ: 1.7, left: 0.9, right: 1.6, back: 1.45, front: 0.9 }

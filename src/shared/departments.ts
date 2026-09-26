@@ -1,5 +1,3 @@
-import type { Design } from './looks'
-
 export type DeptId = string
 
 export const looks = ['showroom', 'backoffice', 'devices', 'servers', 'reading', 'gym', 'playground', 'plain'] as const
@@ -38,7 +36,6 @@ export interface RoomDef {
   root?: string
   parent?: string
   createdAt?: number
-  design?: Design
 }
 
 export const mwsRooms: readonly RoomDef[] = [
