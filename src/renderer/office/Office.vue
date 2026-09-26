@@ -319,7 +319,7 @@ watch(
 )
 
 function nextAgent(back = false) {
-  const next = cycleAgent(ui.agents.map((a) => a.id), shownAgent.value?.id, back)
+  const next = cycleAgent(ui.agents.map((a) => a.id), shownAgent.value?.id, back, inbox.value.waiting.flatMap((item) => (item.chatId ? [item.chatId] : [])))
   if (next) select(next)
 }
 

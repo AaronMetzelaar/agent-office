@@ -52,4 +52,12 @@ describe('cycleAgent', () => {
     expect(cycleAgent(ids, 'gone', false)).toBe('a')
     expect(cycleAgent([], 'a', false)).toBeUndefined()
   })
+
+  it('cycles through agents needing attention before the rest', () => {
+    const ids = ['a', 'b', 'c', 'd']
+    expect(cycleAgent(ids, 'a', false, ['c', 'd'])).toBe('c')
+    expect(cycleAgent(ids, 'c', false, ['c', 'd'])).toBe('d')
+    expect(cycleAgent(ids, 'd', false, ['c', 'd'])).toBe('c')
+    expect(cycleAgent(ids, 'c', false, ['c'])).toBe('d')
+  })
 })

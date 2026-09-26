@@ -31,7 +31,8 @@ export function keyAction(key: string, { open, queue, card }: KeyContext): KeyAc
   return next === at ? undefined : { kind: 'open', chatId: chats[next]! }
 }
 
-export function cycleAgent(ids: readonly string[], open: string | undefined, back: boolean): string | undefined {
+export function cycleAgent(ids: readonly string[], open: string | undefined, back: boolean, waiting: readonly string[] = []): string | undefined {
+  if (waiting.some((id) => id !== open)) return cycleAgent(waiting, open, back)
   if (!ids.length) return undefined
   const at = open ? ids.indexOf(open) : -1
   if (at < 0) return back ? ids.at(-1) : ids[0]
