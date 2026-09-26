@@ -1,0 +1,15 @@
+{
+ "attempts": [
+  {
+   "failures": [
+    "error_max_turns"
+   ],
+   "ms": 58677,
+   "usage": {
+    "input": 13228,
+    "output": 9989
+   },
+   "error": "error_max_turns"
+  }
+ ]
+}

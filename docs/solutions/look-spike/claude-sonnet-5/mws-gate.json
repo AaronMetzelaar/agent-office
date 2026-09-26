@@ -1,0 +1,1526 @@
+{
+ "attempts": [
+  {
+   "design": {
+    "props": [
+     {
+      "name": "Pipeline Checkpoint Gantry",
+      "zone": "back",
+      "x": 3.5,
+      "z": 0.9,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         2.2,
+         0.3
+        ],
+        "at": [
+         -1.6,
+         1.1,
+         0
+        ],
+        "color": "#8a8f98",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         2.2,
+         0.3
+        ],
+        "at": [
+         1.6,
+         1.1,
+         0
+        ],
+        "color": "#8a8f98",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         3.5,
+         0.35,
+         0.35
+        ],
+        "at": [
+         0,
+         2.2,
+         0
+        ],
+        "color": "#8a8f98",
+        "finish": "satin"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         2.4,
+         0.6
+        ],
+        "at": [
+         0,
+         2.05,
+         -0.18
+        ],
+        "color": "#3b4252",
+        "text": "MWS GATE",
+        "textColor": "#e8c07d"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.4,
+         0.4
+        ],
+        "at": [
+         -1.6,
+         2.45,
+         0
+        ],
+        "color": "#d97b4f",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.4,
+         0.4
+        ],
+        "at": [
+         1.6,
+         2.45,
+         0
+        ],
+        "color": "#6fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         3.2,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0,
+         0.9,
+         0.35
+        ],
+        "color": "#e8c07d",
+        "finish": "matte",
+        "rot": [
+         0,
+         0,
+         2
+        ]
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.15,
+         0.9,
+         0.15
+        ],
+        "at": [
+         0,
+         0.45,
+         0.35
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.8,
+         0.5
+        ],
+        "at": [
+         -2.3,
+         0.4,
+         0.7
+        ],
+        "color": "#dfe3e8"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         -2.3,
+         0.9,
+         0.7
+        ],
+        "color": "#e05a4e"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.8,
+         0.5
+        ],
+        "at": [
+         2.3,
+         0.4,
+         0.7
+        ],
+        "color": "#dfe3e8"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         2.3,
+         0.9,
+         0.7
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.6,
+         0.05
+        ],
+        "at": [
+         -1,
+         1,
+         -0.14
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.6,
+         0.05
+        ],
+        "at": [
+         -0.3,
+         1,
+         -0.14
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.6,
+         0.05
+        ],
+        "at": [
+         0.4,
+         1,
+         -0.14
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.6,
+         0.05
+        ],
+        "at": [
+         1.1,
+         1,
+         -0.14
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         -1,
+         1.35,
+         0
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         -0.3,
+         1.35,
+         0
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         0.4,
+         1.35,
+         0
+        ],
+        "color": "#e8c07d"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         1.1,
+         1.35,
+         0
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.15,
+         0.5
+        ],
+        "at": [
+         0,
+         0.075,
+         1.4
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.25,
+         0.5,
+         0.25
+        ],
+        "at": [
+         0,
+         0.4,
+         1.4
+        ],
+        "color": "#d97b4f",
+        "taper": 0.5
+       }
+      ]
+     },
+     {
+      "name": "Bare Repo Cabinet",
+      "zone": "back",
+      "x": 6,
+      "z": 0.7,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1,
+         1.3,
+         0.6
+        ],
+        "at": [
+         0,
+         0.65,
+         0
+        ],
+        "color": "#c9a876"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.05,
+         0.55
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.05,
+         0.55
+        ],
+        "at": [
+         0,
+         0.5,
+         0
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.2
+        ],
+        "at": [
+         0,
+         1.2,
+         -0.31
+        ],
+        "color": "#3b4252",
+        "text": "ORIGIN",
+        "textColor": "#e8c07d"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.1,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0.35,
+         0.9,
+         0.31
+        ],
+        "color": "#6fae7f"
+       }
+      ]
+     },
+     {
+      "name": "launchd Daemon Beacon",
+      "zone": "back",
+      "x": 1,
+      "z": 0.7,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.15,
+         0.5
+        ],
+        "at": [
+         0,
+         0.075,
+         0
+        ],
+        "color": "#3b4252"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         1.1,
+         0.3
+        ],
+        "at": [
+         0,
+         0.65,
+         0
+        ],
+        "color": "#dfe3e8"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.35,
+         0.35,
+         0.35
+        ],
+        "at": [
+         0,
+         1.35,
+         0
+        ],
+        "color": "#e8c07d",
+        "finish": "satin"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.4,
+         0.06
+        ],
+        "at": [
+         0,
+         1.75,
+         0
+        ],
+        "color": "#8a8f98"
+       }
+      ]
+     },
+     {
+      "name": "Seven-Stage Status Rack",
+      "zone": "side",
+      "x": 0.8,
+      "z": 1,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         1.6,
+         0.5
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#dfe3e8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         1.45,
+         0.26
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         1.25,
+         0.26
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         1.05,
+         0.26
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         0.85,
+         0.26
+        ],
+        "color": "#e8c07d"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         0.65,
+         0.26
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         0.45,
+         0.26
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.42,
+         0.15,
+         0.02
+        ],
+        "at": [
+         0,
+         0.25,
+         0.26
+        ],
+        "color": "#8a8f98"
+       }
+      ]
+     },
+     {
+      "name": "Hook Toolbench",
+      "zone": "side",
+      "x": 0.8,
+      "z": 2.8,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         0.8,
+         0.6
+        ],
+        "at": [
+         0,
+         0.4,
+         0
+        ],
+        "color": "#c9a876"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.1,
+         0.05,
+         0.55
+        ],
+        "at": [
+         0,
+         0.82,
+         0
+        ],
+        "color": "#8a8f98"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.2,
+         0.3,
+         0.2
+        ],
+        "at": [
+         -0.3,
+         0.97,
+         0
+        ],
+        "color": "#d97b4f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.15,
+         0.25,
+         0.15
+        ],
+        "at": [
+         0.3,
+         0.925,
+         0
+        ],
+        "color": "#6fae7f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.2
+        ],
+        "at": [
+         0,
+         0.95,
+         -0.31
+        ],
+        "color": "#3b4252",
+        "text": "HOOK",
+        "textColor": "#e8c07d"
+       }
+      ]
+     }
+    ],
+    "theme": "Local git-push security checkpoint: a customs-style gantry gate inspects every push through a 7-stage AI pipeline before waving it through to origin."
+   },
+   "failures": [
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 3 has a size outside 0.01 to 2.6 m",
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 4 needs three numbers for size, at and rot",
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 5 is taller than 2.4 m",
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 6 is taller than 2.4 m",
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 7 has a size outside 0.01 to 2.6 m",
+    "Prop 2 (\"Bare Repo Cabinet\"), part 4 needs three numbers for size, at and rot",
+    "Prop 5 (\"Hook Toolbench\"), part 5 needs three numbers for size, at and rot"
+   ],
+   "ms": 26560,
+   "usage": {
+    "input": 3848,
+    "output": 3003
+   }
+  },
+  {
+   "design": {
+    "theme": "Git push proxy / validation gate & pipeline checkpoint",
+    "props": [
+     {
+      "name": "Pipeline Checkpoint Gantry",
+      "zone": "back",
+      "x": 3.5,
+      "z": 0.8,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         2.2,
+         0.3
+        ],
+        "at": [
+         -1.15,
+         1.1,
+         0
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         2.2,
+         0.3
+        ],
+        "at": [
+         1.15,
+         1.1,
+         0
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2.5,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0,
+         2.2,
+         0
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0,
+         1.6,
+         0.5
+        ],
+        "rot": [
+         0,
+         0,
+         5
+        ],
+        "color": "#c46a4d"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -1,
+         2.2,
+         0.16
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -0.66,
+         2.2,
+         0.16
+        ],
+        "color": "#e0a95f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -0.33,
+         2.2,
+         0.16
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         0,
+         2.2,
+         0.16
+        ],
+        "color": "#e0a95f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         0.33,
+         2.2,
+         0.16
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         0.66,
+         2.2,
+         0.16
+        ],
+        "color": "#e0a95f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         1,
+         2.2,
+         0.16
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.6,
+         0.3
+        ],
+        "at": [
+         0,
+         0.3,
+         0.5
+        ],
+        "color": "#5f7d8c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.4,
+         0.3
+        ],
+        "at": [
+         0,
+         0.55,
+         0.66
+        ],
+        "color": "#e8e0d0",
+        "text": "7 STAGE",
+        "textColor": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         1,
+         0.1,
+         1
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#9aa89a"
+       }
+      ]
+     },
+     {
+      "name": "Bare Repo Cabinet",
+      "zone": "back",
+      "x": 5.5,
+      "z": 0.7,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         1.6,
+         0.6
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#6f8fa0"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.35,
+         0.05
+        ],
+        "at": [
+         0,
+         1.3,
+         0.32
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.35,
+         0.05
+        ],
+        "at": [
+         0,
+         0.85,
+         0.32
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.35,
+         0.05
+        ],
+        "at": [
+         0,
+         0.4,
+         0.32
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.15,
+         0.06
+        ],
+        "at": [
+         0,
+         1.3,
+         0.36
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.15,
+         0.06
+        ],
+        "at": [
+         0,
+         0.85,
+         0.36
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.15,
+         0.06
+        ],
+        "at": [
+         0,
+         0.4,
+         0.36
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.3
+        ],
+        "at": [
+         0,
+         1.65,
+         0.31
+        ],
+        "color": "#e8e0d0",
+        "text": "BARE REPO",
+        "textColor": "#3a3a3a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         0.1,
+         0.6
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#5f7d8c"
+       }
+      ]
+     },
+     {
+      "name": "Launchd Daemon Monitor",
+      "zone": "back",
+      "x": 1,
+      "z": 0.1,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "panel",
+        "size": [
+         1.2,
+         0.8
+        ],
+        "at": [
+         0,
+         1.4,
+         0.05
+        ],
+        "color": "#e8e0d0",
+        "text": "DAEMON",
+        "textColor": "#3a3a3a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         -0.4,
+         1,
+         0.08
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0,
+         1,
+         0.08
+        ],
+        "color": "#e0a95f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.4,
+         1,
+         0.08
+        ],
+        "color": "#7fae7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.3,
+         0.1,
+         0.05
+        ],
+        "at": [
+         0,
+         1.85,
+         0.05
+        ],
+        "color": "#a9825f"
+       }
+      ]
+     },
+     {
+      "name": "Pre-receive Hook Sentry",
+      "zone": "back",
+      "x": 6,
+      "z": 0.7,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.15,
+         0.6
+        ],
+        "at": [
+         0,
+         0.075,
+         0
+        ],
+        "color": "#9aa89a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.5,
+         1,
+         0.4
+        ],
+        "at": [
+         0,
+         0.65,
+         0
+        ],
+        "color": "#8ea888"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.4,
+         0.4,
+         0.4
+        ],
+        "at": [
+         0,
+         1.35,
+         0
+        ],
+        "color": "#8ea888"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         -0.1,
+         1.4,
+         0.18
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         0.1,
+         1.4,
+         0.18
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.5,
+         0.1
+        ],
+        "at": [
+         -0.3,
+         0.9,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         30
+        ],
+        "color": "#8ea888"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.1,
+         0.5,
+         0.1
+        ],
+        "at": [
+         0.3,
+         0.9,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         -30
+        ],
+        "color": "#8ea888"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.2
+        ],
+        "at": [
+         0,
+         0.7,
+         0.21
+        ],
+        "color": "#e8e0d0",
+        "text": "HOOK",
+        "textColor": "#3a3a3a"
+       }
+      ]
+     },
+     {
+      "name": "Hook Toolbench",
+      "zone": "side",
+      "x": 0.8,
+      "z": 1.5,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.4,
+         0.08,
+         0.6
+        ],
+        "at": [
+         0,
+         0.75,
+         0
+        ],
+        "color": "#a9825f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         0.75,
+         0.08
+        ],
+        "at": [
+         -0.6,
+         0.375,
+         -0.25
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         0.75,
+         0.08
+        ],
+        "at": [
+         0.6,
+         0.375,
+         -0.25
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         0.75,
+         0.08
+        ],
+        "at": [
+         -0.6,
+         0.375,
+         0.25
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         0.75,
+         0.08
+        ],
+        "at": [
+         0.6,
+         0.375,
+         0.25
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.05,
+         0.1
+        ],
+        "at": [
+         -0.3,
+         0.8,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         20
+        ],
+        "color": "#5f7d8c"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.05,
+         0.4,
+         0.05
+        ],
+        "at": [
+         0.3,
+         0.95,
+         0
+        ],
+        "taper": 0.3,
+        "color": "#c46a4d"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0,
+         0.15,
+         -0.2
+        ],
+        "color": "#c46a4d"
+       }
+      ]
+     },
+     {
+      "name": "Origin Forward Beacon",
+      "zone": "side",
+      "x": 0.8,
+      "z": 3,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         1.8,
+         0.12
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "color": "#9aa89a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.35,
+         0.35,
+         0.35
+        ],
+        "at": [
+         0,
+         1.9,
+         0
+        ],
+        "color": "#c46a4d"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.1,
+         0.5
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#8b6d4c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.15
+        ],
+        "at": [
+         0,
+         1.9,
+         0.18
+        ],
+        "color": "#e8e0d0",
+        "text": "ORIGIN",
+        "textColor": "#3a3a3a"
+       }
+      ]
+     }
+    ]
+   },
+   "failures": [
+    "Prop 1 (\"Pipeline Checkpoint Gantry\"), part 13 needs three numbers for size, at and rot",
+    "Prop 2 (\"Bare Repo Cabinet\"), part 8 needs three numbers for size, at and rot",
+    "Prop 3 (\"Launchd Daemon Monitor\"), part 1 needs three numbers for size, at and rot",
+    "Prop 4 (\"Pre-receive Hook Sentry\"), part 8 needs three numbers for size, at and rot",
+    "Prop 6 (\"Origin Forward Beacon\"), part 4 needs three numbers for size, at and rot"
+   ],
+   "ms": 73497,
+   "usage": {
+    "input": 14719,
+    "output": 9587
+   }
+  }
+ ]
+}

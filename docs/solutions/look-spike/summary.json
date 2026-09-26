@@ -1,0 +1,275 @@
+[
+ {
+  "model": "claude-haiku-4-5",
+  "repo": "mws-gate",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   27.3,
+   34.6
+  ],
+  "output": [
+   4411,
+   5473
+  ],
+  "failures": [
+   5,
+   9
+  ]
+ },
+ {
+  "model": "claude-haiku-4-5",
+  "repo": "frontend-stp-Aaron-Metzelaar",
+  "passed": false,
+  "tries": 1,
+  "seconds": [
+   58.7
+  ],
+  "output": [
+   9989
+  ],
+  "failures": [
+   1
+  ]
+ },
+ {
+  "model": "claude-haiku-4-5",
+  "repo": "portfolio",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   42.5,
+   35.7
+  ],
+  "output": [
+   7051,
+   5718
+  ],
+  "failures": [
+   3,
+   1
+  ]
+ },
+ {
+  "model": "claude-haiku-4-5",
+  "repo": "homelab",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   35.2,
+   24
+  ],
+  "output": [
+   5732,
+   4157
+  ],
+  "failures": [
+   35,
+   8
+  ],
+  "signature": "Dell OptiPlex Server Rig"
+ },
+ {
+  "model": "claude-haiku-4-5",
+  "repo": "poseidon-q4",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   44.8,
+   41.4
+  ],
+  "output": [
+   7837,
+   6449
+  ],
+  "failures": [
+   5,
+   1
+  ]
+ },
+ {
+  "model": "claude-sonnet-5",
+  "repo": "mws-gate",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   26.6,
+   73.5
+  ],
+  "output": [
+   3003,
+   9587
+  ],
+  "failures": [
+   7,
+   5
+  ],
+  "signature": "Pipeline Checkpoint Gantry"
+ },
+ {
+  "model": "claude-sonnet-5",
+  "repo": "frontend-stp-Aaron-Metzelaar",
+  "passed": false,
+  "tries": 1,
+  "seconds": [
+   53.1
+  ],
+  "output": [
+   6837
+  ],
+  "failures": [
+   1
+  ]
+ },
+ {
+  "model": "claude-sonnet-5",
+  "repo": "portfolio",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   64.1,
+   51.8
+  ],
+  "output": [
+   7303,
+   6693
+  ],
+  "failures": [
+   1,
+   1
+  ]
+ },
+ {
+  "model": "claude-sonnet-5",
+  "repo": "homelab",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   93.6,
+   101.8
+  ],
+  "output": [
+   10959,
+   13380
+  ],
+  "failures": [
+   15,
+   9
+  ],
+  "signature": "Proxmox & HAOS Rack Tower"
+ },
+ {
+  "model": "claude-sonnet-5",
+  "repo": "poseidon-q4",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   63.2,
+   677.3
+  ],
+  "output": [
+   7738,
+   11675
+  ],
+  "failures": [
+   19,
+   6
+  ],
+  "signature": "Poseidon Collision Trident"
+ },
+ {
+  "model": "claude-opus-5",
+  "repo": "mws-gate",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   36.7,
+   78
+  ],
+  "output": [
+   3284,
+   8113
+  ],
+  "failures": [
+   4,
+   10
+  ],
+  "signature": "The Push Gate"
+ },
+ {
+  "model": "claude-opus-5",
+  "repo": "frontend-stp-Aaron-Metzelaar",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   41.6,
+   68.8
+  ],
+  "output": [
+   3632,
+   5984
+  ],
+  "failures": [
+   14,
+   10
+  ],
+  "signature": "Launch Pad & Gantry"
+ },
+ {
+  "model": "claude-opus-5",
+  "repo": "portfolio",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   39.2,
+   81.4
+  ],
+  "output": [
+   3365,
+   7588
+  ],
+  "failures": [
+   19,
+   3
+  ],
+  "signature": "The Halftone Portrait"
+ },
+ {
+  "model": "claude-opus-5",
+  "repo": "homelab",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   34.3,
+   43.7
+  ],
+  "output": [
+   2751,
+   3820
+  ],
+  "failures": [
+   4,
+   6
+  ],
+  "signature": "The Node & Smart Home Cutaway"
+ },
+ {
+  "model": "claude-opus-5",
+  "repo": "poseidon-q4",
+  "passed": false,
+  "tries": 2,
+  "seconds": [
+   48,
+   34.1
+  ],
+  "output": [
+   4207,
+   3305
+  ],
+  "failures": [
+   8,
+   10
+  ],
+  "signature": "The Poseidon Permutation Engine"
+ }
+]

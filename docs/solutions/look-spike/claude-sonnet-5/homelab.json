@@ -1,0 +1,2091 @@
+{
+ "attempts": [
+  {
+   "design": {
+    "theme": "Home Automation Lab — a tidy Proxmox/Home-Assistant rack humming quietly on the back wall, surrounded by the smart-home gadgets it's slowly wrangling",
+    "props": [
+     {
+      "name": "Proxmox & HAOS Rack Tower",
+      "zone": "back",
+      "x": 3.5,
+      "z": 1,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.4,
+         2,
+         0.5
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "color": "#7791a6",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         2,
+         0.5
+        ],
+        "at": [
+         -0.7,
+         1,
+         0
+        ],
+        "color": "#5c6f80",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.08,
+         2,
+         0.5
+        ],
+        "at": [
+         0.7,
+         1,
+         0
+        ],
+        "color": "#5c6f80",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.1,
+         0.28
+        ],
+        "at": [
+         0,
+         0.4,
+         -0.24
+        ],
+        "color": "#a9c2b8",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.1,
+         0.28
+        ],
+        "at": [
+         0,
+         0.75,
+         -0.24
+        ],
+        "color": "#a9c2b8",
+        "finish": "matte",
+        "text": "PROXMOX",
+        "textColor": "#3a4a3f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.1,
+         0.28
+        ],
+        "at": [
+         0,
+         1.1,
+         -0.24
+        ],
+        "color": "#c9dcd4",
+        "finish": "matte",
+        "text": "HAOS",
+        "textColor": "#3a6b4a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.1,
+         0.28
+        ],
+        "at": [
+         0,
+         1.45,
+         -0.24
+        ],
+        "color": "#a9c2b8",
+        "finish": "matte",
+        "text": "192.168.2.x",
+        "textColor": "#3a4a3f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.06,
+         0.06,
+         0.06
+        ],
+        "at": [
+         -0.4,
+         0.75,
+         -0.26
+        ],
+        "color": "#e0a94e",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.06,
+         0.06,
+         0.06
+        ],
+        "at": [
+         -0.25,
+         0.75,
+         -0.26
+        ],
+        "color": "#7fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.06,
+         0.06,
+         0.06
+        ],
+        "at": [
+         0.35,
+         1.1,
+         -0.26
+        ],
+        "color": "#7fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.06,
+         0.06,
+         0.06
+        ],
+        "at": [
+         0.2,
+         1.1,
+         -0.26
+        ],
+        "color": "#e0a94e",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.3,
+         0.12,
+         0.18
+        ],
+        "at": [
+         0,
+         0.06,
+         0.16
+        ],
+        "color": "#c07a52",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.05,
+         0.5,
+         0.05
+        ],
+        "at": [
+         -0.5,
+         0.15,
+         0.18
+        ],
+        "rot": [
+         0,
+         0,
+         70
+        ],
+        "color": "#4a4038",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.05,
+         0.6,
+         0.05
+        ],
+        "at": [
+         0.1,
+         0.15,
+         0.18
+        ],
+        "rot": [
+         0,
+         0,
+         -60
+        ],
+        "color": "#4a4038",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         0.3,
+         0.32
+        ],
+        "at": [
+         0.85,
+         0.15,
+         0.05
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.1
+        ],
+        "at": [
+         0.85,
+         0.32,
+         -0.1
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte",
+        "text": "i3",
+        "textColor": "#5c6f80"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.05,
+         0.22
+        ],
+        "at": [
+         -0.85,
+         0.18,
+         0.1
+        ],
+        "color": "#e8e2d4",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.06,
+         0.4
+        ],
+        "at": [
+         0,
+         2.03,
+         0.05
+        ],
+        "color": "#5c6f80",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         0.12,
+         0.14
+        ],
+        "at": [
+         -0.3,
+         2.12,
+         0.05
+        ],
+        "color": "#3a4a3f",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         0.12,
+         0.14
+        ],
+        "at": [
+         0.3,
+         2.12,
+         0.05
+        ],
+        "color": "#3a4a3f",
+        "finish": "matte"
+       }
+      ]
+     },
+     {
+      "name": "Matter Bulb Cluster",
+      "zone": "back",
+      "x": 1.2,
+      "z": 0.8,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.55,
+         0.5
+        ],
+        "at": [
+         0,
+         0.275,
+         0
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.35,
+         0.06
+        ],
+        "at": [
+         -0.12,
+         0.72,
+         0
+        ],
+        "color": "#b8ab95",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.5,
+         0.06
+        ],
+        "at": [
+         0.12,
+         0.8,
+         0
+        ],
+        "color": "#b8ab95",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.25,
+         0.06
+        ],
+        "at": [
+         0,
+         0.62,
+         0.1
+        ],
+        "color": "#b8ab95",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         -0.12,
+         0.97,
+         0
+        ],
+        "color": "#e0715a",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         0.12,
+         1.13,
+         0
+        ],
+        "color": "#6f9bd6",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         0,
+         0.83,
+         0.1
+        ],
+        "color": "#e0c04e",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.4,
+         0.14
+        ],
+        "at": [
+         0,
+         0.6,
+         -0.26
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte",
+        "text": "MATTER",
+        "textColor": "#5c6f80"
+       }
+      ]
+     },
+     {
+      "name": "Kitchen Ceiling Fixture (Unidentified RF)",
+      "zone": "back",
+      "x": 5.5,
+      "z": 0.3,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.12,
+         0.35
+        ],
+        "at": [
+         0,
+         2.15,
+         0
+        ],
+        "color": "#e8e2d4",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.85,
+         0.04,
+         0.25
+        ],
+        "at": [
+         0,
+         2.08,
+         0
+        ],
+        "color": "#f5efe0",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         0.22,
+         0.06
+        ],
+        "at": [
+         0,
+         1.1,
+         -0.05
+        ],
+        "color": "#c9c2b0",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.05,
+         0.05,
+         0.05
+        ],
+        "at": [
+         -0.08,
+         1.1,
+         -0.09
+        ],
+        "color": "#e0a94e",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.05,
+         0.05,
+         0.05
+        ],
+        "at": [
+         0.08,
+         1.1,
+         -0.09
+        ],
+        "color": "#7fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.35,
+         0.14
+        ],
+        "at": [
+         0,
+         0.75,
+         -0.24
+        ],
+        "color": "#c9c2b0",
+        "finish": "matte",
+        "text": "RF?",
+        "textColor": "#8a5a3a"
+       }
+      ]
+     },
+     {
+      "name": "Spare SSD Crate",
+      "zone": "back",
+      "x": 6.5,
+      "z": 0.9,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.4,
+         0.45
+        ],
+        "at": [
+         0,
+         0.2,
+         0
+        ],
+        "color": "#b8ab95",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.04,
+         0.45
+        ],
+        "at": [
+         0,
+         0.42,
+         0
+        ],
+        "color": "#9a8d76",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.06,
+         0.2
+        ],
+        "at": [
+         0,
+         0.48,
+         0
+        ],
+        "color": "#4a4038",
+        "finish": "metal"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.4,
+         0.15
+        ],
+        "at": [
+         0,
+         0.65,
+         -0.22
+        ],
+        "color": "#b8ab95",
+        "finish": "matte",
+        "text": "SPARE 1TB",
+        "textColor": "#5c4a2f"
+       }
+      ]
+     },
+     {
+      "name": "Media Nook",
+      "zone": "side",
+      "x": 0.8,
+      "z": 1.5,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.06,
+         0.35
+        ],
+        "at": [
+         0,
+         1.2,
+         0
+        ],
+        "color": "#c9c2b0",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.3,
+         0.08
+        ],
+        "at": [
+         0,
+         1.05,
+         0.12
+        ],
+        "color": "#5c6f80",
+        "finish": "satin"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.35
+        ],
+        "at": [
+         0,
+         1.35,
+         -0.02
+        ],
+        "color": "#3a4a3f",
+        "finish": "matte",
+        "text": "SHOW5",
+        "textColor": "#dcd3c2"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.12,
+         0.12,
+         0.06
+        ],
+        "at": [
+         -0.3,
+         1.28,
+         0.1
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.18,
+         0.28,
+         0.18
+        ],
+        "at": [
+         0.25,
+         1.14,
+         0.1
+        ],
+        "color": "#e8e2d4",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.4,
+         0.4
+        ],
+        "at": [
+         0,
+         0.2,
+         0
+        ],
+        "color": "#7791a6",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.1
+        ],
+        "at": [
+         0,
+         0.4,
+         -0.22
+        ],
+        "color": "#7791a6",
+        "finish": "matte",
+        "text": "CAST",
+        "textColor": "#e8e2d4"
+       }
+      ]
+     },
+     {
+      "name": "NFC Tag Board",
+      "zone": "side",
+      "x": 0.8,
+      "z": 3.2,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.55
+        ],
+        "at": [
+         0,
+         1.2,
+         0
+        ],
+        "color": "#dcd3c2",
+        "finish": "matte",
+        "text": "NFC",
+        "textColor": "#8a5a3a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.14,
+         0.14,
+         0.02
+        ],
+        "at": [
+         -0.2,
+         1.35,
+         0.03
+        ],
+        "color": "#c07a52",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.14,
+         0.14,
+         0.02
+        ],
+        "at": [
+         0.2,
+         1.35,
+         0.03
+        ],
+        "color": "#6f9bd6",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.14,
+         0.14,
+         0.02
+        ],
+        "at": [
+         -0.2,
+         1.05,
+         0.03
+        ],
+        "color": "#7fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.14,
+         0.14,
+         0.02
+        ],
+        "at": [
+         0.2,
+         1.05,
+         0.03
+        ],
+        "color": "#e0c04e",
+        "finish": "matte"
+       }
+      ]
+     },
+     {
+      "name": "Thread Border Router Mast",
+      "zone": "side",
+      "x": 0.85,
+      "z": 4.8,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         1.5,
+         0.14
+        ],
+        "at": [
+         0,
+         0.75,
+         0
+        ],
+        "color": "#b8ab95",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.22,
+         0.2
+        ],
+        "at": [
+         0,
+         1.55,
+         0
+        ],
+        "color": "#e8e2d4",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         -0.12,
+         1.7,
+         0
+        ],
+        "color": "#7fae7f",
+        "finish": "matte"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         0.12,
+         1.7,
+         0
+        ],
+        "color": "#e0a94e",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.35,
+         0.12
+        ],
+        "at": [
+         0,
+         1.35,
+         -0.11
+        ],
+        "color": "#e8e2d4",
+        "finish": "matte",
+        "text": "THREAD",
+        "textColor": "#3a6b4a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.28,
+         0.05,
+         0.28
+        ],
+        "at": [
+         0,
+         0.03,
+         0
+        ],
+        "color": "#9a8d76",
+        "finish": "matte"
+       }
+      ]
+     }
+    ]
+   },
+   "failures": [
+    "The room has more than 6 labels",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 4 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 5 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 6 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 7 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 13 goes below the floor",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 14 goes below the floor",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 16 needs three numbers for size, at and rot",
+    "Prop 2 (\"Matter Bulb Cluster\"), part 8 needs three numbers for size, at and rot",
+    "Prop 3 (\"Kitchen Ceiling Fixture (Unidentified RF)\"), part 6 needs three numbers for size, at and rot",
+    "Prop 4 (\"Spare SSD Crate\"), part 4 needs three numbers for size, at and rot",
+    "Prop 5 (\"Media Nook\"), part 3 needs three numbers for size, at and rot",
+    "Prop 5 (\"Media Nook\"), part 7 needs three numbers for size, at and rot",
+    "Prop 6 (\"NFC Tag Board\"), part 1 needs three numbers for size, at and rot",
+    "Prop 7 (\"Thread Border Router Mast\"), part 5 needs three numbers for size, at and rot"
+   ],
+   "ms": 93573,
+   "usage": {
+    "input": 14880,
+    "output": 10959
+   }
+  },
+  {
+   "design": {
+    "theme": "homelab: a tidy toy server rack running Proxmox &amp; Home Assistant, with the smart-home gear it manages",
+    "props": [
+     {
+      "name": "Proxmox & HAOS Rack Tower",
+      "zone": "back",
+      "x": 3.5,
+      "z": 0.7,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1,
+         1.6,
+         0.6
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#5a6b7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.05,
+         0.08,
+         0.65
+        ],
+        "at": [
+         0,
+         1.64,
+         0
+        ],
+        "color": "#3f4a54"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.9,
+         1.4
+        ],
+        "at": [
+         0,
+         0.8,
+         0.31
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#2c343c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.35,
+         0.25
+        ],
+        "at": [
+         -0.2,
+         1.1,
+         0.315
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1c2530",
+        "text": "PROXMOX",
+        "textColor": "#7fd67f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.35,
+         0.25
+        ],
+        "at": [
+         0.2,
+         1.1,
+         0.315
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1c2530",
+        "text": "HAOS",
+        "textColor": "#6fb8ff"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.03,
+         0.02
+        ],
+        "at": [
+         0,
+         0.7,
+         0.32
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d9822b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.03,
+         0.02
+        ],
+        "at": [
+         0,
+         0.65,
+         0.32
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#4caf6b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.3,
+         0.02
+        ],
+        "at": [
+         0,
+         1.3,
+         0.315
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#232b33"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.08,
+         0.15
+        ],
+        "at": [
+         0,
+         0.15,
+         0.35
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#8a6a4a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.03,
+         0.03,
+         0.6
+        ],
+        "at": [
+         -0.3,
+         0.2,
+         0.4
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#e0c060"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.03,
+         0.03,
+         0.6
+        ],
+        "at": [
+         0.3,
+         0.2,
+         0.4
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#6fa8dc"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.05,
+         1.5,
+         0.55
+        ],
+        "at": [
+         -0.53,
+         0.8,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#46525c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.05,
+         1.5,
+         0.55
+        ],
+        "at": [
+         0.53,
+         0.8,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#46525c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.08,
+         0.6
+        ],
+        "at": [
+         0,
+         0.04,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#333b42"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.04,
+         0.5,
+         0.04
+        ],
+        "at": [
+         0.4,
+         1.9,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#2c343c",
+        "taper": 0
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.08,
+         0.08,
+         0.08
+        ],
+        "at": [
+         0.4,
+         2.15,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d9822b"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.15,
+         0.02,
+         0.15
+        ],
+        "at": [
+         -0.25,
+         1.45,
+         0.32
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#10161c"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.15,
+         0.02,
+         0.15
+        ],
+        "at": [
+         0.25,
+         1.45,
+         0.32
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#10161c"
+       }
+      ]
+     },
+     {
+      "name": "Matter Bulb Cluster",
+      "zone": "back",
+      "x": 5.3,
+      "z": 0.6,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.6,
+         0.5
+        ],
+        "at": [
+         0,
+         0.3,
+         0
+        ],
+        "color": "#cdbfa5"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         -0.15,
+         0.75,
+         0
+        ],
+        "color": "#e5735a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.15,
+         0.75,
+         0
+        ],
+        "color": "#6fb8ff"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0,
+         0.95,
+         0.05
+        ],
+        "color": "#9b7fd6"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.08,
+         0.06
+        ],
+        "at": [
+         -0.15,
+         0.62,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#b0a58f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.08,
+         0.06
+        ],
+        "at": [
+         0.15,
+         0.62,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#b0a58f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.06,
+         0.08,
+         0.06
+        ],
+        "at": [
+         0,
+         0.82,
+         0.05
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#b0a58f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.12
+        ],
+        "at": [
+         0,
+         0.15,
+         0.26
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#cdbfa5",
+        "text": "MATTER",
+        "textColor": "#4a3f2c"
+       }
+      ]
+     },
+     {
+      "name": "Kitchen Ceiling Fixture (Unidentified RF)",
+      "zone": "back",
+      "x": 6.6,
+      "z": 0.4,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.1,
+         0.3
+        ],
+        "at": [
+         0,
+         2.2,
+         0
+        ],
+        "color": "#d8d2c2"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.12,
+         0.4
+        ],
+        "at": [
+         0,
+         2.1,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#f0e9d8",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.34,
+         0.03,
+         0.34
+        ],
+        "at": [
+         0,
+         2.03,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#fff2c8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.02,
+         0.2
+        ],
+        "at": [
+         -0.5,
+         1,
+         0.3
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.03,
+         0.01,
+         0.03
+        ],
+        "at": [
+         -0.5,
+         1.01,
+         0.35
+        ],
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "color": "#d9822b"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.15
+        ],
+        "at": [
+         0,
+         1.75,
+         0.155
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#f0e9d8",
+        "text": "RF?",
+        "textColor": "#b05a3a"
+       }
+      ]
+     },
+     {
+      "name": "Spare SSD Crate",
+      "zone": "back",
+      "x": 0.9,
+      "z": 0.8,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.45,
+         0.3,
+         0.35
+        ],
+        "at": [
+         0,
+         0.15,
+         0
+        ],
+        "color": "#d98f4b"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.47,
+         0.03,
+         0.37
+        ],
+        "at": [
+         0,
+         0.31,
+         0
+        ],
+        "color": "#b5732f"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.15,
+         0.02,
+         0.1
+        ],
+        "at": [
+         0,
+         0.33,
+         0.05
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#45505c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.02,
+         0.02,
+         0.3
+        ],
+        "at": [
+         0.2,
+         0.05,
+         0.2
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#8a8a8a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.2,
+         0.1
+        ],
+        "at": [
+         0,
+         0.15,
+         0.18
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#f5e9d5",
+        "text": "SPARE",
+        "textColor": "#6a4a2c"
+       }
+      ]
+     },
+     {
+      "name": "Media Nook",
+      "zone": "side",
+      "x": 0.8,
+      "z": 1,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.45,
+         0.4
+        ],
+        "at": [
+         0,
+         0.225,
+         0
+        ],
+        "color": "#c9b79a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.4
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1c2530"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.1
+        ],
+        "at": [
+         0,
+         0.5,
+         0.18
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.03,
+         0.08,
+         0.03
+        ],
+        "at": [
+         0.3,
+         0.47,
+         0.2
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#6fa8dc"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.15,
+         0.2,
+         0.15
+        ],
+        "at": [
+         -0.3,
+         0.1,
+         0.25
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d8d2c2",
+        "taper": 0.2
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.18,
+         0.14,
+         0.1
+        ],
+        "at": [
+         0.25,
+         0.3,
+         0.1
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#2c343c"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.14,
+         0.09
+        ],
+        "at": [
+         0.25,
+         0.32,
+         0.155
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#6fb8ff"
+       }
+      ]
+     },
+     {
+      "name": "NFC Tag Board",
+      "zone": "side",
+      "x": 0.7,
+      "z": 2.5,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.5,
+         0.05
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#cdbfa5"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.1,
+         0.1,
+         0.02
+        ],
+        "at": [
+         -0.1,
+         1,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#e5735a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.1,
+         0.1,
+         0.02
+        ],
+        "at": [
+         0.1,
+         1,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#6fb8ff"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.1,
+         0.1,
+         0.02
+        ],
+        "at": [
+         0,
+         0.7,
+         0.04
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#9b7fd6"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.3,
+         0.1
+        ],
+        "at": [
+         0,
+         0.5,
+         0.03
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#cdbfa5",
+        "text": "NFC",
+        "textColor": "#4a3f2c"
+       }
+      ]
+     },
+     {
+      "name": "Thread Border Router Mast",
+      "zone": "side",
+      "x": 0.9,
+      "z": 4,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         1.8,
+         0.08
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#8a97a3"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.05,
+         0.3
+        ],
+        "at": [
+         0,
+         0.025,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#5a6b7a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.18,
+         0.2
+        ],
+        "at": [
+         0,
+         1.5,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d8d2c2"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.02,
+         0.3,
+         0.02
+        ],
+        "at": [
+         -0.08,
+         1.75,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.02,
+         0.3,
+         0.02
+        ],
+        "at": [
+         0.08,
+         1.75,
+         0
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#3a3a3a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.04,
+         0.04,
+         0.04
+        ],
+        "at": [
+         0,
+         1.5,
+         0.11
+        ],
+        "rot": [
+         0,
+         0,
+         0
+        ],
+        "color": "#6fd67f"
+       }
+      ]
+     }
+    ]
+   },
+   "failures": [
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 3 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 4 needs three numbers for size, at and rot",
+    "Prop 1 (\"Proxmox & HAOS Rack Tower\"), part 5 needs three numbers for size, at and rot",
+    "Prop 2 (\"Matter Bulb Cluster\"), part 8 needs three numbers for size, at and rot",
+    "Prop 3 (\"Kitchen Ceiling Fixture (Unidentified RF)\"), part 6 needs three numbers for size, at and rot",
+    "Prop 4 (\"Spare SSD Crate\"), part 5 needs three numbers for size, at and rot",
+    "Prop 5 (\"Media Nook\"), part 2 needs three numbers for size, at and rot",
+    "Prop 5 (\"Media Nook\"), part 7 needs three numbers for size, at and rot",
+    "Prop 6 (\"NFC Tag Board\"), part 5 needs three numbers for size, at and rot"
+   ],
+   "ms": 101758,
+   "usage": {
+    "input": 18767,
+    "output": 13380
+   }
+  }
+ ]
+}

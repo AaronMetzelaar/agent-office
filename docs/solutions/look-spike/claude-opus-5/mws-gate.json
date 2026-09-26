@@ -1,0 +1,1838 @@
+{
+ "attempts": [
+  {
+   "design": {
+    "props": [
+     {
+      "name": "The Push Gate",
+      "zone": "back",
+      "x": 3,
+      "z": 0.85,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2.4,
+         0.12,
+         1.1
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#b9bfc7",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.06,
+         1.1
+        ],
+        "at": [
+         -0.2,
+         0.13,
+         0
+        ],
+        "color": "#c9a27a"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.7,
+         1.5,
+         0.7
+        ],
+        "at": [
+         -0.85,
+         0.81,
+         0
+        ],
+        "color": "#e6e1d6"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.45,
+         0.05
+        ],
+        "at": [
+         -0.85,
+         1.15,
+         0.34
+        ],
+        "color": "#4c6478",
+        "finish": "satin"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.42,
+         0.18
+        ],
+        "at": [
+         -0.85,
+         1.42,
+         0.36
+        ],
+        "color": "#3d5163",
+        "text": "GATE",
+        "textColor": "#f2e6c8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.72,
+         0.1,
+         0.72
+        ],
+        "at": [
+         -0.85,
+         1.61,
+         0
+        ],
+        "color": "#c2725a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         1,
+         0.22
+        ],
+        "at": [
+         -0.4,
+         0.55,
+         0
+        ],
+        "color": "#98a2ac",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.9,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.5,
+         1.02,
+         0
+        ],
+        "color": "#d96b5a",
+        "rot": [
+         0,
+         0,
+         6
+        ]
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.13,
+         0.13
+        ],
+        "at": [
+         -0.1,
+         0.97,
+         0
+        ],
+        "color": "#f0ead9"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.55,
+         1.04,
+         0
+        ],
+        "color": "#f0ead9"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.13,
+         0.13
+        ],
+        "at": [
+         1.2,
+         1.11,
+         0
+        ],
+        "color": "#f0ead9"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         0.16,
+         0.16
+        ],
+        "at": [
+         -0.4,
+         1.2,
+         0
+        ],
+        "color": "#e0b24a",
+        "rot": [
+         90,
+         0,
+         0
+        ]
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.14,
+         0.9,
+         0.14
+        ],
+        "at": [
+         1.05,
+         0.45,
+         -0.4
+        ],
+        "color": "#98a2ac",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.55,
+         0.1
+        ],
+        "at": [
+         0.62,
+         1.25,
+         -0.4
+        ],
+        "color": "#6d7f8c",
+        "finish": "satin"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.25,
+         1.42,
+         -0.33
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.45,
+         1.42,
+         -0.33
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.65,
+         1.42,
+         -0.33
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.85,
+         1.42,
+         -0.33
+        ],
+        "color": "#e0b24a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.25,
+         1.18,
+         -0.33
+        ],
+        "color": "#c9ccd1"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.55,
+         1.18,
+         -0.33
+        ],
+        "color": "#c9ccd1"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.13,
+         0.13,
+         0.13
+        ],
+        "at": [
+         0.85,
+         1.18,
+         -0.33
+        ],
+        "color": "#c9ccd1"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.9,
+         0.2
+        ],
+        "at": [
+         0.62,
+         1.6,
+         -0.36
+        ],
+        "color": "#3d5163",
+        "text": "7 STAGES",
+        "textColor": "#f2e6c8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.3,
+         0.4
+        ],
+        "at": [
+         1.05,
+         0.27,
+         0.35
+        ],
+        "color": "#8fa38c"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.06,
+         0.3
+        ],
+        "at": [
+         1.05,
+         0.45,
+         0.35
+        ],
+        "color": "#c2725a"
+       }
+      ]
+     },
+     {
+      "name": "Branch Signal Post",
+      "zone": "back",
+      "x": 5.6,
+      "z": 0.6,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.1,
+         0.4
+        ],
+        "at": [
+         0,
+         0.05,
+         0
+        ],
+        "color": "#98a2ac",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.14,
+         1.7,
+         0.14
+        ],
+        "at": [
+         0,
+         0.85,
+         0
+        ],
+        "color": "#6d7f8c",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.34,
+         0.9,
+         0.28
+        ],
+        "at": [
+         0,
+         1.65,
+         0.05
+        ],
+        "color": "#4c6478"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.1
+        ],
+        "at": [
+         0,
+         1.92,
+         0.2
+        ],
+        "color": "#d96b5a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.1
+        ],
+        "at": [
+         0,
+         1.68,
+         0.2
+        ],
+        "color": "#e0b24a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.1
+        ],
+        "at": [
+         0,
+         1.44,
+         0.2
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.18
+        ],
+        "at": [
+         0,
+         1.05,
+         0.1
+        ],
+        "color": "#e6e1d6",
+        "text": "PUSH",
+        "textColor": "#4c6478"
+       }
+      ]
+     },
+     {
+      "name": "Pipeline Conveyor of Commits",
+      "zone": "back",
+      "x": 1,
+      "z": 1,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.8,
+         0.5,
+         0.6
+        ],
+        "at": [
+         0,
+         0.25,
+         0
+        ],
+        "color": "#8fa38c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.9,
+         0.1,
+         0.66
+        ],
+        "at": [
+         0,
+         0.55,
+         0
+        ],
+        "color": "#6d7f8c",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.6,
+         0.75,
+         0
+        ],
+        "color": "#c2725a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.1,
+         0.75,
+         0
+        ],
+        "color": "#e0b24a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0.45,
+         0.75,
+         0
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         0.7,
+         0.12
+        ],
+        "at": [
+         0.85,
+         0.95,
+         0
+        ],
+        "color": "#98a2ac",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         0.14,
+         0.4
+        ],
+        "at": [
+         0.85,
+         1.35,
+         0
+        ],
+        "color": "#4c6478"
+       }
+      ]
+     },
+     {
+      "name": "Daemon Keeper Lamp",
+      "zone": "side",
+      "x": 0.85,
+      "z": 2.2,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.12,
+         0.5
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#6d7f8c",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         1.4,
+         0.16
+        ],
+        "at": [
+         0,
+         0.7,
+         0
+        ],
+        "color": "#98a2ac",
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.4,
+         0.4,
+         0.4
+        ],
+        "at": [
+         0,
+         1.55,
+         0
+        ],
+        "color": "#e0b24a"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.46,
+         0.22,
+         0.46
+        ],
+        "at": [
+         0,
+         1.82,
+         0
+        ],
+        "color": "#c2725a",
+        "taper": 0.4
+       }
+      ]
+     },
+     {
+      "name": "Rejected Bin",
+      "zone": "side",
+      "x": 0.8,
+      "z": 4,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.55,
+         0.6,
+         0.55
+        ],
+        "at": [
+         0,
+         0.3,
+         0
+        ],
+        "color": "#c2725a",
+        "taper": 0.15
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.08,
+         0.6
+        ],
+        "at": [
+         0,
+         0.64,
+         0
+        ],
+        "color": "#4c6478"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         0.12,
+         0.78,
+         0.05
+        ],
+        "color": "#e6e1d6",
+        "rot": [
+         0,
+         20,
+         15
+        ]
+       }
+      ]
+     },
+     {
+      "name": "Origin Forwarding Mast",
+      "zone": "back",
+      "x": 7.4,
+      "z": 0.7,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.16,
+         0.7
+        ],
+        "at": [
+         0,
+         0.08,
+         0
+        ],
+        "color": "#b9bfc7"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.18,
+         1.9,
+         0.18
+        ],
+        "at": [
+         0,
+         0.95,
+         0
+        ],
+        "color": "#8fa38c",
+        "taper": 0.4
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.9,
+         0.35,
+         0.9
+        ],
+        "at": [
+         0,
+         2,
+         0
+        ],
+        "color": "#e6e1d6",
+        "taper": 0,
+        "rot": [
+         180,
+         0,
+         0
+        ]
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0,
+         2.25,
+         0
+        ],
+        "color": "#7fb08a"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.18
+        ],
+        "at": [
+         0,
+         1.2,
+         0.12
+        ],
+        "color": "#3d5163",
+        "text": "ORIGIN",
+        "textColor": "#f2e6c8"
+       }
+      ]
+     }
+    ],
+    "theme": "A git push checkpoint: a toll-gate barrier with a 7-lamp validation board, signal posts and a commit conveyor"
+   },
+   "failures": [
+    "Prop 1 (\"The Push Gate\"), part 5 needs three numbers for size, at and rot",
+    "Prop 1 (\"The Push Gate\"), part 22 needs three numbers for size, at and rot",
+    "Prop 2 (\"Branch Signal Post\"), part 7 needs three numbers for size, at and rot",
+    "Prop 6 (\"Origin Forwarding Mast\"), part 5 needs three numbers for size, at and rot"
+   ],
+   "ms": 36734,
+   "usage": {
+    "input": 3805,
+    "output": 3284
+   }
+  },
+  {
+   "design": {
+    "props": [
+     {
+      "name": "The Push Gate",
+      "zone": "back",
+      "x": 3.2,
+      "z": 0.85,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         2.6,
+         0.18,
+         1.3
+        ],
+        "at": [
+         0,
+         0.09,
+         0
+        ],
+        "color": "#c8bda8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         2.1,
+         0.35
+        ],
+        "at": [
+         -1.05,
+         1.05,
+         0
+        ],
+        "color": "#7e93a8",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.35,
+         2.1,
+         0.35
+        ],
+        "at": [
+         1.05,
+         1.05,
+         0
+        ],
+        "color": "#7e93a8",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         2.5,
+         0.32,
+         0.4
+        ],
+        "at": [
+         0,
+         2.25,
+         0
+        ],
+        "color": "#5f7387",
+        "finish": "satin"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.5,
+         0.34,
+         0.1
+        ],
+        "at": [
+         0,
+         2.25,
+         0.22
+        ],
+        "color": "#3f4f60",
+        "text": "PUSH GATE",
+        "textColor": "#f2e6cf"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.7,
+         0.9,
+         0.16
+        ],
+        "at": [
+         0,
+         0.63,
+         -0.3
+        ],
+        "color": "#d9cdb4"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.14,
+         0.9,
+         0.14
+        ],
+        "at": [
+         0,
+         1.55,
+         -0.3
+        ],
+        "color": "#b0663f",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.75,
+         0.2,
+         0.3
+        ],
+        "at": [
+         0,
+         1.1,
+         0.25
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.3,
+         0.36,
+         0.3
+        ],
+        "at": [
+         -0.9,
+         1.1,
+         0.25
+        ],
+        "color": "#8d5b3a",
+        "rot": [
+         0,
+         0,
+         90
+        ]
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.4,
+         1.3,
+         0.4
+        ],
+        "at": [
+         -0.75,
+         0.65,
+         0.45
+        ],
+        "color": "#4c5b68"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.75,
+         0.32,
+         0.62
+        ],
+        "color": "#6f9a6a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.75,
+         0.62,
+         0.62
+        ],
+        "color": "#e0c664"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.75,
+         0.92,
+         0.62
+        ],
+        "color": "#c0563f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.55,
+         0.45,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.55,
+         0.72,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.55,
+         0.99,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.85,
+         0.45,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.85,
+         0.72,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.85,
+         0.99,
+         0.5
+        ],
+        "color": "#8fa8bb",
+        "taper": 0.3
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.22,
+         0.22,
+         0.22
+        ],
+        "at": [
+         0.7,
+         1.26,
+         0.5
+        ],
+        "color": "#d0a24a",
+        "taper": 0.3
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.12,
+         0.5
+        ],
+        "at": [
+         0.7,
+         0.22,
+         0.5
+        ],
+        "color": "#6b7a88"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.6,
+         0.3,
+         0.1
+        ],
+        "at": [
+         -1.05,
+         1.75,
+         0.2
+        ],
+        "color": "#3f4f60",
+        "text": "7 STAGES",
+        "textColor": "#e6d7b8"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.1,
+         0.9
+        ],
+        "at": [
+         0,
+         2.46,
+         0
+        ],
+        "color": "#8d9fae"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.26,
+         0.26,
+         0.26
+        ],
+        "at": [
+         0,
+         2.6,
+         0
+        ],
+        "color": "#c0563f"
+       }
+      ]
+     },
+     {
+      "name": "Branch Signal Post",
+      "zone": "back",
+      "x": 0.75,
+      "z": 0.7,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.12,
+         0.5
+        ],
+        "at": [
+         0,
+         0.06,
+         0
+        ],
+        "color": "#6d7b88"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.16,
+         2,
+         0.16
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "color": "#7e8d9b",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.16,
+         0.1
+        ],
+        "at": [
+         0.3,
+         1.7,
+         0
+        ],
+        "color": "#5f8a6a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.16,
+         0.1
+        ],
+        "at": [
+         -0.3,
+         1.35,
+         0
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         0.62,
+         1.78,
+         0
+        ],
+        "color": "#e0c664"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         -0.62,
+         1.43,
+         0
+        ],
+        "color": "#c0563f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.24,
+         0.1
+        ],
+        "at": [
+         0,
+         0.9,
+         0.1
+        ],
+        "color": "#3f4f60",
+        "text": "main",
+        "textColor": "#e6d7b8"
+       }
+      ]
+     },
+     {
+      "name": "Pre-Receive Hook Stand",
+      "zone": "back",
+      "x": 5.3,
+      "z": 0.8,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.9,
+         0.7,
+         0.6
+        ],
+        "at": [
+         0,
+         0.35,
+         0
+        ],
+        "color": "#c8bda8"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         1.1,
+         0.12
+        ],
+        "at": [
+         0,
+         1.25,
+         0
+        ],
+        "color": "#8d9fae",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.5,
+         0.14,
+         0.5
+        ],
+        "at": [
+         0.22,
+         1.78,
+         0
+        ],
+        "color": "#b0663f",
+        "rot": [
+         90,
+         0,
+         0
+        ],
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.08,
+         0.4
+        ],
+        "at": [
+         0,
+         0.74,
+         0
+        ],
+        "color": "#9aa9b6"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.18,
+         0.18,
+         0.18
+        ],
+        "at": [
+         -0.25,
+         0.82,
+         0.1
+        ],
+        "color": "#6f9a6a"
+       }
+      ]
+     },
+     {
+      "name": "Daemon Rack",
+      "zone": "side",
+      "x": 0.85,
+      "z": 2.2,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         1.6,
+         0.6
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#5f6e7c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.14,
+         0.05
+        ],
+        "at": [
+         0,
+         1.4,
+         0.3
+        ],
+        "color": "#8fa8bb"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.14,
+         0.05
+        ],
+        "at": [
+         0,
+         1.15,
+         0.3
+        ],
+        "color": "#8fa8bb"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         0.14,
+         0.05
+        ],
+        "at": [
+         0,
+         0.9,
+         0.3
+        ],
+        "color": "#8fa8bb"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.1,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0.22,
+         1.4,
+         0.34
+        ],
+        "color": "#6f9a6a"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.1,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0.22,
+         1.15,
+         0.34
+        ],
+        "color": "#e0c664"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.5,
+         0.22,
+         0.1
+        ],
+        "at": [
+         0,
+         0.5,
+         0.31
+        ],
+        "color": "#3f4f60",
+        "text": "daemon",
+        "textColor": "#e6d7b8"
+       }
+      ]
+     },
+     {
+      "name": "Launch Agent Plinth",
+      "zone": "side",
+      "x": 0.85,
+      "z": 4.4,
+      "tiers": [
+       2,
+       3
+      ],
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.7,
+         0.5,
+         0.7
+        ],
+        "at": [
+         0,
+         0.25,
+         0
+        ],
+        "color": "#c8bda8"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.4,
+         0.7,
+         0.4
+        ],
+        "at": [
+         0,
+         0.85,
+         0
+        ],
+        "color": "#b0663f",
+        "taper": 0.4
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0,
+         1.3,
+         0
+        ],
+        "color": "#e0c664"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.12,
+         0.3,
+         0.12
+        ],
+        "at": [
+         0.25,
+         0.6,
+         0
+        ],
+        "color": "#7e8d9b"
+       }
+      ]
+     },
+     {
+      "name": "Origin Forwarding Mast",
+      "zone": "back",
+      "x": 7,
+      "z": 0.8,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.14,
+         0.6
+        ],
+        "at": [
+         0,
+         0.07,
+         0
+        ],
+        "color": "#6d7b88"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.2,
+         2,
+         0.2
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "color": "#8d9fae",
+        "taper": 0.4,
+        "finish": "metal"
+       },
+       {
+        "shape": "sphere",
+        "size": [
+         0.5,
+         0.3,
+         0.5
+        ],
+        "at": [
+         0,
+         2.05,
+         0
+        ],
+        "color": "#5f8a6a"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.5,
+         0.1,
+         0.1
+        ],
+        "at": [
+         0.3,
+         1.6,
+         0
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.55,
+         0.24,
+         0.1
+        ],
+        "at": [
+         0,
+         1,
+         0.14
+        ],
+        "color": "#3f4f60",
+        "text": "origin",
+        "textColor": "#e6d7b8"
+       }
+      ]
+     },
+     {
+      "name": "Stage Queue Bollards",
+      "zone": "back",
+      "x": 8.6,
+      "z": 0.9,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.28,
+         0.9,
+         0.28
+        ],
+        "at": [
+         -0.6,
+         0.45,
+         0
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.28,
+         0.9,
+         0.28
+        ],
+        "at": [
+         0,
+         0.45,
+         0
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.28,
+         0.9,
+         0.28
+        ],
+        "at": [
+         0.6,
+         0.45,
+         0
+        ],
+        "color": "#c9743f"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.3,
+         0.06,
+         0.06
+        ],
+        "at": [
+         -0.3,
+         0.85,
+         0
+        ],
+        "color": "#e0c664"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1.3,
+         0.06,
+         0.06
+        ],
+        "at": [
+         0.3,
+         0.7,
+         0
+        ],
+        "color": "#e0c664"
+       }
+      ]
+     },
+     {
+      "name": "Rollback Bin",
+      "zone": "side",
+      "x": 0.85,
+      "z": 6.2,
+      "tiers": [
+       3
+      ],
+      "parts": [
+       {
+        "shape": "cylinder",
+        "size": [
+         0.6,
+         0.8,
+         0.6
+        ],
+        "at": [
+         0,
+         0.4,
+         0
+        ],
+        "color": "#8a6f5c",
+        "taper": 0.15
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.66,
+         0.1,
+         0.66
+        ],
+        "at": [
+         0,
+         0.85,
+         0
+        ],
+        "color": "#5f6e7c"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.05
+        ],
+        "at": [
+         0,
+         1,
+         0
+        ],
+        "color": "#c0563f",
+        "rot": [
+         0,
+         0,
+         20
+        ]
+       }
+      ]
+     }
+    ],
+    "theme": "A git push checkpoint: a toy-model validation gate with signal posts, hooks and a daemon rack"
+   },
+   "failures": [
+    "Prop 1 (\"The Push Gate\"), part 4 is taller than 2.4 m",
+    "Prop 1 (\"The Push Gate\"), part 5 is taller than 2.4 m",
+    "Prop 1 (\"The Push Gate\"), part 23 is taller than 2.4 m",
+    "Prop 1 (\"The Push Gate\"), part 24 is taller than 2.4 m",
+    "\"Branch Signal Post\" at tier 1 (narrowest) sticks out of the room",
+    "\"Branch Signal Post\" at tier 1 (stretched) sticks out of the room",
+    "\"Branch Signal Post\" at tier 2 (narrowest) sticks out of the room",
+    "\"Branch Signal Post\" at tier 2 (stretched) sticks out of the room",
+    "\"Branch Signal Post\" at tier 3 (narrowest) sticks out of the room",
+    "\"Branch Signal Post\" at tier 3 (stretched) sticks out of the room"
+   ],
+   "ms": 78011,
+   "usage": {
+    "input": 12330,
+    "output": 8113
+   }
+  }
+ ]
+}

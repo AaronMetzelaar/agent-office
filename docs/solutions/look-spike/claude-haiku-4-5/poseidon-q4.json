@@ -1,0 +1,887 @@
+{
+ "attempts": [
+  {
+   "design": {
+    "theme": "Cryptanalysis Laboratory - Breaking Poseidon Hashes",
+    "props": [
+     {
+      "name": "Collision Detector",
+      "zone": "back",
+      "x": 3.5,
+      "z": 0.7,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": true,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.2,
+         1.8,
+         0.5
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "color": "#d4a574",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.15,
+         0.4
+        ],
+        "at": [
+         0,
+         1.75,
+         0
+        ],
+        "color": "#8b7355",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         -0.35,
+         1.5,
+         0.2
+        ],
+        "color": "#ff6b6b",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.3,
+         0.3,
+         0.3
+        ],
+        "at": [
+         0.35,
+         1.5,
+         0.2
+        ],
+        "color": "#4ecdc4",
+        "finish": "matte"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         1.2,
+         0.12
+        ],
+        "at": [
+         -0.35,
+         0.6,
+         0.2
+        ],
+        "color": "#ff6b6b",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.12,
+         1.2,
+         0.12
+        ],
+        "at": [
+         0.35,
+         0.6,
+         0.2
+        ],
+        "color": "#4ecdc4",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.12,
+         0.25
+        ],
+        "at": [
+         0,
+         0.35,
+         0.15
+        ],
+        "color": "#2c3e50",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.15,
+         0.15,
+         0.15
+        ],
+        "at": [
+         -0.3,
+         0.35,
+         0.25
+        ],
+        "color": "#f39c12",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.15,
+         0.15,
+         0.15
+        ],
+        "at": [
+         0,
+         0.35,
+         0.25
+        ],
+        "color": "#f39c12",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.15,
+         0.15,
+         0.15
+        ],
+        "at": [
+         0.3,
+         0.35,
+         0.25
+        ],
+        "color": "#f39c12",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.9,
+         0.4,
+         0
+        ],
+        "at": [
+         0,
+         1.2,
+         0.26
+        ],
+        "color": "#2c3e50",
+        "text": "COLLISION",
+        "textColor": "#f39c12"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.3,
+         0.12
+        ],
+        "at": [
+         -0.4,
+         0.8,
+         -0.15
+        ],
+        "color": "#95a5a6",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.3,
+         0.12
+        ],
+        "at": [
+         -0.1,
+         0.8,
+         -0.15
+        ],
+        "color": "#95a5a6",
+        "finish": "satin"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.3,
+         0.12
+        ],
+        "at": [
+         0.2,
+         0.8,
+         -0.15
+        ],
+        "color": "#95a5a6",
+        "finish": "satin"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         0.5,
+         0.08
+        ],
+        "at": [
+         -0.5,
+         0.25,
+         0
+        ],
+        "color": "#34495e",
+        "finish": "metal"
+       },
+       {
+        "shape": "cylinder",
+        "size": [
+         0.08,
+         0.5,
+         0.08
+        ],
+        "at": [
+         0.5,
+         0.25,
+         0
+        ],
+        "color": "#34495e",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.06,
+         0.4,
+         0.06
+        ],
+        "at": [
+         -0.35,
+         1.35,
+         -0.15
+        ],
+        "color": "#2c3e50",
+        "finish": "metal"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.06,
+         0.4,
+         0.06
+        ],
+        "at": [
+         0.35,
+         1.35,
+         -0.15
+        ],
+        "color": "#2c3e50",
+        "finish": "metal"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         -0.35,
+         1.65,
+         0
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.2,
+         0.2,
+         0.2
+        ],
+        "at": [
+         0.35,
+         1.65,
+         0
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       }
+      ]
+     },
+     {
+      "name": "Hash State Board",
+      "zone": "back",
+      "x": 1,
+      "z": 0.5,
+      "tiers": [
+       1,
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": false,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.6,
+         1,
+         0.08
+        ],
+        "at": [
+         0,
+         0.5,
+         0
+        ],
+        "color": "#ecf0f1",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.28,
+         0.08
+        ],
+        "at": [
+         -0.6,
+         0.5,
+         0.05
+        ],
+        "color": "#e74c3c",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.28,
+         0.08
+        ],
+        "at": [
+         -0.3,
+         0.5,
+         0.05
+        ],
+        "color": "#e74c3c",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.28,
+         0.08
+        ],
+        "at": [
+         0,
+         0.5,
+         0.05
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.28,
+         0.08
+        ],
+        "at": [
+         0.3,
+         0.5,
+         0.05
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.28,
+         0.28,
+         0.08
+        ],
+        "at": [
+         0.6,
+         0.5,
+         0.05
+        ],
+        "color": "#2ecc71",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         1.5,
+         0.35,
+         0
+        ],
+        "at": [
+         0,
+         0.75,
+         0.1
+        ],
+        "color": "#ecf0f1",
+        "text": "STATE t=16",
+        "textColor": "#2c3e50"
+       }
+      ]
+     },
+     {
+      "name": "Cryptanalysis Workbench",
+      "zone": "back",
+      "x": 5.8,
+      "z": 0.7,
+      "tiers": [
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": false,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1.3,
+         0.15,
+         0.5
+        ],
+        "at": [
+         0,
+         0.075,
+         0
+        ],
+        "color": "#8b7355",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.4,
+         0.35
+        ],
+        "at": [
+         -0.5,
+         0.2,
+         0.05
+        ],
+        "color": "#c0a080",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.25,
+         0.4,
+         0.35
+        ],
+        "at": [
+         0.5,
+         0.2,
+         0.05
+        ],
+        "color": "#c0a080",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         1,
+         0.08,
+         0.35
+        ],
+        "at": [
+         0,
+         0.4,
+         0.05
+        ],
+        "color": "#a0826d",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.2,
+         0.25,
+         0.2
+        ],
+        "at": [
+         -0.35,
+         0.5,
+         0.15
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.2,
+         0.25,
+         0.2
+        ],
+        "at": [
+         0,
+         0.5,
+         0.15
+        ],
+        "color": "#9b59b6",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.2,
+         0.25,
+         0.2
+        ],
+        "at": [
+         0.35,
+         0.5,
+         0.15
+        ],
+        "color": "#e67e22",
+        "finish": "matte"
+       }
+      ]
+     },
+     {
+      "name": "Output Comparator",
+      "zone": "back",
+      "x": 6.5,
+      "z": 0.5,
+      "tiers": [
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": false,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.8,
+         0.8,
+         0.3
+        ],
+        "at": [
+         0,
+         0.4,
+         0
+        ],
+        "color": "#ecf0f1",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.25
+        ],
+        "at": [
+         -0.25,
+         0.4,
+         0.08
+        ],
+        "color": "#e74c3c",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.3,
+         0.3,
+         0.25
+        ],
+        "at": [
+         0.25,
+         0.4,
+         0.08
+        ],
+        "color": "#e74c3c",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0,
+         0.75,
+         0.15
+        ],
+        "color": "#2ecc71",
+        "finish": "matte"
+       },
+       {
+        "shape": "panel",
+        "size": [
+         0.7,
+         0.25,
+         0
+        ],
+        "at": [
+         0,
+         0.2,
+         0.16
+        ],
+        "color": "#ecf0f1",
+        "text": "MATCH q=4",
+        "textColor": "#2ecc71"
+       }
+      ]
+     },
+     {
+      "name": "Mathematical Reference Shelf",
+      "zone": "back",
+      "x": 2.3,
+      "z": 0.3,
+      "tiers": [
+       2,
+       3
+      ],
+      "rotate": 0,
+      "signature": false,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         1,
+         1.6,
+         0.3
+        ],
+        "at": [
+         0,
+         0.8,
+         0
+        ],
+        "color": "#a0826d",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.92,
+         0.15,
+         0.25
+        ],
+        "at": [
+         0,
+         0.4,
+         0
+        ],
+        "color": "#c0a080",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.92,
+         0.15,
+         0.25
+        ],
+        "at": [
+         0,
+         0.75,
+         0
+        ],
+        "color": "#c0a080",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.92,
+         0.15,
+         0.25
+        ],
+        "at": [
+         0,
+         1.1,
+         0
+        ],
+        "color": "#c0a080",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.18,
+         0.3,
+         0.25
+        ],
+        "at": [
+         -0.35,
+         0.5,
+         0.05
+        ],
+        "color": "#e74c3c",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.18,
+         0.3,
+         0.25
+        ],
+        "at": [
+         0.35,
+         0.5,
+         0.05
+        ],
+        "color": "#3498db",
+        "finish": "matte"
+       }
+      ]
+     },
+     {
+      "name": "Meet-in-the-Middle Analyzer",
+      "zone": "side",
+      "x": 0.8,
+      "z": 4,
+      "tiers": [
+       3
+      ],
+      "rotate": 0,
+      "signature": false,
+      "parts": [
+       {
+        "shape": "box",
+        "size": [
+         0.6,
+         1.2,
+         0.4
+        ],
+        "at": [
+         0,
+         0.6,
+         0
+        ],
+        "color": "#95a5a6",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.15,
+         0.35
+        ],
+        "at": [
+         0,
+         0.3,
+         0
+        ],
+        "color": "#7f8c8d",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.15,
+         0.35
+        ],
+        "at": [
+         0,
+         0.6,
+         0
+        ],
+        "color": "#7f8c8d",
+        "finish": "matte"
+       },
+       {
+        "shape": "box",
+        "size": [
+         0.55,
+         0.15,
+         0.35
+        ],
+        "at": [
+         0,
+         0.9,
+         0
+        ],
+        "color": "#7f8c8d",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         -0.2,
+         0.35,
+         0.2
+        ],
+        "color": "#f39c12",
+        "finish": "matte"
+       },
+       {
+        "shape": "rounded",
+        "size": [
+         0.12,
+         0.12,
+         0.12
+        ],
+        "at": [
+         0.2,
+         0.35,
+         0.2
+        ],
+        "color": "#f39c12",
+        "finish": "matte"
+       }
+      ]
+     }
+    ]
+   },
+   "failures": [
+    "Prop 1 (\"Collision Detector\"), part 11 has a size outside 0.01 to 2.6 m",
+    "Prop 2 (\"Hash State Board\"), part 7 has a size outside 0.01 to 2.6 m",
+    "Prop 2 (\"Hash State Board\"), part 7 has a label with characters or a link that labels can't use",
+    "Prop 4 (\"Output Comparator\"), part 5 has a size outside 0.01 to 2.6 m",
+    "Prop 4 (\"Output Comparator\"), part 5 has a label with characters or a link that labels can't use"
+   ],
+   "ms": 44799,
+   "usage": {
+    "input": 10367,
+    "output": 7837
+   }
+  },
+  {
+   "failures": [
+    "error_max_turns"
+   ],
+   "ms": 41441,
+   "usage": {
+    "input": 10402,
+    "output": 6449
+   },
+   "error": "error_max_turns"
+  }
+ ]
+}
