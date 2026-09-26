@@ -137,11 +137,12 @@ const redact = (text: string, secret: string | null) => (secret === null ? text 
 
 export function createAccounts(vault: Vault, validate: Validator, saved?: HealthStore) {
   const health = saved?.loadHealth() ?? new Map<string, AccountHealth>()
-  const events = new EventEmitter<{ changed: [AccountView[]]; 'needs-login': [Account]; removed: [string]; headroom: [Account, Tightest | undefined] }>()
+  const events = new EventEmitter<{ changed: [AccountView[]]; 'needs-login': [Account]; 'login-fixed': [Account]; removed: [string]; headroom: [Account, Tightest | undefined] }>()
   const hot = (next: AccountHealth | undefined) => {
     const window = tightest(next?.headroom, Date.now())
     return isWarning(window) ? window : undefined
   }
+  const checking = new Set<string>()
   const warned = new Set([...health].flatMap(([id, saved]) => (hot(saved) ? [id] : [])))
 
   const view = (account: Account): AccountView => ({
@@ -158,6 +159,7 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
     health.set(account.id, next)
     saved?.saveHealth(account.id, next)
     if (next.status === 'needs-login' && !wasNeedsLogin) events.emit('needs-login', account)
+    if (next.status === 'ok' && wasNeedsLogin) events.emit('login-fixed', account)
     const window = hot(next)
     if (!!window !== warned.has(account.id)) {
       if (window) warned.add(account.id)
@@ -203,11 +205,14 @@ export function createAccounts(vault: Vault, validate: Validator, saved?: Health
 
     async revalidate(id: unknown): Promise<void> {
       const account = typeof id === 'string' ? vault.find(id) : undefined
-      if (!account) return
+      if (!account || checking.has(account.id)) return
       const token = vault.token(account.id)
       if (token === undefined) return setHealth(account, { status: 'needs-login', lastCheckedAt: Date.now() })
       const previous = health.get(account.id)
-      const next = await validate(token).then(healthFrom, () => ({ ...previous, status: 'unknown' as const, lastCheckedAt: Date.now() }))
+      checking.add(account.id)
+      const next = await validate(token)
+        .then(healthFrom, () => ({ ...previous, status: 'unknown' as const, lastCheckedAt: Date.now() }))
+        .finally(() => checking.delete(account.id))
       if (vault.find(account.id)) setHealth(account, next)
     },
 

@@ -160,6 +160,21 @@ describe('accounts', () => {
     expect(needsLogin).toEqual(['main'])
   })
 
+  it('emits login-fixed once when a needs-login account checks ok again', async () => {
+    let answer: () => ReturnType<Validator> = async () => ({ status: 'ok', headroom })
+    const { accounts } = start(() => answer())
+    const account = await addMain(accounts)
+    const fixed: string[] = []
+    accounts.events.on('login-fixed', (entry) => fixed.push(entry.label))
+
+    await accounts.revalidate(account.id)
+    accounts.loginFailed(account.id)
+    await accounts.revalidate(account.id)
+    await accounts.revalidate(account.id)
+
+    expect(fixed).toEqual(['main'])
+  })
+
   it('persists health in the metadata database so it survives a restart', async () => {
     const db = openDb(join(dir, 'office.db'))
     const first = createAccounts(openVault(dir), validator, db)

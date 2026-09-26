@@ -147,7 +147,7 @@ onUnmounted(() => removeEventListener('keydown', onKey))
         </div>
         <p v-if="!account.health.headroom && account.health.status !== 'needs-login'" class="meta">Check the account to see its 5-hour and weekly usage.</p>
         <div class="actions">
-          <button v-if="account.health.status === 'needs-login'" class="btn primary" @click="pasteNewToken(account.label)">Paste new token</button>
+          <button v-if="account.health.status === 'needs-login' && !account.claudeLogin" class="btn primary" @click="pasteNewToken(account.label)">Paste new token</button>
           <button class="btn" :disabled="checking.has(account.id)" @click="check(account.id)">{{ checking.has(account.id) ? 'Checking…' : 'Check now' }}</button>
           <button class="btn danger push" @click="remove(account)">Remove…</button>
         </div>

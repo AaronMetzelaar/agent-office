@@ -393,6 +393,22 @@ describe('chat store', () => {
     expect(chat(theirs).state).toBe('working')
   })
 
+  it('resumes only the chats stuck on login once their account logs in again', () => {
+    const { engine, store, chat } = office
+    const expired = working()
+    const crashed = working('Crashed')
+    const theirs = working('Research', 'research')
+    engine.exit(expired, 'Failed to authenticate. API Error: 401 OAuth access token is invalid')
+    engine.exit(crashed, 'Claude Code process exited with code 1')
+    engine.exit(theirs, 'Failed to authenticate. API Error: 401 OAuth access token is invalid')
+
+    store.loginFixed('main')
+
+    expect(chat(expired).state).toBe('working')
+    expect(chat(crashed).stuck?.reason).toBe('crashed')
+    expect(chat(theirs).stuck?.reason).toBe('needs-login')
+  })
+
   it('gives each chat a palette colour at creation, never repeats one in a department, and keeps it across a reload', () => {
     const ids = Array.from({ length: palette.length + 3 }, (_, i) => office.start(`Chat ${i}`))
     const colours = ids.map((id) => office.chat(id).colour)

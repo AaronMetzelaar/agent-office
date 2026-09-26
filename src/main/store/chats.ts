@@ -454,7 +454,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     if (merged.length > maxRows) set(chat, { earlier: true })
   }
 
-  return {
+  const store = {
     events,
     snapshot: (): ChatView[] => [...chats.values()].map((chat) => structuredClone(chat.view)),
     view: (chatId: string): Readonly<ChatView> | undefined => chats.get(chatId)?.view,
@@ -708,6 +708,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       else set(chat, fields)
     },
 
+    loginFixed(accountId: string): void {
+      for (const chat of [...chats.values()]) if (chat.view.accountId === accountId && chat.view.state === 'stuck' && chat.view.stuck?.reason === 'needs-login') store.resumeChat(chat.view.id)
+    },
+
     accountRemoved(accountId: string): void {
       for (const chat of chats.values()) {
         if (chat.view.accountId !== accountId) continue
@@ -723,4 +727,5 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       }
     },
   }
+  return store
 }

@@ -142,13 +142,16 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
   })
   const stripTimer = setInterval(strip, 60_000)
   const usageTimer = setInterval(() => {
-    for (const account of accounts.list()) if (account.health.status !== 'needs-login') void accounts.revalidate(account.id)
+    for (const account of accounts.list()) void accounts.revalidate(account.id)
   }, 10 * 60_000)
   ui.onChange(({ visible, focused }) => {
     sync.setVisible(visible)
-    if (focused) reviews.focus()
+    if (!focused) return
+    reviews.focus()
+    for (const account of accounts.list()) if (account.health.status === 'needs-login') void accounts.revalidate(account.id)
   })
   accounts.events.on('needs-login', notifier.login)
+  accounts.events.on('login-fixed', (account) => store.loginFixed(account.id))
   accounts.events.on('headroom', notifier.headroom)
   accounts.events.on('changed', (list) => {
     hub.send('accountsChanged', list)
