@@ -38,7 +38,7 @@ describe('wait metrics', () => {
     const id = office.start()
     office.engine.init(id)
     for (const seconds of [5, 60, 12, 300, 30]) {
-      const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+      const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
       vi.advanceTimersByTime(seconds * 1000)
       office.broker.resolveRequest(office.chat(id).pendingRequests[0]!.id, { kind: 'allow' }, 'inbox')
       await decision

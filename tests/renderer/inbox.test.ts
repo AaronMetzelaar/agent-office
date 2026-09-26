@@ -73,7 +73,7 @@ describe('inbox', () => {
 
     const before = source.batches
     const command = 'pnpm test --filter marketplace -- --reporter=verbose --coverage --run tests/components/BidFlow.test.ts'
-    void office.engine.ask(id, 'Bash', { command })
+    void office.engine.askTool(id, 'Bash', { command })
     await source.flush()
 
     expect(source.batches).toBe(before + 1)
@@ -91,11 +91,11 @@ describe('inbox', () => {
     const first = office.start('First in line')
     office.engine.init(first)
     office.engine.emit(first, sdk.text('I looked at the flaky test.'))
-    void office.engine.ask(first, 'Bash', { command: 'git status' })
+    void office.engine.askTool(first, 'Bash', { command: 'git status' })
     await vi.advanceTimersByTimeAsync(5)
     const second = office.start('Second in line')
     office.engine.init(second)
-    void office.engine.ask(second, 'Edit', { file_path: join(dir, 'a.ts') })
+    void office.engine.askTool(second, 'Edit', { file_path: join(dir, 'a.ts') })
     await source.flush()
 
     const { inbox } = inboxOf(projection)

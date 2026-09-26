@@ -110,7 +110,7 @@ describe('department placement', { timeout: 60_000 }, () => {
 
   it('holds a move while the chat is queued at your door, and makes it once the chat is released', async () => {
     const id = startIn(join(monorepo(), 'frontend/marketplace'))
-    const asked = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const asked = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     expect(office.chat(id).state).toBe('needs-you')
     repeat(3, () => touch(id, edit(mob())))
     expect(department(id)).toBe('mkt')

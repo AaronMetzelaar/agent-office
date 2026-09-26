@@ -176,6 +176,7 @@ describe('session manager', () => {
     expect(await engine.topic('main', 'Show the topic')).toBeUndefined()
     expect(await engine.topic('nobody', 'Show the topic')).toBeUndefined()
   })
+
 })
 
 describe('outsideAsar', () => {

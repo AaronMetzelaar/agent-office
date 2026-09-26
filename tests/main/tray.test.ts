@@ -68,7 +68,7 @@ describe('menu bar strip', () => {
   it('drops the count once the request is allowed', async () => {
     const id = office.start('Run the tests')
     office.engine.init(id)
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     expect(stripState(office.store.views(), [])).toEqual({ needs: 1, dots: [] })
     office.broker.resolveRequest(office.chat(id).pendingRequests[0]!.id, { kind: 'allow' }, 'inbox')
     await decision

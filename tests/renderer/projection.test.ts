@@ -65,7 +65,7 @@ describe('store projection', () => {
     await source.flush()
     expect(agentsOf(projection)[0]).toMatchObject({ state: 'working', caption: 'Editing BidFlow.vue' })
 
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     await source.flush()
     expect(agentsOf(projection)[0]).toMatchObject({ state: 'needs-you', caption: 'Waiting for you · Bash', request: { tool: 'Bash', summary: 'pnpm test' } })
   })
@@ -75,7 +75,7 @@ describe('store projection', () => {
     await projection.ready
     const early = office.start('Waiting already')
     office.engine.init(early)
-    void office.engine.ask(early, 'Bash', { command: 'git status' })
+    void office.engine.askTool(early, 'Bash', { command: 'git status' })
     const id = office.start('Fix the bid flow')
     office.engine.init(id)
     await source.flush()
@@ -88,7 +88,7 @@ describe('store projection', () => {
     const walker = newWalker(new Vector3(seat[0], 0, seat[1]))
 
     await vi.advanceTimersByTimeAsync(1)
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     await source.flush()
 
     const after = agentsOf(projection)

@@ -71,7 +71,7 @@ afterEach(() => {
 function asking(command = 'pnpm test --filter marketplace') {
   const id = office.start('Run the tests')
   office.engine.init(id)
-  const decision = office.engine.ask(id, 'Bash', { command })
+  const decision = office.engine.askTool(id, 'Bash', { command })
   return { id, decision, request: office.chat(id).pendingRequests[0]! }
 }
 
@@ -166,18 +166,18 @@ describe('notifications', () => {
     const id = office.start('Run the tests')
     office.engine.init(id)
     onScreen = id
-    const quiet = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const quiet = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     expect(notes).toHaveLength(0)
     expect(pushes).toHaveLength(0)
     office.broker.resolveRequest(office.chat(id).pendingRequests[0]!.id, { kind: 'allow' }, 'chat')
     await quiet
 
-    void office.engine.ask(id, 'Bash', { command: 'pnpm lint' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm lint' })
     const shownRequest = office.chat(id).pendingRequests[0]!
     expect(notes).toHaveLength(0)
 
     onScreen = undefined
-    void office.engine.ask(id, 'Bash', { command: 'pnpm build' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm build' })
     expect(notes.map((note) => note.options.body)).toEqual(['Auto mode wants to run: pnpm build'])
     expect(pushes).toHaveLength(1)
     expect(notifier.live.has(shownRequest.id)).toBe(false)

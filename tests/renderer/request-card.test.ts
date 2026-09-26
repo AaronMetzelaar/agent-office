@@ -132,7 +132,7 @@ describe('question answers reach Claude', () => {
     const id = office.start('Pick a library')
     office.engine.init(id)
     const questions = [{ question: 'Which date library?', options: [{ label: 'date-fns' }, { label: 'dayjs' }] }]
-    const decision = office.engine.ask(id, 'AskUserQuestion', { questions })
+    const decision = office.engine.askTool(id, 'AskUserQuestion', { questions })
     const pending = office.chat(id).pendingRequests[0]!
     const answer = answerDecision(questionsOf(pending), { 'Which date library?': ['dayjs'] }, {})!
     expect(office.broker.resolveRequest(pending.id, answer, 'chat')).toEqual({ ok: true })

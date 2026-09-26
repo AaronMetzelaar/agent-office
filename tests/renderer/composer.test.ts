@@ -35,7 +35,7 @@ const apiFor = (current: ReturnType<typeof openOffice>) => ({
 function asking() {
   const id = office.start('Run the tests')
   office.engine.init(id)
-  const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+  const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
   return { id, decision, request: office.chat(id).pendingRequests[0]! }
 }
 

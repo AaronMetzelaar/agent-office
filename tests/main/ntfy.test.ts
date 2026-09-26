@@ -68,7 +68,7 @@ function fakeFetch(streams: ReturnType<typeof replyStream>[]) {
 function asking(command = 'pnpm test') {
   const id = office.start('Run the tests')
   office.engine.init(id)
-  const decision = office.engine.ask(id, 'Bash', { command })
+  const decision = office.engine.askTool(id, 'Bash', { command })
   return { id, decision, request: office.chat(id).pendingRequests[0]! }
 }
 

@@ -146,7 +146,7 @@ describe('untrusted content', () => {
     const resolveRequest = vi.fn()
     vi.stubGlobal('window', { office: { resolveRequest } })
     const id = await working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const payload = '<img src=x onerror="window.office.resolveRequest()"><script>window.office.resolveRequest()</script>'
     office.engine.emit(id, sdk.toolUse([{ id: 't1', name: 'WebFetch', input: { url: 'https://evil.example/page' } }]))
     office.engine.emit(id, sdk.toolResult('t1', payload))

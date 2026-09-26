@@ -41,7 +41,7 @@ const requests = (id: string) => office.chat(id).pendingRequests
 describe('permission broker', () => {
   it('allow once resolves the SDK callback with allow and the chat returns to Working', async () => {
     const id = working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' }, { suggestions: bashRule('pnpm test') })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' }, { suggestions: bashRule('pnpm test') })
 
     expect(office.chat(id)).toMatchObject({ state: 'needs-you', pending: [{ toolName: 'Bash' }] })
     const [request] = requests(id)
@@ -56,7 +56,7 @@ describe('permission broker', () => {
 
   it('deny passes the message back to Claude', async () => {
     const id = working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm build' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm build' })
     office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'deny', message: 'Run the tests first' }, 'chat')
     expect(await decision).toEqual({ behavior: 'deny', message: 'Run the tests first' })
   })
@@ -64,9 +64,9 @@ describe('permission broker', () => {
   it('two pending requests in one chat resolve independently, oldest first', async () => {
     vi.useFakeTimers({ now: 1_000 })
     const id = working()
-    const first = office.engine.ask(id, 'Bash', { command: 'pnpm lint' })
+    const first = office.engine.askTool(id, 'Bash', { command: 'pnpm lint' })
     vi.setSystemTime(2_000)
-    const second = office.engine.ask(id, 'Edit', { file_path: join(dir, 'a.ts') })
+    const second = office.engine.askTool(id, 'Edit', { file_path: join(dir, 'a.ts') })
 
     expect(requests(id).map((request) => [request.tool, request.createdAt])).toEqual([
       ['Bash', 1_000],
@@ -87,7 +87,7 @@ describe('permission broker', () => {
   it('answers from the notification and the chat within milliseconds run the tool once', async () => {
     const id = working()
     let runs = 0
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' }).then((result) => {
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' }).then((result) => {
       if (result?.behavior === 'allow') runs++
       return result
     })
@@ -103,7 +103,7 @@ describe('permission broker', () => {
 
   it('resolving a request whose session died returns "session ended", and the chat shows Stuck', async () => {
     const id = working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const requestId = requests(id)[0]!.id
     office.engine.exit(id, 'Claude Code process exited with code 1')
 
@@ -114,7 +114,7 @@ describe('permission broker', () => {
 
   it('a request whose process vanished without an exit event also ends the chat', () => {
     const id = working()
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const requestId = requests(id)[0]!.id
     office.engine.stop(id)
 
@@ -125,13 +125,13 @@ describe('permission broker', () => {
   it('approving ExitPlanMode switches the session back to Auto mode; rejecting keeps planning', async () => {
     const id = working()
     await office.engine.setPermissionMode(id, 'plan')
-    const rejected = office.engine.ask(id, 'ExitPlanMode', { plan: '1. Fix the bid flow' })
+    const rejected = office.engine.askTool(id, 'ExitPlanMode', { plan: '1. Fix the bid flow' })
     expect(requests(id)[0]).toMatchObject({ tool: 'ExitPlanMode', summary: 'Plan ready for review', input: { plan: '1. Fix the bid flow' } })
     office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'deny', message: 'Add tests to the plan' }, 'chat')
     expect(await rejected).toEqual({ behavior: 'deny', message: 'Add tests to the plan' })
     expect(office.engine.calls).toEqual([`setPermissionMode:${id}:plan`])
 
-    const approved = office.engine.ask(id, 'ExitPlanMode', { plan: '1. Fix the bid flow\n2. Add tests' })
+    const approved = office.engine.askTool(id, 'ExitPlanMode', { plan: '1. Fix the bid flow\n2. Add tests' })
     office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'allow' }, 'chat')
     expect(await approved).toMatchObject({ behavior: 'allow' })
     expect(office.engine.calls.at(-1)).toBe(`setPermissionMode:${id}:auto`)
@@ -145,7 +145,7 @@ describe('permission broker', () => {
     office.engine.emit(id, sdk.status('plan'))
     expect(office.chat(id).permissionMode).toBe('plan')
 
-    const approved = office.engine.ask(id, 'ExitPlanMode', { plan: '1. Fix the bid flow' })
+    const approved = office.engine.askTool(id, 'ExitPlanMode', { plan: '1. Fix the bid flow' })
     office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'allow' }, 'chat')
     expect(await approved).toMatchObject({ behavior: 'allow' })
     expect(office.engine.calls.at(-1)).toBe(`setPermissionMode:${id}:acceptEdits`)
@@ -159,8 +159,8 @@ describe('permission broker', () => {
 
   it('records where each request was answered, so the chat can say so', () => {
     const id = working()
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
-    void office.engine.ask(id, 'Bash', { command: 'pnpm lint' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm lint' })
     const [first, second] = requests(id)
     office.broker.resolveRequest(first!.id, { kind: 'allow' }, 'phone')
     office.broker.resolveRequest(second!.id, { kind: 'deny', message: 'Not now' }, 'chat')
@@ -173,7 +173,7 @@ describe('permission broker', () => {
   it('answers AskUserQuestion through updatedInput', async () => {
     const id = working()
     const questions = [{ question: 'Which date library?', header: 'Library', multiSelect: false, options: [{ label: 'date-fns', description: '' }, { label: 'dayjs', description: '' }] }]
-    const decision = office.engine.ask(id, 'AskUserQuestion', { questions })
+    const decision = office.engine.askTool(id, 'AskUserQuestion', { questions })
     const request = requests(id)[0]!
     expect(request.summary).toBe('Which date library?')
 
@@ -185,7 +185,7 @@ describe('permission broker', () => {
   it('an interrupt that cancels the request drops it from the queue', async () => {
     const id = working()
     const abort = new AbortController()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' }, { signal: abort.signal })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' }, { signal: abort.signal })
     const requestId = requests(id)[0]!.id
     abort.abort()
 
@@ -196,7 +196,7 @@ describe('permission broker', () => {
 
   it('refuses malformed decisions and unknown ids', () => {
     const id = working()
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const requestId = requests(id)[0]!.id
     expect(office.broker.resolveRequest(requestId, { kind: 'bypass' }, 'chat')).toEqual({ error: 'Unknown request.' })
     expect(office.broker.resolveRequest(requestId, { kind: 'answer', answers: { q: 1 } }, 'chat')).toEqual({ error: 'Unknown request.' })
@@ -211,7 +211,7 @@ describe('approval sources', () => {
     const id = working()
     let focused = false
     const fromWindow = windowResolver(office.broker, () => focused)
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const requestId = requests(id)[0]!.id
 
     expect(fromWindow(requestId, { kind: 'allow' }, 'keyboard')).toEqual({ error: 'Keyboard answers only count while the window is focused.' })
@@ -223,7 +223,7 @@ describe('approval sources', () => {
 
   it('the window can’t claim to be a notification or the phone', () => {
     const id = working()
-    void office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    void office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     const fromWindow = windowResolver(office.broker, () => false)
     expect(fromWindow(requests(id)[0]!.id, { kind: 'allow' }, 'notification')).toEqual({ error: 'Unknown request.' })
     expect(fromWindow(requests(id)[0]!.id, { kind: 'allow' }, 'phone')).toEqual({ error: 'Unknown request.' })
@@ -231,14 +231,14 @@ describe('approval sources', () => {
 
   it('accepts a notification approval for a non-dangerous request', async () => {
     const id = working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'pnpm test' })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'pnpm test' })
     expect(office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'allow' }, 'notification')).toEqual({ ok: true })
     expect(await decision).toMatchObject({ behavior: 'allow' })
   })
 
   it('a dangerous request needs a click: keys, notifications and the phone can only deny it', async () => {
     const id = working()
-    const decision = office.engine.ask(id, 'Bash', { command: 'rm -rf dist' }, { suggestions: bashRule('rm -rf dist') })
+    const decision = office.engine.askTool(id, 'Bash', { command: 'rm -rf dist' }, { suggestions: bashRule('rm -rf dist') })
     const request = requests(id)[0]!
     expect(request).toMatchObject({ dangerous: true, dangerReason: 'Deletes files recursively without asking (rm -rf)', alwaysAllow: false })
 
@@ -249,7 +249,7 @@ describe('approval sources', () => {
     expect(fromWindow(request.id, { kind: 'allow' }, 'chat')).toEqual({ ok: true })
     expect(await decision).toMatchObject({ behavior: 'allow' })
 
-    const second = office.engine.ask(id, 'Bash', { command: 'git push --force' })
+    const second = office.engine.askTool(id, 'Bash', { command: 'git push --force' })
     expect(office.broker.resolveRequest(requests(id)[0]!.id, { kind: 'deny' }, 'notification')).toEqual({ ok: true })
     expect(await second).toMatchObject({ behavior: 'deny' })
   })

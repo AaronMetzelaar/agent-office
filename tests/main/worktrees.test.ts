@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withTicket } from '../../src/main/workflow/linear'
-import { createWorktree, planWorktree, slugFor } from '../../src/main/worktrees/create'
+import { branchFor, createWorktree, planWorktree } from '../../src/main/worktrees/create'
 import { doingNow } from '../../src/shared/chat'
 import { openOffice } from '../fakes/office'
 
@@ -42,22 +42,29 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-describe('slugs', () => {
-  it('names the branch after a Linear-style id when the prompt has one, else after the first words', () => {
-    expect(slugFor('AUC-1302: rework the bid flow approach, please')).toBe('auc-1302-rework-the-bid-flow')
-    expect(slugFor('Fix the Czechia auction visibility bug today')).toBe('fix-the-czechia-auction-visibility')
-    expect(slugFor('🚀 !!')).toBe('agent')
+describe('branch names', () => {
+  it('takes a type/short-summary suggestion, keeping the ticket id up front', () => {
+    expect(branchFor('I feel like the branch naming can be improved', 'feature/improve-branch-naming')).toBe('feature/improve-branch-naming')
+    expect(branchFor('AUC-1302: rework the bid flow', 'Fix/bid-flow-rework')).toBe('fix/auc-1302-bid-flow-rework')
+    expect(branchFor('AUC-1302: rework the bid flow', 'fix/auc-1302-bid-flow')).toBe('fix/auc-1302-bid-flow')
+  })
+
+  it('falls back to the first words of the prompt when the suggestion is missing or malformed', () => {
+    expect(branchFor('AUC-1302: rework the bid flow approach, please')).toBe('feature/auc-1302-rework-the-bid-flow')
+    expect(branchFor('Fix the Czechia auction visibility bug today', 'chore/whatever')).toBe('fix/fix-the-czechia-auction-visibility')
+    expect(branchFor('Update the README setup steps', 'Sure! Here is a branch: docs/x')).toBe('docs/update-the-readme-setup-steps')
+    expect(branchFor('🚀 !!')).toBe('feature/agent')
   })
 })
 
 describe('fresh worktrees', () => {
   it('creates <repo>/.claude/worktrees/<slug> on a new branch, keeping the chosen subfolder', async () => {
-    const plan = planWorktree(join(repo, 'frontend/mobile'), 'bid-alerts')
-    expect(plan).toEqual({ repo, slug: 'bid-alerts', path: join(repo, '.claude/worktrees/bid-alerts'), cwd: join(repo, '.claude/worktrees/bid-alerts/frontend/mobile') })
+    const plan = planWorktree(join(repo, 'frontend/mobile'), 'feature/bid-alerts')
+    expect(plan).toEqual({ repo, branch: 'feature/bid-alerts', path: join(repo, '.claude/worktrees/bid-alerts'), cwd: join(repo, '.claude/worktrees/bid-alerts/frontend/mobile') })
     await createWorktree(plan)
     expect(existsSync(join(plan.cwd, 'App.tsx'))).toBe(true)
-    expect(branches()).toContain('bid-alerts')
-    expect(planWorktree(repo, 'bid-alerts').slug).toBe('bid-alerts-2')
+    expect(branches()).toContain('feature/bid-alerts')
+    expect(planWorktree(repo, 'feature/bid-alerts')).toMatchObject({ branch: 'feature/bid-alerts-2', path: join(repo, '.claude/worktrees/bid-alerts-2') })
   })
 
   it('refuses a folder outside git with a clear message', () => {
@@ -83,7 +90,19 @@ describe('starting a chat in a fresh worktree', () => {
     expect(office.chat(id)).toMatchObject({ state: 'starting', setup: 'worktree', department: 'mob', worktree: join(repo, '.claude/worktrees/bid-alerts-widget') })
     expect(doingNow(office.chat(id), Date.now())).toBe('Setting up worktree…')
     await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Bid alerts widget' }]), { timeout: 10_000 })
-    expect(office.engine.starts[0]?.options.cwd).toBe(join(repo, '.claude/worktrees/bid-alerts-widget/frontend/mobile'))
+    expect(branches()).toContain('feature/bid-alerts-widget')
+  })
+
+  it('names the branch and worktree after the model’s type/short-summary suggestion', async () => {
+    office.engine.answers.push('feature/bid-alerts\nextra')
+    const result = office.store.start('main', join(repo, 'frontend/mobile'), 'I want a widget that alerts me about bids', undefined, undefined, { worktree: true })
+    if ('error' in result) throw new Error(result.error)
+    const id = result.chatId
+    expect(doingNow(office.chat(id), Date.now())).toBe('Setting up worktree…')
+    await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'I want a widget that alerts me about bids' }]), { timeout: 10_000 })
+    expect(branches()).toContain('feature/bid-alerts')
+    expect(office.chat(id).worktree).toBe(join(repo, '.claude/worktrees/bid-alerts'))
+    expect(office.engine.starts[0]?.options.cwd).toBe(join(repo, '.claude/worktrees/bid-alerts/frontend/mobile'))
     expect(office.chat(id).setup).toBeUndefined()
     expect(office.chat(id).rows.filter((row) => row.kind === 'user')).toHaveLength(1)
     expect(office.store.recentFolders()).toEqual([join(repo, 'frontend/mobile')])
@@ -105,7 +124,7 @@ describe('starting a chat in a fresh worktree', () => {
     office.store.resumeChat(id)
     expect(office.chat(id)).toMatchObject({ state: 'starting', setup: 'worktree' })
     await vi.waitFor(() => expect(office.engine.sent).toEqual([{ chatId: id, text: 'Refund webhook retries' }]), { timeout: 10_000 })
-    expect(branches()).toContain('refund-webhook-retries')
+    expect(branches()).toContain('feature/refund-webhook-retries')
   })
 
   it('refuses a fresh worktree outside git before creating a chat', () => {
@@ -121,7 +140,7 @@ describe('starting a chat in a fresh worktree', () => {
     if (!('chatId' in result)) throw new Error(result.error)
     await vi.waitFor(() => expect(office.engine.sent).toHaveLength(1), { timeout: 10_000 })
     expect(office.chat(result.chatId)).toMatchObject({ title: 'MOB-88 Deep links for push', worktree: join(repo, '.claude/worktrees/mob-88-deep-links-for-push') })
-    expect(branches()).toContain('mob-88-deep-links-for-push')
+    expect(branches()).toContain('feature/mob-88-deep-links-for-push')
     expect(office.engine.sent[0]!.text).toBe('Work on Linear ticket MOB-88: Deep links for push\n\nStatus: Todo\n\nhttps://linear.app/mws/issue/MOB-88/deep-links')
   })
 })

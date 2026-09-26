@@ -12,7 +12,7 @@ import { withAttachments, type ImageBlock } from '../sessions/attachments'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory } from '../sessions/replay'
-import { createWorktree, planWorktree, slugFor, type WorktreePlan } from '../worktrees/create'
+import { branchFor, branchPrompt, createWorktree, planWorktree, type WorktreePlan } from '../worktrees/create'
 import type { ChatRecord, Db } from './db'
 
 export interface AccountHooks {
@@ -354,10 +354,19 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     )
   }
 
-  function setUpWorktree(chat: Chat, plan: WorktreePlan, prompt: string, messageId = randomUUID()) {
+  const suggestBranch = (accountId: string, prompt: string) =>
+    Promise.race([Promise.resolve().then(() => engine.ask(accountId, branchPrompt, prompt.slice(0, 4000))).catch(() => undefined), new Promise<undefined>((done) => setTimeout(done, 8_000))])
+
+  function setUpWorktree(chat: Chat, folder: string, draft: WorktreePlan, prompt: string, messageId = randomUUID()) {
     const id = chat.view.id
-    transition(chat, 'starting', { worktree: plan.path, cwd: plan.cwd, setup: 'worktree', stuck: undefined })
-    createWorktree(plan).then(
+    transition(chat, 'starting', { worktree: draft.path, cwd: draft.cwd, setup: 'worktree', stuck: undefined })
+    suggestBranch(chat.view.accountId, prompt)
+      .then((suggested) => {
+        const plan = planWorktree(folder, branchFor(chat.view.title, suggested))
+        guard(id, (current) => set(current, { worktree: plan.path, cwd: plan.cwd }))
+        return createWorktree(plan)
+      })
+      .then(
       () =>
         guard(id, (current) => {
           const waiting = current.view.state === 'starting' && current.view.setup === 'worktree'
@@ -372,9 +381,10 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
     )
   }
 
-  function retryWorktree(chat: Chat, worktree: string, prompt: string) {
+  function retryWorktree(chat: Chat, prompt: string) {
     try {
-      setUpWorktree(chat, planWorktree(repoPath(chat.view.cwd), basename(worktree)), prompt)
+      const folder = repoPath(chat.view.cwd)
+      setUpWorktree(chat, folder, planWorktree(folder, branchFor(chat.view.title)), prompt)
     } catch (error) {
       worktreeFailed(chat, error)
     }
@@ -504,7 +514,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const title = (named ?? prompt).trim().split('\n')[0]!.slice(0, 60)
       let plan: WorktreePlan | undefined
       try {
-        plan = wanted.worktree === true ? planWorktree(cwd, slugFor(title)) : undefined
+        plan = wanted.worktree === true ? planWorktree(cwd, branchFor(title)) : undefined
       } catch (error) {
         return { error: errorText(error) }
       }
@@ -515,7 +525,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (plan) {
         const messageId = randomUUID()
         addRow(chat, { kind: 'user', id: messageId, text: prompt })
-        setUpWorktree(chat, plan, prompt, messageId)
+        setUpWorktree(chat, cwd, plan, prompt, messageId)
       } else send(chat, prompt)
       return { chatId: chat.view.id }
     },
@@ -538,7 +548,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       engine.stop(chat.view.id)
       const firstPrompt = chat.view.rows.find((row) => row.kind === 'user')?.text
       const worktree = chat.view.worktree
-      if (worktree && !isDirectory(worktree)) retryWorktree(chat, worktree, firstPrompt ?? chat.view.title)
+      if (worktree && !isDirectory(worktree)) retryWorktree(chat, firstPrompt ?? chat.view.title)
       else send(chat, chat.view.sessionId ? resumePrompt : (firstPrompt ?? resumePrompt))
       return undefined
     },

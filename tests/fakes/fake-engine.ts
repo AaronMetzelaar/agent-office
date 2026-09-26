@@ -79,7 +79,7 @@ export function createFakeEngine({ auto = false } = {}) {
   const emit = (chatId: string, sdkMessage: SDKMessage) => events.emit('message', chatId, sdkMessage)
   const listed = () => supported.map((name) => ({ name, description: '', argumentHint: '' }))
 
-  function ask(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
+  function askTool(chatId: string, toolName: string, input: Record<string, unknown>, options: AskOptions = {}): Promise<PermissionResult | null> {
     const session = live.get(chatId)
     if (!session) throw new Error(`no fake session for ${chatId}`)
     const permissions = session.permissions
@@ -107,12 +107,12 @@ export function createFakeEngine({ auto = false } = {}) {
     if (text.includes('[ask]') || text.includes('[danger]')) {
       const command = text.includes('[danger]') ? 'rm -rf dist' : 'pnpm test'
       const suggestions = [{ type: 'addRules' as const, rules: [{ toolName: 'Bash', ruleContent: command }], behavior: 'allow' as const, destination: 'localSettings' as const }]
-      const decision = await ask(chatId, 'Bash', { command }, { suggestions })
+      const decision = await askTool(chatId, 'Bash', { command }, { suggestions })
       if (!still()) return
       emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Tests pass.' : 'Skipped the tests.'))
     }
     if (text.includes('[plan]')) {
-      const decision = await ask(chatId, 'ExitPlanMode', { plan: '## Plan\n\n1. Read `BidFlow.vue`\n2. Fix the rounding\n3. Run the tests' })
+      const decision = await askTool(chatId, 'ExitPlanMode', { plan: '## Plan\n\n1. Read `BidFlow.vue`\n2. Fix the rounding\n3. Run the tests' })
       if (!still()) return
       emit(chatId, sdk.text(decision?.behavior === 'allow' ? 'Plan approved, starting.' : `Back to planning: ${decision?.behavior === 'deny' ? decision.message : ''}`))
     }
@@ -198,7 +198,7 @@ export function createFakeEngine({ auto = false } = {}) {
 
   const fake = Object.assign(engine, {
     canUseTool: undefined as ChatCanUseTool | undefined,
-    ask,
+    askTool,
     permissions: (chatId: string) => live.get(chatId)?.permissions,
     starts,
     sent,

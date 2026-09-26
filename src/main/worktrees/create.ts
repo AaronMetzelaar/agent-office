@@ -10,7 +10,7 @@ const ticket = /\b([A-Z]{2,6}-\d{1,6})\b/
 
 export interface WorktreePlan {
   repo: string
-  slug: string
+  branch: string
   path: string
   cwd: string
 }
@@ -27,6 +27,21 @@ export function slugFor(prompt: string): string {
   return [id, ...words].filter(Boolean).join('-').slice(0, 48).replace(/-+$/, '') || 'agent'
 }
 
+export const branchPrompt = 'Name a git branch for this request to a coding agent, as type/short-summary. Type is feature, fix, hotfix or docs. The summary is 2 to 5 lowercase words joined by hyphens, like fix/mobile-menu-scroll. Keep any ticket id such as auc-1302 at the start of the summary. Reply with the branch only.'
+
+const suggestion = /^(feature|fix|hotfix|docs)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/
+const fixWords = /\b(fix|bug|broken|crash(es)?|errors?|fail(s|ing)?|wrong|can'?t|cannot|doesn'?t|won'?t|isn'?t)\b/i
+const docsWords = /\b(docs?|readme|documentation)\b/i
+
+export function branchFor(prompt: string, suggested?: string): string {
+  const id = ticket.exec(prompt)?.[1]?.toLowerCase()
+  const match = suggestion.exec(suggested?.trim().split('\n')[0]!.toLowerCase() ?? '')
+  const type = match?.[1] ?? (fixWords.test(prompt) ? 'fix' : docsWords.test(prompt) ? 'docs' : 'feature')
+  const summary = match?.[2] ?? slugFor(prompt)
+  const named = id && !summary.includes(id) ? `${id}-${summary}` : summary
+  return `${type}/${named.slice(0, 48).replace(/-+$/, '')}`
+}
+
 const git = (cwd: string, args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', timeout: 10_000, stdio: ['ignore', 'pipe', 'ignore'] })
 
 function branchExists(repo: string, branch: string): boolean {
@@ -39,6 +54,7 @@ function branchExists(repo: string, branch: string): boolean {
 }
 
 export function planWorktree(folder: string, base: string): WorktreePlan {
+  const dir = base.split('/').at(-1)!
   let prefix: string
   try {
     prefix = git(folder, ['rev-parse', '--show-prefix']).trim().replace(/\/$/, '')
@@ -48,9 +64,9 @@ export function planWorktree(folder: string, base: string): WorktreePlan {
   const repo = repoRoot(folder)
   if (!repo) throw new Error('Git took too long to answer, so the worktree wasn’t created. Try again in a moment.')
   for (let n = 1; ; n++) {
-    const slug = n === 1 ? base : `${base}-${n}`
-    const path = join(repo, '.claude', 'worktrees', slug)
-    if (!existsSync(path) && !branchExists(repo, slug)) return { repo, slug, path, cwd: join(path, prefix) }
+    const suffix = n === 1 ? '' : `-${n}`
+    const path = join(repo, '.claude', 'worktrees', dir + suffix)
+    if (!existsSync(path) && !branchExists(repo, base + suffix)) return { repo, branch: base + suffix, path, cwd: join(path, prefix) }
   }
 }
 
@@ -60,14 +76,14 @@ export function gitError(error: unknown): string {
   return line?.replace(/^(fatal|error):\s*/, '') || (error instanceof Error ? error.message : String(error))
 }
 
-export async function createWorktree({ repo, slug, path }: WorktreePlan): Promise<void> {
+export async function createWorktree({ repo, branch, path }: WorktreePlan): Promise<void> {
   try {
-    await run('git', ['worktree', 'add', '-b', slug, path], { cwd: repo, timeout: 120_000 })
+    await run('git', ['worktree', 'add', '-b', branch, path], { cwd: repo, timeout: 120_000 })
   } catch (error) {
     await run('git', ['worktree', 'remove', '--force', path], { cwd: repo }).catch(() => {})
     await rm(path, { recursive: true, force: true })
     await run('git', ['worktree', 'prune'], { cwd: repo }).catch(() => {})
-    await run('git', ['branch', '-D', slug], { cwd: repo }).catch(() => {})
+    await run('git', ['branch', '-D', branch], { cwd: repo }).catch(() => {})
     throw new Error(gitError(error))
   }
 }
