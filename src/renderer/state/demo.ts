@@ -99,6 +99,27 @@ const request = (id: string, tool: string, summary: string, createdAt: number, d
   alwaysAllow: tool !== 'WebFetch' && !dangerous,
 })
 
+const scouting = (id: string, subs: readonly string[]): ChatView['rows'] => [
+  { kind: 'user', id: `${id}-u`, text: 'Map out how the bid dialog is used before we change it.' },
+  {
+    kind: 'tool',
+    id: `${id}-scout`,
+    name: 'Agent',
+    input: { description: 'list bid dialog routes', subagent_type: 'Explore', prompt: 'List every route that opens the bid dialog.' },
+    result: { text: 'Two routes open it: /lot/:id and /watchlist.\nagentId: demo01\n<usage>subagent_tokens: 21400\ntool_uses: 9\nduration_ms: 64000</usage>', isError: false },
+  },
+  ...subs.flatMap((label, k): ChatView['rows'] => {
+    const [agentType, description = label] = label.split(' · ')
+    const parentToolUseId = `${id}-sub-${k}`
+    return [
+      { kind: 'tool', id: parentToolUseId, name: 'Agent', input: { description, subagent_type: agentType, prompt: `Please ${description}.` } },
+      { kind: 'text', id: `${parentToolUseId}-t`, text: 'Starting with the components that import `BidDialog`.', parentToolUseId },
+      { kind: 'tool', id: `${parentToolUseId}-g`, name: 'Grep', input: { pattern: 'BidDialog' }, result: { text: 'src/BidFlow.vue\nsrc/Lot.vue', isError: false }, parentToolUseId },
+      { kind: 'tool', id: `${parentToolUseId}-r`, name: 'Read', input: { file_path: '/repo/src/BidFlow.vue' }, parentToolUseId },
+    ]
+  }),
+]
+
 const reply = (id: string): ChatView['rows'] => [
   { kind: 'user', id: `${id}-u`, text: 'Round bids to the nearest euro before we compare them.' },
   {
@@ -154,7 +175,7 @@ function chatFrom([dept, title, state, minutes, activity, extra = {}]: Sample, i
     partial: '',
     createdAt: at - index * 1000,
     lastActivityAt: at,
-    rows: state === 'done' ? reply(id) : [],
+    rows: state === 'done' ? reply(id) : state === 'working' && extra.subs ? scouting(id, extra.subs) : [],
     ...(state === 'stuck' ? { stuck: { reason: 'error' as const, detail: 'pnpm build still failing' } } : {}),
     ...((state === 'idle' || state === 'done') && minutes >= 24 * 60 ? { parked: true } : {}),
   }

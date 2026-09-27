@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { isBusy, maxRows, type ChatRow, type ChatView, type RewindPreview } from '../../../shared/chat'
 import { items } from './groups'
 import { Markdown } from './markdown'
-import { plainLabel, subagentState } from './rows'
+import { plainLabel } from './rows'
 import ArtifactCard from './ArtifactCard.vue'
 import Subagent from './Subagent.vue'
 import ToolGroup from './ToolGroup.vue'
@@ -122,7 +122,7 @@ watch(
     <template v-for="item in list" :key="item.kind === 'group' ? `g:${item.id}` : item.row.id">
       <ToolGroup v-if="item.kind === 'group'" :rows="item.rows" :summary="item.summary" :live="item === live" />
       <ArtifactCard v-else-if="item.kind === 'artifact'" :artifact="item.artifact" />
-      <Subagent v-else-if="item.kind === 'agent'" :item="item" :state="subagentState(item.row, running)" />
+      <Subagent v-else-if="item.kind === 'agent'" :item="item" :running="running" />
       <div v-else-if="item.row.kind === 'user'" class="uw">
         <div class="ur">{{ item.row.text }}</div>
         <div v-if="rewind?.id === item.row.id" class="rw" role="status">

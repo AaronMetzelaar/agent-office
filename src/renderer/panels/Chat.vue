@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, reactive, ref, shallowReactive, watch } from 'vue'
+import { computed, nextTick, onUnmounted, provide, reactive, ref, shallowReactive, watch } from 'vue'
 import { simulatorOf, usingSimulator, type ChatView } from '../../shared/chat'
 import { canRest } from '../office/standby'
 import { hasNewArtifact, sawArtifacts } from '../state/artifacts'
@@ -18,7 +18,10 @@ import QuestionCard from './chat/QuestionCard.vue'
 import RequestCard from './chat/RequestCard.vue'
 import ShipIt from './chat/ShipIt.vue'
 import Simulator from './chat/Simulator.vue'
+import type { AgentItem } from './chat/groups'
+import { openSubagentKey } from './chat/subagents'
 import SubagentStrip from './chat/SubagentStrip.vue'
+import SubagentView from './chat/SubagentView.vue'
 import Terminal from './chat/Terminal.vue'
 import Transcript from './chat/Transcript.vue'
 import Review from './Review.vue'
@@ -28,6 +31,7 @@ const props = defineProps<{ agent: AgentEntry; chat?: ChatView; queue: WaitingIt
 const emit = defineEmits<{ select: [chatId: string | undefined]; accounts: []; continue: [chatId: string]; lounge: [chatId: string]; saw: []; finish: [chatIds: string[]] }>()
 
 const tab = ref<'chat' | 'review' | 'simulator' | 'artifacts'>('chat')
+const subagent = ref<AgentItem>()
 const flash = ref('')
 const preview = ref<string>()
 const terminal = ref<{ title: string; buffer: string }>()
@@ -44,6 +48,11 @@ const device = computed(() => (props.chat ? simulatorOf(props.chat.rows) : undef
 const published = computed(() => (props.chat ? latestArtifacts(props.chat.rows) : []))
 const pending = computed(() => props.chat?.pendingRequests ?? [])
 const elsewhere = computed(() => answeredElsewhere(seen, pending.value, props.chat?.answered).filter((card) => !dismissed.has(card.request.id)))
+
+provide(openSubagentKey, (item) => {
+  subagent.value = item
+  tab.value = 'chat'
+})
 
 function say(message: string) {
   flash.value = message
@@ -155,6 +164,7 @@ watch(
     flash.value = ''
     naming.value = undefined
     preview.value = undefined
+    subagent.value = undefined
     terminal.value = undefined
     void window.office.setOpenChat(chatId)
   },
@@ -229,7 +239,8 @@ onUnmounted(() => {
     </div>
     <SubagentStrip v-if="chat" :chat="chat" />
     <template v-if="tab === 'chat'">
-      <Transcript v-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
+      <SubagentView v-if="chat && subagent" :key="subagent.row.id" :chat="chat" :item="subagent" @close="subagent = undefined" />
+      <Transcript v-else-if="chat" :chat="chat" :can-switch="canSwitch" @resume="resume" @relogin="emit('accounts')" @continue="emit('continue', chat.id)" />
     </template>
     <Simulator v-else-if="tab === 'simulator' && device" :key="device" :device="device" />
     <Review v-else-if="tab === 'review' && chat" :chat="chat" />

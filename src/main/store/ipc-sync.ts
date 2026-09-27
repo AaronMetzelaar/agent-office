@@ -3,7 +3,7 @@ import type { AccountView } from '../../shared/ipc'
 import type { Rooms } from '../departments/rooms'
 import type { Hub } from '../ipc'
 import type { Visitors } from '../outside/visitors'
-import type { ChatStore } from './chats'
+import { subagentRowsOf, type ChatStore } from './chats'
 
 const tickMs = 16
 
@@ -93,6 +93,7 @@ export function wireChats(hub: Hub, store: ChatStore, visitors: Visitors, rooms:
   hub.handle('setEffort', store.setEffort)
   hub.handle('setPlanMode', store.setPlanMode)
   hub.handle('olderRows', (chatId, beforeId) => (visitors.has(chatId) ? visitors.olderRows(chatId, beforeId) : store.olderRows(chatId, beforeId)))
+  hub.handle('subagentRows', (chatId, agentId) => (visitors.has(chatId) ? subagentRowsOf(chatId as string, agentId) : store.subagentRows(chatId, agentId)))
   hub.handle('getDraft', store.draft)
   hub.handle('saveDraft', store.saveDraft)
   hub.handle('setOpenChat', (chatId) => {

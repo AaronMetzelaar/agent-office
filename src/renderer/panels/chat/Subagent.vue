@@ -1,26 +1,30 @@
 <script setup lang="ts">
+import { computed, inject } from 'vue'
 import type { AgentItem } from './groups'
-import { resultSummary, toolTarget } from './rows'
-import SubagentSteps from './SubagentSteps.vue'
+import { toolTarget } from './rows'
+import { agentOutcome, agentStats, openSubagentKey, statusLabels } from './subagents'
 
-defineProps<{ item: AgentItem; state: 'running' | 'done' | 'failed' }>()
+const props = defineProps<{ item: AgentItem; running: ReadonlySet<string> }>()
+const open = inject(openSubagentKey, undefined)
 
-const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
+const outcome = computed(() => agentOutcome(props.item, props.running, props.item.note))
+const line = computed(() => [props.item.summary, agentStats(outcome.value)].filter(Boolean).join(' · '))
+const report = computed(() => {
+  const line = outcome.value.report?.split('\n').find((text) => text.trim()) ?? ''
+  return line.length > 160 ? `${line.slice(0, 159)}…` : line
+})
 </script>
 
 <template>
-  <section :class="['sub', state]">
+  <section :class="['sub', outcome.status]">
     <div class="sh">
       <span class="dot" />
       <b>{{ toolTarget(item.row) || 'Subagent' }}</b>
-      <span class="st">{{ labels[state] }}</span>
+      <span class="st">{{ statusLabels[outcome.status] }}</span>
+      <button v-if="open" type="button" class="btn sm" :aria-label="`Open ${toolTarget(item.row) || 'subagent'}`" @click="open(item)">Open</button>
     </div>
-    <p v-if="item.summary" class="sm">{{ item.summary }}</p>
-    <details v-if="item.items.length">
-      <summary>Activity</summary>
-      <SubagentSteps :items="item.items" />
-    </details>
-    <p v-if="item.row.result" class="rs">{{ resultSummary(item.row) }}</p>
+    <p v-if="line" class="sm">{{ line }}</p>
+    <p v-if="report" class="rs">{{ report }}</p>
   </section>
 </template>
 
@@ -41,6 +45,10 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
 
 .sub.failed {
   border-left-color: var(--danger);
+}
+
+.sub.stopped {
+  border-left-color: var(--faint);
 }
 
 .sub .sh {
@@ -75,10 +83,16 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
   background: var(--danger);
 }
 
+.sub.stopped .dot {
+  background: var(--faint);
+}
+
 .sub .st {
   margin-left: auto;
   font-size: 12px;
   color: var(--faint);
+  white-space: nowrap;
+  flex: none;
 }
 
 .sub .sm,
@@ -87,16 +101,5 @@ const labels = { running: 'Working', done: 'Done', failed: 'Failed' }
   font-size: 12.5px;
   color: var(--muted);
   overflow-wrap: anywhere;
-}
-
-.sub > details > summary {
-  cursor: pointer;
-  width: fit-content;
-  font-size: 12.5px;
-  color: var(--faint);
-}
-
-.sub > details > summary:hover {
-  color: var(--muted);
 }
 </style>

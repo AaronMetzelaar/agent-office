@@ -12,7 +12,7 @@ import type { Rooms } from '../departments/rooms'
 import { withAttachments, type ImageBlock } from '../sessions/attachments'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
-import { readHistory } from '../sessions/replay'
+import { readHistory, readSubagentHistory } from '../sessions/replay'
 import { branchFor, branchPrompt, createWorktree, planWorktree, type WorktreePlan } from '../worktrees/create'
 import type { ChatRecord, Db } from './db'
 
@@ -110,6 +110,15 @@ function upsert(rows: ChatRow[], row: ChatRow, cap = maxRows): void {
 
 export async function transcriptRows(sessionId: string): Promise<ChatRow[]> {
   const { events } = await readHistory(sessionId, { limit: Infinity }).catch(() => ({ events: [] }))
+  return rowsOf(events)
+}
+
+export async function subagentRowsOf(sessionId: string, agentId: unknown): Promise<ChatRow[]> {
+  if (typeof agentId !== 'string' || !/^[\w-]{1,64}$/.test(agentId)) return []
+  return rowsOf(await readSubagentHistory(sessionId, agentId).catch(() => []))
+}
+
+function rowsOf(events: readonly ChatEvent[]): ChatRow[] {
   const rows: ChatRow[] = []
   for (const event of events) {
     const row = rowFor(rows, event)
@@ -479,6 +488,11 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       const sessionId = chat?.view.sessionId
       if (!chat || !sessionId) return Promise.resolve()
       return (chat.restoring ??= replay(chat, sessionId))
+    },
+
+    async subagentRows(chatId: unknown, agentId: unknown): Promise<ChatRow[]> {
+      const sessionId = find(chatId)?.view.sessionId
+      return sessionId ? subagentRowsOf(sessionId, agentId) : []
     },
 
     async olderRows(chatId: unknown, beforeId?: unknown): Promise<OlderRows> {

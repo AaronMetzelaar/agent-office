@@ -1,21 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import type { ChatView, Subagent } from '../../../shared/chat'
 import { items } from './groups'
-import SubagentSteps from './SubagentSteps.vue'
+import { agentStats, findAgent, openSubagentKey } from './subagents'
 
 const props = defineProps<{ chat: ChatView }>()
-const open = ref<string>()
+const open = inject(openSubagentKey, undefined)
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
 onMounted(() => (clock = setInterval(() => (now.value = Date.now()), 1000)))
 onUnmounted(() => clearInterval(clock))
 
 const agents = computed(() => {
-  const byId = new Map(items(props.chat.rows).flatMap((item) => (item.kind === 'agent' ? [[item.row.id, item] as const] : [])))
-  return props.chat.subagents.map((agent) => ({ ...agent, steps: byId.get(agent.id)?.items.slice(-8) ?? [] }))
+  const list = items(props.chat.rows)
+  return props.chat.subagents.map((agent) => ({ ...agent, item: findAgent(list, agent.id) }))
 })
-const toggle = (id: string) => (open.value = open.value === id ? undefined : id)
 const jobs = computed(() => props.chat.backgroundJobs ?? [])
 const summary = computed(() => {
   const parts = [agents.value.length && `${agents.value.length} subagent${agents.value.length === 1 ? '' : 's'}`, jobs.value.length && `${jobs.value.length} background command${jobs.value.length === 1 ? '' : 's'}`]
@@ -23,23 +22,16 @@ const summary = computed(() => {
 })
 const stop = (id: string) => window.office.stopTask(props.chat.id, id)
 
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
-const tokens = (count: number) => (count < 1000 ? plural(count, 'token') : `${(count / 1000).toFixed(1)}k tokens`)
-function elapsed(ms: number) {
-  const seconds = Math.max(0, Math.floor(ms / 1000))
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
-}
-const stats = (agent: Subagent) =>
-  [agent.agentType, agent.tools ? plural(agent.tools, 'tool use') : '', agent.tokens ? tokens(agent.tokens) : '', elapsed(now.value - agent.startedAt)].filter(Boolean).join(' · ')
+const stats = (agent: Subagent) => agentStats({ ...agent, ms: now.value - agent.startedAt })
 </script>
 
 <template>
   <section v-if="agents.length || jobs.length" class="subs" aria-label="Running in the background">
     <p class="sc">{{ summary }}</p>
     <ul>
-      <li v-for="agent in agents" :key="agent.id" :class="{ open: open === agent.id }">
+      <li v-for="agent in agents" :key="agent.id">
         <div class="sr">
-          <button type="button" class="sat" :aria-expanded="open === agent.id" @click="toggle(agent.id)">
+          <button type="button" class="sat" :disabled="!agent.item" :title="`Open ${agent.description}`" @click="agent.item && open?.(agent.item)">
             <span class="dot" />
             <span class="nm">
               <b>{{ agent.description }}</b>
@@ -49,10 +41,6 @@ const stats = (agent: Subagent) =>
           </button>
           <button type="button" class="btn sm" :aria-label="`Stop ${agent.description}`" title="Stop this subagent only" @click="stop(agent.id)">Stop</button>
         </div>
-        <template v-if="open === agent.id">
-          <SubagentSteps v-if="agent.steps.length" :items="agent.steps" />
-          <p v-else class="none">No steps yet</p>
-        </template>
       </li>
       <li v-for="job in jobs" :key="job.id">
         <div class="sr">
@@ -95,10 +83,6 @@ const stats = (agent: Subagent) =>
 
 .subs li + li {
   border-top: 1px solid var(--line2);
-}
-
-.subs li.open {
-  padding-bottom: 6px;
 }
 
 .subs .sat {
@@ -177,15 +161,5 @@ const stats = (agent: Subagent) =>
   flex: 1 1 0;
   min-width: 0;
   text-align: right;
-}
-
-.subs li .steps,
-.subs li .none {
-  margin: 2px 10px 0 24px;
-}
-
-.subs .none {
-  font-size: 12.5px;
-  color: var(--faint);
 }
 </style>

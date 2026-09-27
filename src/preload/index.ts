@@ -35,6 +35,7 @@ const office: OfficeApi = {
   setPlanMode: (chatId, on) => ipcRenderer.invoke('setPlanMode', chatId, on),
   setOpenChat: (chatId) => ipcRenderer.invoke('setOpenChat', chatId),
   olderRows: (chatId, beforeId) => ipcRenderer.invoke('olderRows', chatId, beforeId),
+  subagentRows: (chatId, agentId) => ipcRenderer.invoke('subagentRows', chatId, agentId),
   getDraft: (chatId) => ipcRenderer.invoke('getDraft', chatId),
   saveDraft: (chatId, text) => ipcRenderer.invoke('saveDraft', chatId, text),
   resumeChat: (chatId) => ipcRenderer.invoke('resumeChat', chatId),

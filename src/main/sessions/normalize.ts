@@ -59,7 +59,9 @@ const blocksOf = (content: unknown): Block[] => (Array.isArray(content) ? (conte
 
 function resultText(content: unknown): string {
   const text = typeof content === 'string' ? content : blocksOf(content).map((block) => (block.type === 'text' ? block.text : `[${block.type}]`)).join('\n')
-  return text.length > maxResultText ? `${text.slice(0, maxResultText)}…` : text
+  if (text.length <= maxResultText) return text
+  const agentTail = text.match(/\nagentId: [\s\S]{0,800}$/)?.[0] ?? ''
+  return `${text.slice(0, maxResultText)}…${agentTail}`
 }
 
 function usageOf(result: SDKResultMessage): Usage {

@@ -27,6 +27,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   setPlanMode: true,
   setOpenChat: true,
   olderRows: true,
+  subagentRows: true,
   getDraft: true,
   saveDraft: true,
   resumeChat: true,

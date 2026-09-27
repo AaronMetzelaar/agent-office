@@ -103,11 +103,6 @@ export function toolDetail(row: Pick<ToolRow, 'name' | 'input'>): string {
   }
 }
 
-export function subagentState(row: ToolRow, running: ReadonlySet<string>): 'running' | 'done' | 'failed' {
-  if (row.result?.isError) return 'failed'
-  return row.result && !running.has(row.id) ? 'done' : 'running'
-}
-
 export const plainLabel = (row: ChatRow) => ('label' in row && typeof row.label === 'string' ? row.label : String((row as { kind?: unknown }).kind ?? 'event'))
 
 export type Artifact = { title: string; url: string; path: string; version?: number; edited: boolean }

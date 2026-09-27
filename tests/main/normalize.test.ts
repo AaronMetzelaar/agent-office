@@ -41,6 +41,13 @@ describe('normalize', () => {
     expect(normalize(sdk.taskNotification('agent-1'))).toEqual([{ type: 'subagent-stop', id: 'agent-1' }])
   })
 
+  it('keeps a subagent result’s agent id and usage when the report is truncated', () => {
+    const tail = '\nagentId: abc123 (use SendMessage to continue)\n<usage>subagent_tokens: 10\ntool_uses: 2\nduration_ms: 3</usage>'
+    const [event] = normalize(sdk.toolResult('a1', `${'x'.repeat(5000)}${tail}`))
+    expect(event).toMatchObject({ type: 'tool-result' })
+    expect((event as { text: string }).text.endsWith(`…${tail}`)).toBe(true)
+  })
+
   it('maps tool results, joining block content and keeping the error flag', () => {
     expect(normalize(sdk.toolResult('t1', [{ type: 'text', text: 'line 1' }, { type: 'image' }], true))).toEqual([
       { type: 'tool-result', toolUseId: 't1', text: 'line 1\n[image]', isError: true },

@@ -1,5 +1,5 @@
 import type { CommandList, CommandTarget } from './commands'
-import type { Attachment, ChatPatchBatch, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, RoomsUpdate, SimulatorShot, StartChatResult } from './chat'
+import type { Attachment, ChatPatchBatch, ChatRow, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, RoomsUpdate, SimulatorShot, StartChatResult } from './chat'
 import type { RoomDef, StartOptions } from './departments'
 import type { SearchHit } from './history'
 import type { CleanupSummary, Finished, FinishedMany, HousekeepingView, StopReport, Thresholds } from './housekeeping'
@@ -106,6 +106,7 @@ export interface Commands {
   setPlanMode(chatId: string, on: boolean): Promise<void>
   setOpenChat(chatId?: string): void
   olderRows(chatId: string, beforeId?: string): Promise<OlderRows>
+  subagentRows(chatId: string, agentId: string): Promise<ChatRow[]>
   getDraft(chatId: string): string
   saveDraft(chatId: string, text: string): void
   resumeChat(chatId: string): Refusal | undefined

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readHistory } from '../../src/main/sessions/replay'
+import { readHistory, readSubagentHistory } from '../../src/main/sessions/replay'
 
 const sessionId = '5f0c1a52-8d0b-4c63-9a57-2f7a4b0e9c11'
 let dir: string
@@ -23,6 +23,18 @@ beforeEach(() => {
     parent = reply
   }
   writeFileSync(join(project, `${sessionId}.jsonl`), lines.join('\n'))
+  const subagents = join(project, sessionId, 'subagents')
+  mkdirSync(subagents, { recursive: true })
+  const side = { isSidechain: true, sessionId, agentId: 'abc123' }
+  writeFileSync(
+    join(subagents, 'agent-abc123.jsonl'),
+    [
+      JSON.stringify({ ...side, type: 'user', uuid: 's1', parentUuid: null, message: { role: 'user', content: 'Find the callers' } }),
+      JSON.stringify({ ...side, type: 'assistant', uuid: 's2', parentUuid: 's1', message: { id: 'sm1', role: 'assistant', content: [{ type: 'tool_use', id: 'st1', name: 'Grep', input: { pattern: 'bid' } }] } }),
+      JSON.stringify({ ...side, type: 'user', uuid: 's3', parentUuid: 's2', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'st1', content: 'a.ts' }] } }),
+      JSON.stringify({ ...side, type: 'assistant', uuid: 's4', parentUuid: 's3', message: { id: 'sm2', role: 'assistant', content: [{ type: 'text', text: 'Three callers' }] } }),
+    ].join('\n'),
+  )
 })
 
 afterEach(() => {
@@ -48,6 +60,11 @@ describe('readHistory', () => {
     const older = await readHistory(sessionId, { skip: 8, limit: 4 })
     expect(texts(older.events)).toEqual(['question 1', 'answer 1'])
     expect(older.more).toBe(false)
+  })
+
+  it('reads a subagent’s own transcript by its agent id', async () => {
+    expect((await readSubagentHistory(sessionId, 'abc123')).map((event) => event.type)).toEqual(['user-text', 'tool-use', 'tool-result', 'text'])
+    expect(await readSubagentHistory(sessionId, 'missing')).toEqual([])
   })
 
   it('returns nothing for a session without a transcript', async () => {

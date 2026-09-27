@@ -10,3 +10,9 @@ export async function readHistory(sessionId: string, { skip = 0, limit = maxRows
   const events = messages.slice(start, end).flatMap((message) => normalize(message as unknown as SDKMessage))
   return { events, more: start > 0 }
 }
+
+export async function readSubagentHistory(sessionId: string, agentId: string): Promise<ChatEvent[]> {
+  const { getSubagentMessages } = await import('@anthropic-ai/claude-agent-sdk')
+  const messages = await getSubagentMessages(sessionId, agentId)
+  return messages.flatMap((message) => normalize(message as unknown as SDKMessage))
+}
