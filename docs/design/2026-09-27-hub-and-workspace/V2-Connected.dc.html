@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A line with connectors</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Geist',system-ui,sans-serif}
+a{color:inherit}a:hover{opacity:.8}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: {{t.bg}}; color: {{t.ink}}; font-family: 'Geist', system-ui, sans-serif; font-size: 13px">
+<div style="height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding: 0 14px; background: {{t.panel}}; border-bottom: 1px solid {{t.line}}; position: relative; z-index: 6">
+<span style="display: flex; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span></span>
+<span style="display: flex; gap: 2px; margin-left: 10px; color: {{t.muted}}; font-size: 14px"><button type="button" aria-label="Previous chat" style="all: unset; cursor: pointer; padding: 2px 6px">‹</button><button type="button" aria-label="Next chat" style="all: unset; cursor: pointer; padding: 2px 6px">›</button></span>
+<button type="button" aria-haspopup="listbox" style="all: unset; cursor: pointer; height: 28px; padding: 0 10px; border-radius: 7px; background: transparent; display: flex; align-items: center; gap: 8px">
+<span style="width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid {{c.review}}"></span>
+<span style="font-size: 12.5px; color: {{t.muted}}">monorepo /</span><span style="font-size: 13px; font-weight: 600">Checkout: saved cards</span><span style="font-size: 10px; color: {{t.muted}}">▾</span>
+</button>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11.5px; color: {{t.muted}}">feat/saved-cards · PR #214</span>
+<span style="font-size: 12px; color: {{t.muted}}">reviewing · 26 min</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px">
+<button type="button" style="all: unset; cursor: pointer; height: 24px; padding: 0 9px; border-radius: 12px; border: 1px solid {{s.needs}}; color: {{s.needsInk}}; display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{s.needs}}"></span>2 need you <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; opacity: 0.8">⌃Tab</span></button>
+<a href="R-Network.dc.html" style="text-decoration: none; color: {{t.muted}}">Network <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px">⌘1</span></a>
+<span style="color: {{t.muted}}; font-family: 'Geist Mono', monospace; font-size: 11px">⌘K</span>
+</span>
+</div>
+<div style="position: relative; flex-grow: 1; min-height: 0; display: flex"><div style="flex-grow: 1; min-width: 0; display: flex; gap: 14px; padding: 16px 28px 14px 12px">
+<svg width="44" height="830" viewBox="0 0 44 830" role="img" aria-label="Whole line: plan and 4 work tasks done, review open, ship to come; GitHub, Sentry and Slack join at review" style="flex-shrink: 0">
+<rect x="26" y="4" width="6" height="7" rx="1" fill="{{c.plan}}"></rect>
+<rect x="26" y="14" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="26" y="24" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="26" y="34" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="26" y="44" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="25" y="58" width="8" height="722" rx="2" fill="{{c.review}}"></rect>
+<circle cx="29" cy="64" r="6" fill="{{t.bg}}" stroke="{{c.review}}" stroke-width="3"></circle>
+<line x1="2" y1="118" x2="24" y2="118" stroke="{{t.muted}}" stroke-width="1.5" stroke-dasharray="3 3"></line>
+<rect x="0" y="102" width="18" height="12" rx="3" fill="{{t.line}}"></rect><text x="9" y="111" fill="{{t.ink}}" font-size="7" font-weight="700" text-anchor="middle" font-family="Geist Mono, monospace">GH</text>
+<line x1="2" y1="176" x2="24" y2="176" stroke="{{t.muted}}" stroke-width="1.5" stroke-dasharray="3 3"></line>
+<rect x="0" y="160" width="18" height="12" rx="3" fill="{{t.line}}"></rect><text x="9" y="169" fill="{{t.ink}}" font-size="7" font-weight="700" text-anchor="middle" font-family="Geist Mono, monospace">SE</text>
+<line x1="2" y1="234" x2="24" y2="234" stroke="{{t.muted}}" stroke-width="1.5" stroke-dasharray="3 3"></line>
+<rect x="0" y="218" width="18" height="12" rx="3" fill="{{t.line}}"></rect><text x="9" y="227" fill="{{t.ink}}" font-size="7" font-weight="700" text-anchor="middle" font-family="Geist Mono, monospace">SL</text>
+<rect x="27" y="788" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="21" y="800" width="16" height="10" rx="5" fill="none" stroke="{{t.muted}}" stroke-width="1.2"></rect>
+</svg>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px">
+<div style="display: flex; align-items: baseline; gap: 12px"><span style="font-size: 12px; color: {{t.muted}}">Plan → 4 done</span><a href="#" style="font-size: 12px; color: {{t.muted}}; text-decoration: none">Expand line <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px">⌘L</span></a></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 17px; font-weight: 600">Review</span><span style="font-size: 12px; color: {{t.muted}}">4 reviewers · 11 findings · 2 blocking</span></div>
+<div style="flex-grow: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 13px; max-width: 760px">
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">GH</span><span>Read PR #214 · 6 review comments · CI passing</span></div>
+<div style="color: {{t.ink2}}; line-height: 1.65">Review done: 11 findings, 2 blocking. The card token is logged in plain text in saved-cards.ts:88, and delete has no confirmation on mobile.</div>
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">SE</span><span>Read issue MARKET-812 · TypeError in saved-cards.ts:88 · 34 users</span></div>
+<div style="color: {{t.ink2}}; line-height: 1.65">Sentry has a live error on the same line since this morning's release, so finding 1 is already hurting people. I'd fix both blocking findings now and leave the other nine for a follow-up.</div>
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">SL</span><span>Read thread in #payments · asked if saved cards ships today</span></div>
+<div style="display: flex; gap: 10px"><span style="font-size: 12px; font-weight: 600; color: {{t.muted}}; width: 30px; flex-shrink: 0; padding-top: 2px">You</span><span style="line-height: 1.6">Fix the two blocking ones first, then tell #payments when it's out.</span></div>
+<div style="color: {{t.ink2}}; line-height: 1.65">On it. I'll post in #payments once CI is green, and link the Sentry issue in the PR so it closes on merge.</div>
+<div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{c.review}}"></span>Editing server/saved-cards.ts…</div>
+</div>
+<div style="font-size: 12.5px; color: {{t.muted}}">Next · Ship</div>
+<div style="max-width: 760px"><form style="flex-shrink: 0; border: 1px solid {{t.line}}; border-radius: 10px; background: {{t.panel}}; display: flex; flex-direction: column">
+<label for="cmp" style="position: absolute; left: -9999px">Message</label>
+<textarea id="cmp" rows="2" placeholder="Message Habit tracker   /  skills    @  files" style="border: 0; outline: 0; resize: none; background: transparent; color: {{t.ink}}; padding: 10px 12px 4px 12px; font: 13.5px/1.5 'Geist', sans-serif"></textarea>
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px 12px; font-size: 11.5px; color: {{t.muted}}"><span>Accept edits · high effort</span>
+<button type="submit" style="all: unset; cursor: pointer; margin-left: auto; height: 26px; padding: 0 12px; border-radius: 6px; background: {{t.ink}}; color: {{t.bg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">Send <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; opacity: 0.6">⌘↵</span></button>
+</div>
+</form></div>
+</div>
+</div>
+<aside aria-label="This chat" style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; padding: 18px; background: {{t.panel}}; border-left: 1px solid {{t.line}}; overflow: hidden">
+<section style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; font-size: 11.5px; color: {{t.muted}}"><span>Open</span><span style="color: {{s.failInk}}">2 blocking findings</span></div>
+<div style="display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border-radius: 8px; background: {{t.raised}}; border: 1px solid {{s.needs}}">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">SL</span><span style="font-size: 13px; font-weight: 500">Post in #payments as you?</span></span>
+<span style="font-size: 12.5px; line-height: 1.5; color: {{t.ink2}}">"Saved cards fix is merged and live. The token logging is gone."</span>
+<span style="display: flex; gap: 12px; font-size: 12px"><a href="#" style="text-decoration: none; font-weight: 600">Allow once</a><a href="#" style="text-decoration: none; color: {{t.muted}}">Edit</a><a href="#" style="text-decoration: none; color: {{t.muted}}">Don't post</a></span>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 11.5px; color: {{t.muted}}"><span>Tasks</span><span>0 of 3</span></div>
+<div style="display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid {{c.review}}"></span>Stop logging the card token</div>
+<div style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: {{t.muted}}"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid {{t.faint}}"></span>Confirm before delete on mobile</div>
+<div style="display: flex; align-items: center; gap: 9px; font-size: 13px; color: {{t.muted}}"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 3px; border: 1.5px solid {{t.faint}}"></span>Post in #payments when CI is green</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 11.5px; color: {{t.muted}}">Connected to this line</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">GH</span><span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 13px">PR #214 · feat/saved-cards</span><span style="font-size: 12px; color: {{t.muted}}">CI passing · 6 comments · 2 unresolved</span></span></div><div style="display: flex; align-items: center; gap: 10px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">SE</span><span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 13px">MARKET-812 · TypeError</span><span style="font-size: 12px; color: {{t.muted}}">34 users · closes when #214 merges</span></span></div><div style="display: flex; align-items: center; gap: 10px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">SL</span><span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 13px">#payments thread</span><span style="font-size: 12px; color: {{t.muted}}">3 messages · a reply is waiting on you</span></span></div><div style="display: flex; align-items: center; gap: 10px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">GM</span><span style="display: flex; flex-direction: column; gap: 1px; min-width: 0"><span style="font-size: 13px">Security review request</span><span style="font-size: 12px; color: {{t.muted}}">from the security team · added to this line</span></span></div>
+<a href="#" style="font-size: 12px; color: {{t.muted}}; text-decoration: none">+ Connect something to this line</a>
+</section>
+</aside>
+<div aria-live="polite" style="position: absolute; right: 16px; bottom: 16px; width: 360px; z-index: 5">
+<div role="status" style="box-sizing: border-box; padding: 12px 14px; border-radius: 10px; background: {{t.raised}}; border: 1px solid {{t.line}}; box-shadow: 0 10px 30px rgba(0,0,0,0.45); display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: {{t.muted}}"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 5px; background: {{t.line}}; color: {{t.ink}}; font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', monospace">GH</span>GitHub · PR #212 · routed to Answer comments on #212</span>
+<span style="font-size: 13px; line-height: 1.45">2 new review comments. The agent is reading them.</span>
+<span style="display: flex; gap: 12px; font-size: 12px"><a href="#" style="text-decoration: none; font-weight: 600">Go there</a><a href="#" style="text-decoration: none; color: {{t.muted}}">Dismiss</a></span>
+</div>
+</div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const t = light
+      ? { bg: '#ffffff', panel: '#f7f7f5', raised: '#efefec', line: '#e6e6e1', ink: '#141414', ink2: '#3d3d3a', muted: '#74746e', faint: '#cfcfc9', onColour: '#ffffff', add: '#e6f4ec', sel: '#e9e9e5' }
+      : { bg: '#0d0e10', panel: '#121316', raised: '#1b1c20', line: '#232428', ink: '#ececE8', ink2: '#b9b9b3', muted: '#7f7f79', faint: '#3b3c40', onColour: '#0d0e10', add: 'rgba(60,201,138,0.12)', sel: '#1d1e22' };
+    const c = light
+      ? { brainstorm: '#7c4ddb', plan: '#1f63e0', work: '#13905a', review: '#c2338f', ship: '#0b8c9c' }
+      : { brainstorm: '#a78bfa', plan: '#5b93ff', work: '#3cc98a', review: '#f06cc1', ship: '#38c6d6' };
+    const s = light
+      ? { needs: '#e08a00', needsInk: '#8a4b06', soft: '#fdf3e1', failInk: '#b42318' }
+      : { needs: '#ffb224', needsInk: '#ffcf70', soft: 'rgba(255,178,36,0.10)', failInk: '#ff8a80' };
+    
+    const tk = (name, st, sub) => ({ name, done: st === 'done', pad: sub ? '21px' : '0px', size: sub ? '12.5px' : '13px', weight: st === 'now' ? '600' : '400',
+      colour: st === 'todo' ? t.muted : st === 'done' ? t.muted : t.ink, strike: st === 'done' ? 'line-through' : 'none',
+      ring: st === 'done' ? t.muted : st === 'now' ? c.work : t.faint, fill: st === 'done' ? t.muted : 'transparent' });
+    const tasks = [tk('Project and database', 'done'), tk('Sign up, log in, sessions', 'done'), tk('Add, edit, remove habits', 'done'), tk('Check-ins and streak calendar', 'done'), tk('Reminders', 'done'),
+      tk('Settings page', 'now'), tk('Time zone from the browser', 'done', true), tk('Default reminder time', 'now', true), tk('Delete account', 'todo', true),
+      tk('Landing page', 'todo'), tk('Automated tests', 'todo'), tk('Browser check and code review', 'todo')];
+
+    return { t, c, s, tasks };
+  }
+}
+</script>
+</body>
+</html>

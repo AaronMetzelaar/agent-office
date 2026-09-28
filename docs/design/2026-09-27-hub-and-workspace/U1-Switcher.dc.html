@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Switcher in the title bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Geist',system-ui,sans-serif}
+a{color:inherit}a:hover{opacity:.8}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: {{t.bg}}; color: {{t.ink}}; font-family: 'Geist', system-ui, sans-serif; font-size: 13px">
+<div style="height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 14px; padding: 0 14px; background: {{t.panel}}; border-bottom: 1px solid {{t.line}}; position: relative; z-index: 6">
+<span style="display: flex; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span></span>
+<span style="display: flex; gap: 2px; margin-left: 10px; color: {{t.muted}}; font-size: 14px"><button type="button" aria-label="Previous chat" style="all: unset; cursor: pointer; padding: 2px 6px">‹</button><button type="button" aria-label="Next chat" style="all: unset; cursor: pointer; padding: 2px 6px">›</button></span>
+<button type="button" aria-haspopup="listbox" style="all: unset; cursor: pointer; height: 28px; padding: 0 10px; border-radius: 7px; background: {{t.raised}}; display: flex; align-items: center; gap: 8px">
+<span style="width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid {{c.work}}"></span>
+<span style="font-size: 12.5px; color: {{t.muted}}">habit-tracker /</span><span style="font-size: 13px; font-weight: 600">Habit tracker</span><span style="font-size: 10px; color: {{t.muted}}">▾</span>
+</button>
+<span style="font-family: 'Geist Mono', monospace; font-size: 11.5px; color: {{t.muted}}">feat/habit-tracker</span>
+<span style="font-size: 12px; color: {{t.muted}}">working · 21 min</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px">
+<button type="button" style="all: unset; cursor: pointer; height: 24px; padding: 0 9px; border-radius: 12px; border: 1px solid {{s.needs}}; color: {{s.needsInk}}; display: flex; align-items: center; gap: 6px"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{s.needs}}"></span>2 need you <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; opacity: 0.8">⌃Tab</span></button>
+<a href="R-Network.dc.html" style="text-decoration: none; color: {{t.muted}}">Network <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px">⌘1</span></a>
+<span style="color: {{t.muted}}; font-family: 'Geist Mono', monospace; font-size: 11px">⌘K</span>
+</span>
+</div>
+<div style="position: relative; flex-grow: 1; min-height: 0; display: flex"><div style="flex-grow: 1; min-width: 0; display: flex; gap: 16px; padding: 16px 28px 14px 22px">
+<svg width="30" height="830" viewBox="0 0 30 830" role="img" aria-label="Whole line: brainstorm, plan and tasks 1 to 5 done above; task 6 open; tasks 7 to 9, review and ship below" style="flex-shrink: 0">
+<rect x="12" y="4" width="6" height="7" rx="1" fill="{{c.brainstorm}}"></rect>
+<rect x="12" y="14" width="6" height="7" rx="1" fill="{{c.plan}}"></rect>
+<rect x="12" y="24" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="12" y="34" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="12" y="44" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="12" y="54" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="12" y="64" width="6" height="7" rx="1" fill="{{c.work}}"></rect>
+<rect x="11" y="78" width="8" height="666" rx="2" fill="{{c.work}}"></rect>
+<circle cx="15" cy="84" r="6" fill="{{t.bg}}" stroke="{{c.work}}" stroke-width="3"></circle>
+<rect x="13" y="752" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="13" y="762" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="13" y="772" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="13" y="782" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="13" y="792" width="4" height="7" rx="1" fill="{{t.faint}}"></rect>
+<rect x="7" y="804" width="16" height="10" rx="5" fill="none" stroke="{{t.muted}}" stroke-width="1.2"></rect>
+</svg>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px">
+<div style="display: flex; align-items: baseline; gap: 12px"><span style="font-size: 12px; color: {{t.muted}}">Brainstorm → 5 done</span><a href="#" style="font-size: 12px; color: {{t.muted}}; text-decoration: none">Expand line <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px">⌘L</span></a></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 17px; font-weight: 600">6 · Settings page</span><span style="font-size: 12px; color: {{t.muted}}">task 6 of 9 · started 21:31</span></div>
+<div style="flex-grow: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 14px; max-width: 760px">
+<div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}">▸ Read 4 files · edited public/settings.js <span style="color: {{c.work}}">+48</span></div><div style="display: flex; gap: 10px"><span style="font-size: 12px; font-weight: 600; color: {{t.muted}}; width: 30px; flex-shrink: 0; padding-top: 2px">You</span><span style="line-height: 1.6">Keep the settings page to one screen. Time zone should default to the browser's.</span></div><div style="color: {{t.ink2}}; line-height: 1.65">Makes sense. I'm reading the time zone from the browser on first load and saving it with the user, so reminders fire at the right local time. Default reminder time comes next, then account deletion.</div><div style="border-radius: 8px; background: {{t.raised}}; font-family: 'Geist Mono', monospace; font-size: 12px; line-height: 19px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; padding: 6px 12px; color: {{t.muted}}; font-size: 11px; border-bottom: 1px solid {{t.line}}"><span>public/settings.js</span><span>Copy · Apply</span></div>
+<div style="padding: 8px 12px; color: {{t.ink2}}">
+<div><span style="color: {{t.ink}}; font-weight: 500">const</span> zone = Intl.DateTimeFormat().resolvedOptions().timeZone</div>
+<div><span style="color: {{t.ink}}; font-weight: 500">if</span> (!user.timeZone) <span style="color: {{t.ink}}; font-weight: 500">await</span> api.patch(<span style="color: {{t.muted}}">'/me'</span>, { timeZone: zone })</div>
+</div>
+</div><div style="display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 12px; color: {{t.muted}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{c.work}}"></span>Writing public/settings.html…</div>
+</div>
+<div style="font-size: 12.5px; color: {{t.muted}}">Next · 7 Landing page</div>
+<div style="max-width: 760px"><form style="flex-shrink: 0; border: 1px solid {{t.line}}; border-radius: 10px; background: {{t.panel}}; display: flex; flex-direction: column">
+<label for="cmp" style="position: absolute; left: -9999px">Message</label>
+<textarea id="cmp" rows="2" placeholder="Message Habit tracker   /  skills    @  files" style="border: 0; outline: 0; resize: none; background: transparent; color: {{t.ink}}; padding: 10px 12px 4px 12px; font: 13.5px/1.5 'Geist', sans-serif"></textarea>
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px 12px; font-size: 11.5px; color: {{t.muted}}"><span>Accept edits · high effort</span>
+<button type="submit" style="all: unset; cursor: pointer; margin-left: auto; height: 26px; padding: 0 12px; border-radius: 6px; background: {{t.ink}}; color: {{t.bg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">Send <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; opacity: 0.6">⌘↵</span></button>
+</div>
+</form></div>
+</div>
+</div>
+<aside aria-label="This chat" style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 22px; padding: 18px 18px; background: {{t.panel}}; border-left: 1px solid {{t.line}}; overflow: hidden">
+<section style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; font-size: 11.5px; color: {{t.muted}}"><span>Open</span><span>nothing blocked</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: {{t.raised}}">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{s.needs}}"></span><span style="font-size: 13px; font-weight: 500">How reminders reach you</span></span>
+<span style="font-size: 12.5px; line-height: 1.5; color: {{t.ink2}}">Using the default: browser notifications plus an in-app banner.</span>
+<span style="display: flex; gap: 12px; font-size: 12px"><a href="#" style="text-decoration: none; font-weight: 600">Keep</a><a href="#" style="text-decoration: none; color: {{t.muted}}">Change</a></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 8px; background: {{t.raised}}">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{s.needs}}"></span><span style="font-size: 13px; font-weight: 500">No outside packages?</span></span>
+<span style="font-size: 12.5px; line-height: 1.5; color: {{t.ink2}}">Using the default: only Node's built-in modules.</span>
+<span style="display: flex; gap: 12px; font-size: 12px"><a href="#" style="text-decoration: none; font-weight: 600">Keep</a><a href="#" style="text-decoration: none; color: {{t.muted}}">Change</a></span>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 11.5px; color: {{t.muted}}"><span>Tasks</span><span>5 of 9</span></div>
+<sc-for list="{{tasks}}" as="k" hint-placeholder-count="9">
+<div style="display: flex; align-items: center; gap: 9px; padding-left: {{k.pad}}; font-size: {{k.size}}; color: {{k.colour}}; text-decoration: {{k.strike}}; font-weight: {{k.weight}}">
+<span style="width: 12px; height: 12px; flex-shrink: 0; box-sizing: border-box; border-radius: 3px; border: 1.5px solid {{k.ring}}; background: {{k.fill}}; display: flex; align-items: center; justify-content: center"><sc-if value="{{k.done}}" hint-placeholder-val="{{false}}"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 4.2l2 2L7 1.8" fill="none" stroke="{{t.bg}}" stroke-width="1.6"></path></svg></sc-if></span>{{k.name}}</div>
+</sc-for>
+</section>
+<section style="display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: {{t.muted}}">
+<span>Tests · none yet, added in task 8</span>
+<span style="font-family: 'Geist Mono', monospace; font-size: 12px">14 files <span style="color: {{c.work}}">+1,284</span> −96 · <a href="#" style="text-decoration: none">Changes ⌘D</a></span>
+</section>
+</aside>
+<div aria-live="polite" style="position: absolute; right: 16px; bottom: 16px; width: 360px; display: flex; flex-direction: column; gap: 8px; z-index: 5">
+<div style="box-sizing: border-box; padding: 9px 12px; border-radius: 9px; background: {{t.raised}}; border: 1px solid {{t.line}}; box-shadow: 0 8px 24px rgba(0,0,0,0.35); display: flex; align-items: center; gap: 8px; font-size: 12.5px">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{s.needs}}"></span><span style="font-weight: 500">Rail renderer</span><span style="color: {{t.muted}}">1 question</span><a href="#" style="margin-left: auto; color: {{t.muted}}; text-decoration: none">Open</a>
+</div>
+<div role="alert" style="box-sizing: border-box; padding: 12px 14px; border-radius: 10px; background: {{t.raised}}; border: 1px solid {{s.needs}}; box-shadow: 0 10px 30px rgba(0,0,0,0.45); display: flex; flex-direction: column; gap: 8px">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: {{t.muted}}"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{s.needs}}"></span>Answer comments on #212 · Ship<span style="margin-left: auto">just now</span></span>
+<span style="font-size: 13.5px; font-weight: 500">Run <span style="font-family: 'Geist Mono', monospace; font-size: 12.5px">pnpm install --frozen-lockfile</span>?</span>
+<span style="display: flex; gap: 6px; align-items: center">
+<button type="button" style="all: unset; cursor: pointer; height: 26px; padding: 0 10px; border-radius: 6px; background: {{t.ink}}; color: {{t.bg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">Allow <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; opacity: 0.6">⌥Y</span></button>
+<button type="button" style="all: unset; cursor: pointer; box-sizing: border-box; height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid {{t.line}}; font-size: 12px; display: flex; align-items: center; gap: 6px">Deny <span style="font-family: 'Geist Mono', monospace; font-size: 10.5px; color: {{t.muted}}">⌥N</span></button>
+<a href="#" style="margin-left: auto; font-size: 12px; color: {{t.muted}}; text-decoration: none">Go there</a>
+</span>
+</div>
+</div></div>
+<div role="listbox" aria-label="Go to a line" style="position: absolute; left: 118px; top: 44px; width: 460px; box-sizing: border-box; padding: 8px; border-radius: 12px; background: {{t.raised}}; border: 1px solid {{t.line}}; box-shadow: 0 16px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 1px; z-index: 7">
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px 8px 10px; border-bottom: 1px solid {{t.line}}; margin-bottom: 4px">
+<label for="u1f" style="position: absolute; left: -9999px">Go to a line</label>
+<input id="u1f" type="text" placeholder="Go to a line…" style="flex-grow: 1; border: 0; outline: 0; background: transparent; color: {{t.ink}}; font: 13.5px 'Geist', sans-serif">
+<span style="font-family: 'Geist Mono', monospace; font-size: 11px; color: {{t.muted}}">↑↓ ↵</span>
+</div>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="padding: 6px 12px 2px 12px; font-size: 11px; color: {{t.muted}}; font-family: 'Geist Mono', monospace">{{g.name}}</div>
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="3">
+<a href="#" style="text-decoration: none; display: grid; grid-template-columns: minmax(0, 1fr) 150px; column-gap: 14px; align-items: center; padding: 7px 12px 7px {{r.pad}}; border-radius: 7px; background: {{r.back}}; opacity: {{r.opacity}}">
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.title}}</span><span style="font-size: 12px; color: {{r.tone}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.status}}</span></span>
+<span style="display: flex; align-items: center; justify-content: flex-end">
+<sc-for list="{{r.route}}" as="st" hint-placeholder-count="8"><span style="display: flex; align-items: center"><span style="width: {{st.barW}}; height: 2.5px; background: {{st.bar}}"></span><span style="width: {{st.size}}; height: {{st.size}}; box-sizing: border-box; border-radius: 50%; background: {{st.fill}}; border: {{st.border}}"></span></span></sc-for>
+</span>
+</a>
+</sc-for>
+</sc-for>
+<div style="display: flex; justify-content: space-between; padding: 8px 10px 2px 10px; border-top: 1px solid {{t.line}}; margin-top: 4px; font-size: 11.5px; color: {{t.muted}}"><span>New line <span style="font-family: 'Geist Mono', monospace">⌘N</span></span><span>Whole network <span style="font-family: 'Geist Mono', monospace">⌘1</span></span></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"light":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = this.props.light ?? false;
+    const t = light
+      ? { bg: '#ffffff', panel: '#f7f7f5', raised: '#efefec', line: '#e6e6e1', ink: '#141414', ink2: '#3d3d3a', muted: '#74746e', faint: '#cfcfc9', onColour: '#ffffff', add: '#e6f4ec', sel: '#e9e9e5' }
+      : { bg: '#0d0e10', panel: '#121316', raised: '#1b1c20', line: '#232428', ink: '#ececE8', ink2: '#b9b9b3', muted: '#7f7f79', faint: '#3b3c40', onColour: '#0d0e10', add: 'rgba(60,201,138,0.12)', sel: '#1d1e22' };
+    const c = light
+      ? { brainstorm: '#7c4ddb', plan: '#1f63e0', work: '#13905a', review: '#c2338f', ship: '#0b8c9c' }
+      : { brainstorm: '#a78bfa', plan: '#5b93ff', work: '#3cc98a', review: '#f06cc1', ship: '#38c6d6' };
+    const s = light
+      ? { needs: '#e08a00', needsInk: '#8a4b06', soft: '#fdf3e1' }
+      : { needs: '#ffb224', needsInk: '#ffcf70', soft: 'rgba(255,178,36,0.10)' };
+    
+    const tk = (name, st, sub) => ({ name, done: st === 'done', pad: sub ? '21px' : '0px', size: sub ? '12.5px' : '13px', weight: st === 'now' ? '600' : '400',
+      colour: st === 'todo' ? t.muted : st === 'done' ? t.muted : t.ink, strike: st === 'done' ? 'line-through' : 'none',
+      ring: st === 'done' ? t.muted : st === 'now' ? c.work : t.faint, fill: st === 'done' ? t.muted : 'transparent' });
+    const tasks = [tk('Project and database', 'done'), tk('Sign up, log in, sessions', 'done'), tk('Add, edit, remove habits', 'done'), tk('Check-ins and streak calendar', 'done'), tk('Reminders', 'done'),
+      tk('Settings page', 'now'), tk('Time zone from the browser', 'done', true), tk('Default reminder time', 'now', true), tk('Delete account', 'todo', true),
+      tk('Landing page', 'todo'), tk('Automated tests', 'todo'), tk('Browser check and code review', 'todo')];
+
+    const stageCol = { b: c.brainstorm, p: c.plan, w: c.work, r: c.review, s: c.ship };
+    const route = (stops, cur, state) => stops.split('').map((k, i) => {
+      const done = state === 'done' || i < cur; const here = state !== 'done' && i === cur;
+      const ring = state === 'needs' ? s.needs : state === 'blocked' ? '#ff6b5e' : state === 'idle' ? t.muted : stageCol[k];
+      return { barW: i === 0 ? '0px' : '7px', bar: done || here ? stageCol[k] : t.faint, size: here ? '10px' : '5px', fill: here ? t.raised : done ? stageCol[k] : t.faint, border: here ? `2.5px solid ${ring}` : 'none' };
+    });
+    const tone = { needs: s.needsInk, blocked: '#ff8a80', work: t.muted, idle: t.muted, done: t.muted };
+    const row = (title, stops, cur, state, status, extra = {}) => ({ title, status, tone: tone[state], route: route(stops, cur, state), pad: '12px', back: 'transparent', opacity: state === 'done' ? 0.5 : 1, ...extra });
+    const groups = [
+      { name: 'needs you', rows: [row('Answer comments on #212', 'wrss', 2, 'needs', 'Run pnpm install --frozen-lockfile?', {}), row('Rail renderer', 'bpwwwwwrs', 4, 'needs', 'Widen the rail, or draw over?')] },
+      { name: 'running', rows: [row('Habit tracker', 'bpwwwwwwwwwrs', 7, 'work', 'Task 6 of 9 · settings page', { back: t.sel }), row('Try canvas', 'www', 1, 'work', 'Side chat of Rail renderer', { pad: '26px' }), row('Metro workspace', 'bpwrs', 1, 'work', 'Planning · unit 4 of 7'), row('Checkout: saved cards', 'pwwwwrs', 5, 'work', 'Reviewing · 11 findings so far')] },
+      { name: 'waiting', rows: [row('Admin: bulk export', 'bpwrs', 1, 'blocked', 'Blocked · waits for PR #214'), row('Review #219', 'r', 0, 'idle', 'Not started'), row('Resume login-stuck chats', 'bpwrs', 5, 'done', 'Merged #208')] },
+    ];
+
+    return { t, c, s, tasks, groups };
+  }
+}
+</script>
+</body>
+</html>

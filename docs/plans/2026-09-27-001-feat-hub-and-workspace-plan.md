@@ -162,7 +162,7 @@ Grouped from the origin document. Every unit names the requirements it covers.
   - `Office.vue` stays reachable through a setting during Phases B–D.
   - `projection.ts` and `inbox.ts` lose their `three` and office imports first (U5), so the shell doesn't load the 3D bundle.
 - **The network is drawn by a pure layout function plus SVG.** `src/renderer/hub/network.ts` turns lines into positioned segments, stops, pills and labels (repo hubs, lanes, stage columns, branches), and `Network.vue` renders them.
-  - Rationale: layout can be unit-tested, SVG keeps every stop focusable, and the prototype's geometry (`scratchpad/gen/hub.py`) transfers directly.
+  - Rationale: layout can be unit-tested, SVG keeps every stop focusable, and the prototype's geometry (`docs/design/2026-09-27-hub-and-workspace/hub.py`) transfers directly.
 - **Workspace state is a per-chat JSON column.** A `workspace` column holds the workbench state, tabs, sizes, the line's expanded state and scroll. Terminals get a small per-chat registry in `main/terminal.ts`: several shells per chat, each with a name and folder. Their scrollback is persisted, capped at 200 KB, in a `terminals` table.
 - **Side chats reuse forking.**
   - A side chat is a chat with `parentId`, `forkStopId` and `forkMessageId`. Branching at the tip uses `resume` plus `forkSession`.
@@ -466,7 +466,7 @@ flowchart TB
 - The triage rows reuse the request answering from `Inbox.vue`, through `resolveRequest`, with number keys.
 - Start something calls `startChat` with the repository, stage and prompt.
 
-**Patterns to follow:** the prototype geometry in `scratchpad/gen/hub.py` from the design session (copied into the plan's references when implementing), and `panels/Inbox.vue` for answering.
+**Patterns to follow:** the prototype geometry in `docs/design/2026-09-27-hub-and-workspace/hub.py` and the boards next to it, and `panels/Inbox.vue` for answering.
 
 **Test scenarios:**
 - Happy path: three repositories with 1, 4 and 6 lines lay out without overlapping labels. Assert the label boxes don't intersect.
