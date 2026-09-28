@@ -987,8 +987,9 @@ export function createWorld({ scene, renderer, camera, labelsEl, region, ui, red
         lastR = now
         return false
       }
-      if (!hot && !probe.uncapped && now - lastR < 31) return false
-      const dt = Math.min((now - lastR) / 1000, 0.05)
+      const gap = !document.hasFocus() ? 60 : hot ? 14 : 31
+      if (!probe.uncapped && now - lastR < gap) return false
+      const dt = Math.min((now - lastR) / 1000, 0.1)
       lastR = now
       step(dt, now)
       return true
