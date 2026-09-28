@@ -77,7 +77,7 @@ The design was explored on a canvas of prototypes: https://claude.ai/artifact/Vr
   - branch and state
   - a "N need you ⌃Tab" pill
 
-  There's no sidebar and no status bar. Esc returns to the hub.
+  There's no sidebar and no status bar. Esc returns to the hub, unless something inside the chat wants Esc: a terminal, an open popup or a sheet.
 - R11. **The line, squeezed, left of the reply.**
   - A narrow column shows the chat's whole line: finished stops as short ticks in their stage colours, the open stop as a tall bar in its stage colour next to its conversation, and the stops still to come as faint ticks, ending at `main`.
   - Expand line (⌘L) shows every stop with its one-line outcome.
@@ -115,7 +115,7 @@ The design was explored on a canvas of prototypes: https://claude.ai/artifact/Vr
 - R19. The default route is compound engineering: Brainstorm → Plan → Work → Review → Ship → Compound. Each stage runs the user's installed skill for it (`ce:brainstorm`, `ce:plan`, `ce:work`, `ce:review`, `ce:compound`). Ship takes in today's ship-it steps as its stops. A missing skill falls back to a plain prompt.
 - R20. A stage starts when its skill runs or when the user picks it. A chat that clearly does a stage's work moves to that stage: plan mode means Plan, the first edit means Work, and opening a PR means Ship. A chat can enter at any stage.
 - R21. When a stage looks finished, the next stop offers "Continue to <stage>". The app never moves on by itself, except for lines started for you (R31), which follow their route up to the first thing that needs you.
-- R22. Routes are config in `departments.json`: stations with a label, a skill or a prompt, and a colour from the line palette. A room can use its own route. The shipped `commands` settings map onto Ship.
+- R22. Routes are config in `departments.json`: stations with a label, a skill or a prompt, and a colour from the line palette. A room can use its own route. The `commands` section that `departments.json` already has (`ship`, `fixCi`, `answerComments`, `review`) maps onto Ship's stops.
 
 **Side chats**
 - R23. A side chat branches from any stop with the conversation up to that point, and from then on runs separately. It's a full chat with its own route, tasks, workspace and PR. It works in the main folder while it only reads, and moves to its own worktree before its first edit.
@@ -123,7 +123,7 @@ The design was explored on a canvas of prototypes: https://claude.ai/artifact/Vr
 - R25. From an expanded line or an earlier stop in the conversation, the message box offers "Continue from <stop> in a new chat" alongside "Reply at the tip". The new chat starts in its own worktree from the files as they were at that stop.
 
 **Connectors and suggested work**
-- R26. The app reads the user's GitHub, Sentry, Gmail, Linear and Slack through their connectors, plus the user's Claude Code sessions on this Mac and follow-ups left by the office's own lines (for example review findings left for later). It scans about once an hour, and at once when a connector pushes an event.
+- R26. The app reads the user's GitHub, Sentry, Gmail, Linear and Slack through their connectors, plus the user's Claude Code sessions on this Mac and follow-ups left by the office's own lines (for example review findings left for later). It scans about once an hour, and at once on events the app sees itself: a new GitHub notification, a Claude Code session ending, or a line leaving a follow-up. The connectors don't push to a local app.
 - R27. Each new item is judged for importance (act now, today, this week, FYI or not for you), for whether an agent can do it, for which repository or line it belongs to, and for what kind of work it is. The judging runs through Jev (TypeSafe), and the user never sees it. Items about the same thing (the Sentry error, the Slack question and the PR about saved cards) merge into one.
 - R28. For the few worth doing, Claude drafts a kickoff: the repository, the stage to start at, the skill, and a one-sentence prompt. Suggestions appear in the hub's Your call with a small source label, and expanding one shows its kickoff with Edit and Why?. Items that are important but not now wait on a list reachable from the hub. Nothing is dropped silently, and what was left out can be reviewed.
 - R29. The user's rules are plain sentences, such as "Anything from the security team is act now". "Not now" and "Never for this kind" teach new ones. Rules are editable in Settings.
@@ -170,6 +170,7 @@ The design was explored on a canvas of prototypes: https://claude.ai/artifact/Vr
 ## Dependencies / Assumptions
 - The compound-engineering skills are installed. R19's fallbacks cover machines without them.
 - Connectors are available as MCP servers or the app's existing integrations (GitHub through `gh`, Linear through its API key). Gmail, Slack and Sentry need credentials the user grants per source.
+  - The office's `setup-token` sessions can't see claude.ai connectors (`docs/solutions/2026-09-sdk-dual-account-spike.md`). Reading Sentry, Gmail and Slack needs a Claude-login account or local MCP servers for those services. This is settled in the plan's Unit 11.
 - Jev (TypeSafe `systemone`) can answer several structured questions per item within a few seconds, as it does for room picking today.
 - Chat rows are capped at 200 in memory, and full history is rebuilt from session files, so the line and tasks must be built from full history.
 - The open-source release (`docs/brainstorms/2026-09-27-open-source-release-requirements.md`) is planned in parallel. R33 assumes its adapters.
