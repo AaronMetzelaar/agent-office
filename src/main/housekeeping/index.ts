@@ -51,6 +51,7 @@ const total = (items: readonly { bytes: number }[]) => items.reduce((sum, item) 
 const noStop: StopReport = { freedBytes: 0, stopped: 0, stubborn: [] }
 const noVisitors: VisitorList = { views: () => [], view: () => undefined, archive: () => false, finish: () => false }
 const gitTtlMs = 60_000
+const gitLimit = 4
 const gone = 'That chat isn’t in the office any more.'
 const refuse: Confirm = async () => false
 
@@ -59,6 +60,14 @@ interface FinishPlan {
   visitor: boolean
   tree?: Listed
   steps: FinishSteps
+}
+
+export async function eachLimited<T>(items: readonly T[], limit: number, work: (item: T) => Promise<unknown>): Promise<void> {
+  const queue = [...items]
+  const worker = async () => {
+    while (queue.length) await work(queue.shift()!)
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker))
 }
 
 export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'park' | 'archive' | 'stopChat' | 'finish'>, engine: Pick<Engine, 'pid' | 'stop'>, settings: Settings, system: System, notifyCleanup: (count: number) => void = () => {}, visitors: VisitorList = noVisitors) {
@@ -77,6 +86,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
   let claudeDirs: string[] = []
   let sampling: Promise<HousekeepingView> | undefined
   let measuring: Promise<void> | undefined
+  let checking: Promise<void> | undefined
   let timers: ReturnType<typeof setInterval>[] = []
 
   const live = () => store.views().filter((chat) => !chat.archived)
@@ -177,7 +187,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     }
     worktrees = await listAll()
     const stale = worktrees.filter((tree) => system.now() - (gitAt.get(tree.path) ?? -Infinity) >= gitTtlMs)
-    await Promise.all(stale.map(async (tree) => checkGit(tree.path)))
+    await checkAll(stale)
     return publish()
   }
 
@@ -206,6 +216,10 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
       notifyCleanup(notice.ids.length)
     }
     await Promise.all(parked.map((chatId) => stopTree(chatId, false)))
+  }
+
+  function checkAll(trees: readonly Listed[]): Promise<void> {
+    return (checking ??= eachLimited(trees, gitLimit, (tree) => checkGit(tree.path)).finally(() => (checking = undefined)))
   }
 
   async function checkGit(path: string): Promise<GitSafety> {
@@ -305,7 +319,7 @@ export function createHousekeeping(store: Pick<ChatStore, 'views' | 'view' | 'pa
     async refresh(): Promise<HousekeepingView> {
       await tick()
       await sample()
-      await Promise.all(worktrees.map(async (tree) => git.set(tree.path, await gitSafety(tree.path, system.gh))))
+      await checkAll(worktrees)
       void measure()
       return publish()
     },

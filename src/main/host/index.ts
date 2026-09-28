@@ -33,10 +33,16 @@ async function run(): Promise<void> {
   server.handle('exitWhenIdle', () => {
     cancelRestart ??= whenIdle(core.store, exit)
   })
+  let orphaned: (() => void) | undefined
+  server.events.on('connect', () => {
+    orphaned?.()
+    orphaned = undefined
+  })
   server.events.on('disconnect', () => {
     if (server.clients()) return
     cancelRestart?.()
     cancelRestart = undefined
+    if (!app.isPackaged) orphaned ??= whenIdle(core.store, exit)
   })
   process.on('SIGTERM', exit)
   process.on('SIGINT', exit)

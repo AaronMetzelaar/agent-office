@@ -71,6 +71,7 @@ export function planWorktree(folder: string, base: string): WorktreePlan {
 }
 
 export function gitError(error: unknown): string {
+  if ((error as { killed?: unknown }).killed) return 'git took too long and was stopped. The disk is probably busy, so try again once it settles.'
   const stderr = String((error as { stderr?: unknown }).stderr ?? '').trim()
   const line = stderr.split('\n').find((text) => /^(fatal|error):/.test(text)) ?? stderr.split('\n').at(-1)
   return line?.replace(/^(fatal|error):\s*/, '') || (error instanceof Error ? error.message : String(error))
