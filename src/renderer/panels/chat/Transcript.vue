@@ -124,7 +124,7 @@ watch(
       <ArtifactCard v-else-if="item.kind === 'artifact'" :artifact="item.artifact" />
       <Subagent v-else-if="item.kind === 'agent'" :item="item" :running="running" />
       <div v-else-if="item.row.kind === 'user'" class="uw">
-        <div class="ur">{{ item.row.text }}</div>
+        <div class="ur"><div v-if="item.row.images" class="uimgs"><img v-for="(src, i) in item.row.images" :key="i" :src="src" alt="Attached image" /></div>{{ item.row.text }}</div>
         <div v-if="rewind?.id === item.row.id" class="rw" role="status">
           <template v-if="rewind.busy">Checking…</template>
           <template v-else-if="rewind.preview">
@@ -219,6 +219,20 @@ watch(
   justify-content: flex-end;
   font-size: 12.5px;
   color: var(--ink2);
+}
+
+.ts .uimgs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  white-space: normal;
+}
+
+.ts .uimgs img {
+  max-width: 160px;
+  max-height: 120px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .ts .ur {

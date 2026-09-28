@@ -86,7 +86,7 @@ function inputQueue() {
   return {
     messages: messages(),
     push(text: string, id: string, images: ImageBlock[] = []) {
-      const content = images.length ? [...images, { type: 'text' as const, text }] : text
+      const content = images.length ? [...images, ...(text ? [{ type: 'text' as const, text }] : [])] : text
       pending.push({ type: 'user', uuid: id as SDKUserMessage['uuid'], message: { role: 'user', content }, parent_tool_use_id: null })
       wake()
     },

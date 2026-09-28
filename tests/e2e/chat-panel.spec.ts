@@ -85,7 +85,7 @@ test('attach an image, send it, then click a path in the reply to preview it', a
   await drawer().getByLabel('Message').press('Enter')
   await expect(drawer().locator('.comp .atts')).toHaveCount(0)
   const last = await app.evaluate(() => (globalThis as unknown as MainGlobals).fakeEngine.sent.at(-1))
-  expect(last?.text).toBe('What is this?\n\nAttached:\n- [image: dot.png]')
+  expect(last?.text).toBe('What is this?')
   expect(last?.images).toHaveLength(1)
   await expect.poll(async () => (await snapshotChat())?.state).not.toBe('working')
 
@@ -99,6 +99,24 @@ test('attach an image, send it, then click a path in the reply to preview it', a
   await page.keyboard.press('Escape')
   await expect(preview).toHaveCount(0)
   await expect(drawer().getByRole('heading', { name: 'Tidy the bid flow' })).toBeVisible()
+})
+
+test('paste two screenshots with the same name; both send and show in the transcript', async () => {
+  const input = drawer().getByLabel('Message')
+  for (let n = 0; n < 2; n++) {
+    await input.evaluate((el) => {
+      const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0))
+      const data = new DataTransfer()
+      data.items.add(new File([bytes], 'image.png', { type: 'image/png' }))
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+    })
+  }
+  await expect(drawer().locator('.comp .atts li')).toHaveCount(2)
+  await input.fill('Two shots')
+  await input.press('Enter')
+  await expect.poll(() => app.evaluate(() => (globalThis as unknown as MainGlobals).fakeEngine.sent.at(-1)?.images?.length)).toBe(2)
+  await expect(drawer().getByRole('log', { name: 'Transcript' }).locator('.uw').last().locator('img')).toHaveCount(2)
+  await expect.poll(async () => (await snapshotChat())?.state).not.toBe('working')
 })
 
 test('run a shell code block from the reply in a terminal next to the chat', async () => {

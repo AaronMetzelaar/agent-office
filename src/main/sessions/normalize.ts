@@ -8,7 +8,7 @@ export type ChatEvent =
   | { type: 'text'; id: string; text: string; parentToolUseId?: string }
   | { type: 'tool-use'; id: string; name: string; input: unknown; parentToolUseId?: string }
   | { type: 'tool-result'; toolUseId: string; text: string; isError: boolean }
-  | { type: 'user-text'; id: string; text: string }
+  | { type: 'user-text'; id: string; text: string; images?: string[] }
   | { type: 'subagent-start'; id: string; description: string; agentType?: string }
   | { type: 'subagent-background'; id: string }
   | { type: 'subagent-task'; id: string; taskId: string }
@@ -22,7 +22,7 @@ export type ChatEvent =
   | { type: 'suggestion'; text: string }
   | { type: 'other'; label: string }
 
-type Block = { type?: string; id?: string; name?: string; input?: unknown; text?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }
+type Block = { type?: string; id?: string; name?: string; input?: unknown; text?: string; tool_use_id?: string; content?: unknown; is_error?: boolean; source?: { type?: string; media_type?: string; data?: string } }
 
 const quietTypes = new Set(['tool_progress', 'auth_status', 'tool_use_summary'])
 const quietSystem = new Set([
@@ -95,7 +95,8 @@ function userEvents(uuid: string | undefined, content: unknown): ChatEvent[] {
   const results = blocks.filter((block) => block.type === 'tool_result' && block.tool_use_id)
   if (results.length) return results.map((block) => ({ type: 'tool-result', toolUseId: block.tool_use_id!, text: resultText(block.content), isError: block.is_error === true }))
   const text = blocks.flatMap((block) => (block.type === 'text' && block.text ? [block.text] : [])).join('\n')
-  return uuid && text ? [{ type: 'user-text', id: uuid, text }] : []
+  const images = blocks.flatMap((block) => (block.type === 'image' && block.source?.type === 'base64' ? [`data:${block.source.media_type};base64,${block.source.data}`] : []))
+  return uuid && (text || images.length) ? [{ type: 'user-text', id: uuid, text, ...(images.length ? { images } : {}) }] : []
 }
 
 export function normalize(message: SDKMessage): ChatEvent[] {

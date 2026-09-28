@@ -14,10 +14,12 @@ function valid(item: unknown): item is Attachment {
   return a.kind === 'image' && imageTypes.includes(a.mediaType as ImageType) && typeof a.data === 'string' && a.data.length * 0.75 <= maxImageBytes && base64.test(a.data)
 }
 
+export const imageUrl = (block: ImageBlock) => `data:${block.source.media_type};base64,${block.source.data}`
+
 export function withAttachments(text: string, attachments: unknown): { text: string; images: ImageBlock[] } | undefined {
   if (attachments == null) return { text, images: [] }
   if (!Array.isArray(attachments) || attachments.length > maxAttachments || !attachments.every(valid)) return undefined
-  const lines = attachments.map((a) => (a.kind === 'file' ? `- ${a.path}` : `- [image: ${a.name}]`))
+  const lines = attachments.flatMap((a) => (a.kind === 'file' ? [`- ${a.path}`] : []))
   const images = attachments.flatMap((a): ImageBlock[] => (a.kind === 'image' ? [{ type: 'image', source: { type: 'base64', media_type: a.mediaType, data: a.data } }] : []))
   return { text: lines.length ? `${text}\n\nAttached:\n${lines.join('\n')}`.trim() : text, images }
 }

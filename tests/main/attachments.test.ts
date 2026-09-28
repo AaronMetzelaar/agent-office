@@ -7,7 +7,7 @@ describe('withAttachments', () => {
       { kind: 'image', name: 'shot.png', mediaType: 'image/png', data: 'aGVsbG8=' },
       { kind: 'file', name: 'spec.pdf', path: '/Users/a/spec.pdf' },
     ])
-    expect(out?.text).toBe('Look at this\n\nAttached:\n- [image: shot.png]\n- /Users/a/spec.pdf')
+    expect(out?.text).toBe('Look at this\n\nAttached:\n- /Users/a/spec.pdf')
     expect(out?.images).toEqual([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aGVsbG8=' } }])
     expect(withAttachments('hi', undefined)).toEqual({ text: 'hi', images: [] })
   })

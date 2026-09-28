@@ -88,6 +88,8 @@ describe('normalize', () => {
 
   it('reads user text from transcripts but skips synthetic prompts', () => {
     expect(normalize(raw({ type: 'user', message: { role: 'user', content: 'Fix the bid flow' } }))).toEqual([{ type: 'user-text', id: 'u1', text: 'Fix the bid flow' }])
+    const image = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aGk=' } }
+    expect(normalize(raw({ type: 'user', message: { role: 'user', content: [image, image] } }))).toEqual([{ type: 'user-text', id: 'u1', text: '', images: ['data:image/png;base64,aGk=', 'data:image/png;base64,aGk='] }])
     expect(normalize(raw({ type: 'user', isSynthetic: true, message: { role: 'user', content: 'hook output' } }))).toEqual([])
   })
 

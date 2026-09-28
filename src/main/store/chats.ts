@@ -9,7 +9,7 @@ import { pickColour } from '../../shared/office'
 import type { AccountView } from '../../shared/ipc'
 import type { PendingRequestView } from '../../shared/permissions'
 import type { Rooms } from '../departments/rooms'
-import { withAttachments, type ImageBlock } from '../sessions/attachments'
+import { imageUrl, withAttachments, type ImageBlock } from '../sessions/attachments'
 import type { Engine, SessionPermissions } from '../sessions/manager'
 import { errorReason, normalize, type ChatEvent } from '../sessions/normalize'
 import { readHistory, readSubagentHistory } from '../sessions/replay'
@@ -94,7 +94,7 @@ function rowFor(rows: ChatRow[], event: ChatEvent): ChatRow | undefined {
       return tool?.kind === 'tool' ? { ...tool, result: { text: event.text, isError: event.isError } } : undefined
     }
     case 'user-text':
-      return { kind: 'user', id: event.id, text: event.text }
+      return { kind: 'user', id: event.id, text: event.text, ...(event.images ? { images: event.images } : {}) }
     case 'other':
       return { kind: 'other', id: randomUUID(), label: event.label }
     default:
@@ -348,7 +348,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
   function send(chat: Chat, text: string, fields: Partial<ChatFields> = {}, fork = false, images: ImageBlock[] = []) {
     const view = chat.view
     const messageId = randomUUID()
-    addRow(chat, { kind: 'user', id: messageId, text })
+    addRow(chat, { kind: 'user', id: messageId, text, ...(images.length ? { images: images.map(imageUrl) } : {}) })
     if (view.suggestion) set(chat, { suggestion: undefined })
     if (view.parked || view.finished || view.archived) set(chat, { parked: false, finished: undefined, archived: false })
     go(chat, text, messageId, fields, fork, images)
@@ -561,7 +561,7 @@ export function createChatStore(engine: Engine, db: Db, accounts: AccountHooks, 
       if (!chat || typeof text !== 'string') return undefined
       const message = withAttachments(text, attachments)
       if (!message) return { error: 'Couldn’t send those attachments. Remove them and try again.' }
-      if (!message.text.trim()) return undefined
+      if (!message.text.trim() && !message.images.length) return undefined
       if (!rehome(chat) || accounts.needsLogin(chat.view.accountId)) return needsLogin
       send(chat, message.text, {}, false, message.images)
       return undefined

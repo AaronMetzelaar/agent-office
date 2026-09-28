@@ -102,7 +102,7 @@ async function send() {
   const body = text.value.trim()
   if (!canSend.value || sending.value) return
   sending.value = true
-  const sent = props.waiting ? [] : toRaw(attachments.value)
+  const sent = props.waiting ? [] : attachments.value.map((a) => toRaw(a))
   const outcome = await submit(window.office, chatId, body, props.waiting, sent)
     .catch((failure: unknown) => ({ sent: false as const, error: `Couldn’t send: ${failure instanceof Error ? failure.message : String(failure)}`, needsLogin: false }))
     .finally(() => (sending.value = false))

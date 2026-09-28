@@ -36,7 +36,7 @@ export const maxImageBytes = 5 * 1024 * 1024
 export type Attachment = { kind: 'image'; name: string; mediaType: ImageType; data: string } | { kind: 'file'; name: string; path: string }
 
 export type ChatRow =
-  | { kind: 'user'; id: string; text: string }
+  | { kind: 'user'; id: string; text: string; images?: string[] }
   | { kind: 'text'; id: string; text: string; parentToolUseId?: string }
   | { kind: 'tool'; id: string; name: string; input: unknown; parentToolUseId?: string; result?: { text: string; isError: boolean } }
   | { kind: 'other'; id: string; label: string }
