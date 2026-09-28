@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { kindLabels, type CommandEntry, type CommandKind } from '../../shared/commands'
 import type { AccountStatus, AccountView, Headroom, Settings } from '../../shared/ipc'
 import { editors } from '../../shared/review'
 import AddAccount from './AddAccount.vue'
@@ -19,6 +20,14 @@ const hasJevKey = ref(false)
 const jevKey = ref('')
 const settings = ref<Settings>()
 const hookError = ref('')
+const skills = ref<CommandEntry[]>([])
+const skillGroups = computed(() =>
+  (['skill', 'command', 'plugin'] as CommandKind[]).map((kind) => ({ label: kindLabels[kind], names: skills.value.filter((entry) => entry.kind === kind).map((entry) => entry.name).sort() })).filter((group) => group.names.length),
+)
+const missingSkill = computed(() => {
+  const saved = settings.value?.reviewSkill
+  return saved && !skills.value.some((entry) => entry.name === saved) ? saved : ''
+})
 const version = ref('')
 const showForm = computed(() => adding.value || !!relogin.value || props.accounts.length < 2)
 
@@ -102,6 +111,10 @@ async function setEditor(event: Event) {
   settings.value = await window.office.setSetting('editor', (event.target as HTMLSelectElement).value)
 }
 
+async function setReviewSkill(event: Event) {
+  settings.value = await window.office.setSetting('reviewSkill', (event.target as HTMLSelectElement).value)
+}
+
 const stopHost = () => window.office.stopHost()
 
 const onKey = (event: KeyboardEvent) => {
@@ -113,6 +126,7 @@ onMounted(async () => {
   hasLinearKey.value = await window.office.hasLinearKey()
   hasJevKey.value = await window.office.hasJevKey()
   settings.value = await window.office.getSettings()
+  skills.value = await window.office.userCommands()
   const info = await window.office.getAppInfo()
   version.value = info.commit ? `${info.version} · ${info.commit}` : info.version
 })
@@ -215,6 +229,20 @@ onUnmounted(() => removeEventListener('keydown', onKey))
           <span>Editor<small>Opens files and worktrees from Review.</small></span>
           <select :value="settings.editor" @change="setEditor">
             <option v-for="(label, id) in editors" :key="id" :value="id">{{ label }}</option>
+          </select>
+        </label>
+      </section>
+
+      <section v-if="settings" class="section">
+        <h3 class="sec">Review requests</h3>
+        <label class="opt pick">
+          <span>Review skill<small>Runs with the pull request link when you click Review. Default asks the agent to review the pull request.</small></span>
+          <select :value="settings.reviewSkill" @change="setReviewSkill">
+            <option value="">Default</option>
+            <option v-if="missingSkill" :value="missingSkill">/{{ missingSkill }} (not found)</option>
+            <optgroup v-for="group in skillGroups" :key="group.label" :label="group.label">
+              <option v-for="name in group.names" :key="name" :value="name">/{{ name }}</option>
+            </optgroup>
           </select>
         </label>
       </section>

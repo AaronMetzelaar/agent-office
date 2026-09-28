@@ -253,7 +253,7 @@ describe('visitor IPC', () => {
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
     const confirm = vi.fn(async () => false)
     wireHousekeeping(windowHub(win, appUrl), house)
-    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00' }), confirm })
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts: () => [], rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00', reviewSkill: '' }), confirm })
     const trusted = { sender: win.webContents, senderFrame: { url: appUrl } }
     const invoke = (name: string, ...args: unknown[]) => handlers.get(name)!(trusted, ...args)
     const officeChat = office.start('Office work')
@@ -287,7 +287,7 @@ describe('visitor IPC', () => {
     visitors.sync(discovery.scan(Date.now(), new Set()))
     const appUrl = 'app://office/index.html'
     const win = { webContents: { send: () => {} }, isDestroyed: () => false } as unknown as BrowserWindow
-    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts, rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00' }), confirm: async () => true })
+    wireOutside(windowHub(win, appUrl), { visitors, paths: { settings: join(dir, 'settings.json'), dir } } as Outside, { store: office.store, accounts, rooms: office.rooms, settings: () => ({ phonePush: false, phonePushAvailable: false, alertsHintSeen: false, editor: 'code', outsideChats: false, quietHoursEnabled: false, quietHoursStart: '22:00', quietHoursEnd: '07:00', reviewSkill: '' }), confirm: async () => true })
     const move = async (id: string) => office.chat(((await handlers.get('moveIntoOffice')!({ sender: win.webContents, senderFrame: { url: appUrl } }, id)) as { chatId: string }).chatId)
 
     const home = visitors.view(mainId)!.department!

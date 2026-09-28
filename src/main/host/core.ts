@@ -100,18 +100,20 @@ export function createCore(dataDir: string, hub: Hub, ui: Ui, { fakeEngine, fake
     quietHoursEnabled: db.setting('quietHoursEnabled') === true,
     quietHoursStart: (db.setting('quietHoursStart') as string) || defaultQuietStart,
     quietHoursEnd: (db.setting('quietHoursEnd') as string) || defaultQuietEnd,
+    reviewSkill: (db.setting('reviewSkill') as string) || '',
   })
   hub.handle('getSettings', settings)
   wireReview(hub, { view: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) }, editor)
   const linear = createLinear(() => vault.linearKey())
   const commands = wireCommands(hub, { engine, store, db, claudeDir: claudeDir() })
-  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, commands: loaded.config.commands, accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, jev: createJev(() => vault.jevKey(), rooms), rooms, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
+  const reviews = wireWorkflow(hub, { store, commandNames: commands.names, commands: loaded.config.commands, reviewSkill: () => (db.setting('reviewSkill') as string) || '', accounts: accounts.list, tiedRoom: rooms.tiedRoom, linear, jev: createJev(() => vault.jevKey(), rooms), rooms, gh: fakeGithub?.run ?? run, confirm: ui.confirm })
   wireOutside(hub, outside, { store, accounts: accounts.list, rooms, settings, confirm: ui.confirm })
   wireHandoff(hub, { store, visitors: outside.visitors, vault, accounts: accounts.list })
   const terminals = wireTerminal(hub, { chat: (chatId) => store.view(chatId) ?? outside.visitors.view(chatId) })
   hub.handle('setSetting', (name: SettingName, value: boolean | string) => {
     if (name === 'editor' && isEditor(value)) db.saveSetting(name, value)
     if ((name === 'quietHoursStart' || name === 'quietHoursEnd') && typeof value === 'string') db.saveSetting(name, value)
+    if (name === 'reviewSkill' && typeof value === 'string') db.saveSetting(name, value.trim().replace(/^\//, ''))
     if (typeof value !== 'boolean') return settings()
     if (name === 'phonePush') phone.set(value)
     if (name === 'alertsHintSeen') db.saveSetting(name, value)

@@ -19,6 +19,7 @@ function wire(pick: Placement | undefined) {
     store,
     commandNames: () => [],
     commands: {},
+    reviewSkill: () => '',
     tiedRoom: () => undefined,
     accounts: () => [{ id: 'main', label: 'Main' }, { id: 'lab', label: 'Research' }] as never,
     linear: { ticket: async () => ({}) } as never,

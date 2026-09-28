@@ -53,6 +53,7 @@ const names: Record<Exclude<keyof Commands, Local>, true> = {
   finishChats: true,
   getShipIt: true,
   getCommands: true,
+  userCommands: true,
   lookupTicket: true,
   moveTicket: true,
   getReviewRequests: true,
