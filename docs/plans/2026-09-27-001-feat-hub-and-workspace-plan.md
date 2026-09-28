@@ -8,6 +8,8 @@ origin: docs/brainstorms/2026-09-27-metro-workspace-requirements.md
 
 # feat: The hub and the workspace
 
+> **Design update, 2026-09-28:** design Rounds 15–17 changed several of these requirements: no stage columns, pills or dashed leads; clickable stage circles; start a line by clicking the repo, with the app choosing the starting stage; a toggleable sidebar; merged lines folding back into the repo; the codebase view as an endpoint graph in a tab; 3D stations with characters. Where they disagree with this document, `docs/design/2026-09-28-rounds-15-17/README.md` wins.
+
 ## Overview
 
 This plan replaces the 3D office as the app's home with two places (see origin: `docs/brainstorms/2026-09-27-metro-workspace-requirements.md`):

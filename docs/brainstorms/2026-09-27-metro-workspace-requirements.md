@@ -5,6 +5,8 @@ topic: metro-workspace
 
 # A hub and a workspace for many agents
 
+> **Design update, 2026-09-28:** design Rounds 15–17 changed several of these requirements: no stage columns, pills or dashed leads; clickable stage circles; start a line by clicking the repo, with the app choosing the starting stage; a toggleable sidebar; merged lines folding back into the repo; the codebase view as an endpoint graph in a tab; 3D stations with characters. Where they disagree with this document, `docs/design/2026-09-28-rounds-15-17/README.md` wins.
+
 ## Problem Frame
 
 Agent Office shows every chat as a character in a full-screen 3D office. A chat opens as a floating side panel about a third of the screen wide, and the terminal floats next to it. Most of the screen shows characters, while the work itself (replies, plans, diffs, code, terminals) is squeezed into what's left. That's the opposite of what someone running eight agents at once needs most of the day.
