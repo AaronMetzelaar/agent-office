@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { groupCommands, insertCommand, pickerKey, rememberCommand, score, slashTrigger } from '../../src/renderer/panels/chat/commands'
 import type { CommandEntry, CommandKind } from '../../src/shared/commands'
+
+// Node has no localStorage without --localstorage-file, and warns when code reaches for it.
+const stored = new Map<string, string>()
+vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => stored.set(key, value) })
 
 const entry = (name: string, kind: CommandKind = 'skill', description = ''): CommandEntry => ({ name, description, argumentHint: '', kind })
 const entries = [entry('compact', 'builtin', 'Compact the chat'), entry('clear', 'builtin'), entry('mws-pr'), entry('mws-verify'), entry('pr-comment-rundown'), entry('deploy', 'command'), entry('codex:rescue', 'plugin', 'Hand a task to Codex')]

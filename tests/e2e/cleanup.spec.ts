@@ -61,7 +61,7 @@ test('Housekeeping previews the safe cleanup, runs it, and reports what was free
   await expect(candidates.locator('.hrow')).toHaveCount(4)
   const halfDone = candidates.locator('.hrow', { hasText: 'Half-done refactor' })
   await expect(halfDone.locator('.gc')).toHaveText('1 uncommitted')
-  await expect(halfDone).toContainText('Can’t remove the worktree: 1 uncommitted change.')
+  await expect(halfDone).toContainText('Removing it discards 1 uncommitted change.')
   await expect(halfDone.getByRole('button', { name: 'Open chat' })).toBeVisible()
   const bidFlow = candidates.locator('.hrow', { hasText: 'Bid flow approach' })
   await expect(bidFlow.locator('.gc')).toHaveText('Clean')
@@ -75,7 +75,7 @@ test('Housekeeping previews the safe cleanup, runs it, and reports what was free
   await expect(confirm).toContainText('Archive: ')
   await confirm.getByRole('button', { name: 'Clean up 3' }).click()
 
-  await expect(drawer.getByRole('status')).toHaveText(/^Freed 0\.7 GB · removed 3 worktrees/)
+  await expect(page.getByRole('status').filter({ hasText: /^Freed/ })).toHaveText(/^Freed 0\.7 GB · removed 3 worktrees/)
   expect(trees.map((tree) => existsSync(tree))).toEqual([false, false, false, true])
   expect(await Promise.all(ids.map(async (id) => (await view(id))?.archived))).toEqual([true, true, true, false])
   const left = drawer.getByRole('region', { name: 'Cleanup candidates · 1' })
