@@ -12,7 +12,7 @@ const deptIds = depts.map((d) => d.id)
 
 const inside = deptIds.filter((id) => id !== 'side')
 const overlap = (a: readonly number[], b: readonly number[]) => a[0]! < b[2]! - 1e-9 && b[0]! < a[2]! - 1e-9 && a[1]! < b[3]! - 1e-9 && b[1]! < a[3]! - 1e-9
-const agentsToDesks = (agents: Demand): Demand => Object.fromEntries(deptIds.map((id) => [id, agents[id] ? agents[id]! + 1 : 0]))
+const agentsToDesks = (agents: Demand): Demand => Object.fromEntries(deptIds.map((id) => [id, agents[id] ?? 0]))
 const shownOrder = (desks: Demand) => deptIds.filter((id) => layoutFloor(desks).zones[id]!.shown)
 const atDesks = (agents: Demand, from = 0): Sitter[] => deptIds.flatMap((dept) => Array.from({ length: agents[dept] ?? 0 }, (_, i) => ({ id: `${dept}${i + from}`, dept, spot: 'desk' as const, parked: false, recent: true })))
 
@@ -63,8 +63,8 @@ const others: [string, Demand, number][] = [
 ]
 
 describe('section size follows its agents', () => {
-  it('gives each section its occupied desks plus one free desk, in a compact grid that grows in steps', () => {
-    expect(agentsToDesks({ mkt: 1, gym: 3 })).toMatchObject({ mkt: 2, gym: 4, adm: 0 })
+  it('gives each section one desk per agent, in a compact grid that grows in steps', () => {
+    expect(agentsToDesks({ mkt: 1, gym: 3 })).toMatchObject({ mkt: 1, gym: 3, adm: 0 })
     const sizes = [1, 2, 3, 4, 5, 6, 7, 9, 10, 12].map((desks) => {
       const { cols, rows, w, d, tier } = sectionOf('mkt', desks)
       return { desks, cols, rows, w: +w.toFixed(1), d: +d.toFixed(1), tier }
@@ -127,13 +127,13 @@ describe('packing Aaron’s floor', () => {
   it('gives desks to working, needs-you, stuck and done-unread chats, and sends the other 15 to the Lounge', () => {
     const { zones, lounge } = fixture.floor
     expect(inside.filter((id) => zones[id]!.shown)).toEqual(['mkt', 'plat', 'gym'])
-    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([2, 2, 2, 3])
+    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([1, 1, 1, 2])
     expect(lounge).toMatchObject({ shown: true, seats: 15 })
   })
 
   it('reserves a desk for every chat active in the last day after a relaunch', () => {
     const { zones, lounge } = floorOf(floorFixture.map(([dept, , state]) => ({ dept: dept as DeptId, state })), true).floor
-    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([5, 7, 9, 4])
+    expect([zones.mkt!.desks, zones.plat!.desks, zones.gym!.desks, zones.side!.desks]).toEqual([4, 6, 8, 3])
     expect(lounge.seats).toBe(15)
   })
 
@@ -176,7 +176,7 @@ describe('packing other floors', () => {
   })
 
   it('packs a big single department within 1.2× its natural area', () => {
-    const floor = layoutFloor(agentsToDesks({ mkt: 15 }), 2)
+    const floor = layoutFloor(agentsToDesks({ mkt: 16 }), 2)
     expect(area(floor.bounds) / natural(floor)).toBeLessThan(1.2)
   })
 
@@ -277,31 +277,31 @@ describe('folding sections', () => {
     expect(layoutFloor(back.size).zones.rev!.shown).toBe(true)
     expect(shownOrder(back.size)).toEqual(['mkt', 'rev'])
     expect(back.pending).toBe(true)
-    expect(reseat(back, atDesks({ mkt: 1, rev: 1 }), true)).toMatchObject({ size: expect.objectContaining({ rev: 2 }), pending: false })
+    expect(reseat(back, atDesks({ mkt: 1, rev: 1 }), true)).toMatchObject({ size: expect.objectContaining({ rev: 1 }), pending: false })
   })
 
   it('holds every shrink and fold while hovered or zoomed in, and applies it back at the overview', () => {
     const all = reseat(noSeating, atDesks(everyone), true)
     const hovering = reseat(all, atDesks({ ...everyone, adm: 0, mkt: 1 }), false)
     expect(hovering.pending).toBe(true)
-    expect(hovering.size).toMatchObject({ adm: 2, mkt: 4 })
+    expect(hovering.size).toMatchObject({ adm: 1, mkt: 3 })
     expect(layoutFloor(hovering.size).zones.adm!.shown).toBe(true)
     expect(layoutFloor(hovering.size).zones.mkt!.w).toBe(layoutFloor(all.size).zones.mkt!.w)
     const released = reseat(hovering, atDesks({ ...everyone, adm: 0, mkt: 1 }), true)
     expect(released).toMatchObject({ size: expect.objectContaining({ adm: 0 }), pending: false })
-    expect(builtDesks(released, 'mkt')).toEqual([0, 1])
+    expect(builtDesks(released, 'mkt')).toEqual([0])
     expect(layoutFloor(released.size).zones.adm!.shown).toBe(false)
     const next = reseat(released, [...atDesks({ ...everyone, adm: 0, mkt: 1 }), { id: 'late', dept: 'plat', spot: 'desk', parked: false, recent: true }], true)
-    expect(next.size.mkt).toBe(2)
-    expect(builtDesks(next, 'mkt')).toEqual([0, 1])
+    expect(next.size.mkt).toBe(1)
+    expect(builtDesks(next, 'mkt')).toEqual([0])
   })
 
-  it('seats a newcomer while zoomed in without adding the next free desk until the overview', () => {
+  it('seats a newcomer while zoomed in at a new desk, and adds no spare desk at the overview', () => {
     const one = reseat(noSeating, atDesks({ mob: 1 }), true)
     const zoomed = reseat(one, atDesks({ mob: 2 }), false)
     expect(zoomed.size.mob).toBe(2)
     expect(zoomed.pending).toBe(true)
-    expect(reseat(zoomed, atDesks({ mob: 2 }), true).size.mob).toBe(3)
+    expect(reseat(zoomed, atDesks({ mob: 2 }), true).size.mob).toBe(2)
   })
 
   it('lists PR reviews after Side projects, then the gym, when the host hasn’t sent its rooms yet', () => {

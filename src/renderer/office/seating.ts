@@ -89,12 +89,12 @@ export function reseat(prev: Seating, agents: readonly Sitter[], can: boolean, c
       const present = holders.filter((a) => a.spot === 'desk' && kept(a) !== undefined)
       const used = new Set(present.map((a) => kept(a)!))
       for (const a of present) desks.set(a.id, { dept, slot: kept(a)! })
-      const want = need ? Math.max(holders.length + 1, ...[...used].map((slot) => slot + 1)) : 0
+      const want = need ? Math.max(holders.length, ...[...used].map((slot) => slot + 1)) : 0
       for (const a of holders.filter((a) => !desks.has(a.id))) {
         const claim = claims.get(a.id)
         desks.set(a.id, { dept, slot: claim !== undefined && claim < want && !used.has(claim) ? (used.add(claim), claim) : lowestFree(used) })
       }
-      if (need) free[dept] = lowestFree(used)
+      if (need && !holders.length) free[dept] = lowestFree(used)
     } else {
       let open = need || !can ? prev.free[dept] : undefined
       const used = new Set(open === undefined ? [] : [open])

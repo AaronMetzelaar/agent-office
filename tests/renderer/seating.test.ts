@@ -60,12 +60,12 @@ describe('re-packing the floor', () => {
   it('keeps the section size while its agents rest, and closes the gap a released desk leaves at once', () => {
     const first = step(noSeating, team)
     const resting = step(first, set(team, 'a', { state: 'idle' }))
-    expect(resting.size.mkt).toBe(4)
+    expect(resting.size.mkt).toBe(3)
     expect([...resting.desks.keys()].sort()).toEqual(['a', 'b', 'c', 'd', 'e'])
     const parked = step(resting, set(set(team, 'a', { state: 'idle', parked: true }), 'c', { state: 'idle' }))
     expect(parked.desks.has('a')).toBe(false)
-    expect(builtDesks(parked, 'mkt')).toEqual([0, 1, 2])
-    expect(parked).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 3 }) })
+    expect(builtDesks(parked, 'mkt')).toEqual([0, 1])
+    expect(parked).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 2 }) })
     expect(parked.desks.get('b')).toEqual(resting.desks.get('b'))
   })
 })
@@ -83,17 +83,17 @@ describe('reserved desks', () => {
     expect(back.repack).toBe(false)
   })
 
-  it('releases the desk when the chat parks or is archived by any path, and the free desk fills the gap', () => {
+  it('releases the desk when the chat parks or is archived by any path, and the section shrinks to fit', () => {
     const first = step(noSeating, team)
     const parked = step(first, set(team, 'c', { parked: true }))
     expect(parked.desks.has('c')).toBe(false)
     const archived = step(first, without(team, 'c'))
     expect(archived.desks.has('c')).toBe(false)
     for (const next of [parked, archived]) {
-      expect(builtDesks(next, 'mkt')).toEqual([0, 1, 2])
+      expect(builtDesks(next, 'mkt')).toEqual([0, 1])
       expect(next.desks.get('a')).toEqual(first.desks.get('a'))
       expect(next.desks.get('b')).toEqual(first.desks.get('b'))
-      expect(next.free.mkt).toBe(first.desks.get('c')!.slot)
+      expect(next.free.mkt).toBeUndefined()
     }
   })
 
@@ -103,8 +103,8 @@ describe('reserved desks', () => {
     expect(leaving).toMatchObject({ repack: false, size: first.size })
     expect(leaving.desks.get('b')).toEqual(first.desks.get('b'))
     const cleared = step(leaving, without(team, 'b'))
-    expect(cleared).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 3 }) })
-    expect(builtDesks(cleared, 'mkt')).toEqual([0, 1, 2])
+    expect(cleared).toMatchObject({ repack: true, size: expect.objectContaining({ mkt: 2 }) })
+    expect(builtDesks(cleared, 'mkt')).toEqual([0, 1])
     expect(cleared.desks.get('a')).toEqual(first.desks.get('a'))
   })
 
@@ -115,8 +115,8 @@ describe('reserved desks', () => {
     expect(held).toMatchObject({ repack: false, pending: true, size: first.size })
     expect(builtDesks(held, 'mkt')).not.toContain(first.desks.get('b')!.slot)
     const released = step(held, without(team, 'b'))
-    expect(released).toMatchObject({ repack: true, pending: false, size: expect.objectContaining({ mkt: 3 }) })
-    expect(builtDesks(released, 'mkt')).toEqual([0, 1, 2])
+    expect(released).toMatchObject({ repack: true, pending: false, size: expect.objectContaining({ mkt: 2 }) })
+    expect(builtDesks(released, 'mkt')).toEqual([0, 1])
   })
 
   it('never moves a seated agent when desks go, and renumbers reservations of agents who are away to close gaps', () => {
@@ -127,7 +127,7 @@ describe('reserved desks', () => {
     const removed = step(step(first, rest), without(rest, 'p', 'r'))
     expect(removed.desks.get('s')!.slot).toBe(slots.s)
     expect(removed.size.mob).toBe(4)
-    expect(builtDesks(removed, 'mob')).toEqual([0, 1, 2, 3])
+    expect(builtDesks(removed, 'mob')).toEqual([0, 1, 3])
   })
 
   it('on relaunch reserves desks for idle chats active in the last day, and seats older ones in the Lounge with no desk', () => {
@@ -138,7 +138,7 @@ describe('reserved desks', () => {
       { id: 'dozing', dept: 'plat', state: 'idle', parked: true, recent: false },
     ])
     expect([...relaunch.desks.keys()].sort()).toEqual(['fresh', 'w'])
-    expect(relaunch.size.plat).toBe(3)
+    expect(relaunch.size.plat).toBe(2)
     expect([...relaunch.seats.keys()].sort()).toEqual(['dozing', 'fresh', 'old'])
   })
 })
