@@ -385,7 +385,7 @@ onUnmounted(() => {
     <Scene />
   </TresCanvas>
   <div ref="labelsEl" class="labels" />
-  <header ref="barEl" class="bar">
+  <header ref="barEl" class="topbar">
     <div class="brand">
       <h1><button type="button" title="Overview (Esc)" @click="world?.overview()">Agent Office</button></h1>
       <div class="tally">
@@ -415,9 +415,12 @@ onUnmounted(() => {
     <button v-if="demoMode" type="button" class="tbtn" title="Demo: finish two resting agents at once" @click="demoFinish">Demo Done ×2</button>
     <slot />
   </header>
-  <p v-if="toast" class="toast" role="status">{{ toast }}</p>
+  <div class="corner">
+    <p v-if="toast" class="toast" role="status">{{ toast }}</p>
+    <slot name="corner" />
+  </div>
   <aside ref="inboxEl" class="inbox" aria-label="Inbox">
-    <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" />
+    <Housekeeping v-if="mode === 'house'" :view="house" :chats="chatList" :agents="ui.agents" @close="mode = 'inbox'" @select="select" @say="say" />
     <NewAgent v-else-if="mode === 'new'" :key="newDesk ? `${newDesk.dept}:${newDesk.slot}` : 'new'" :accounts="accounts" :desk="newDesk" :version="tick" @close="mode = 'inbox'" @started="started" />
     <Chat v-else-if="shownAgent" :agent="shownAgent" :chat="openChat" :queue="inbox.waiting" :can-switch="usable.length > 1" @select="select" @accounts="emit('accounts')" @continue="continueElsewhere" @lounge="toLounge" @finish="finish" @saw="push" />
     <Inbox v-else :inbox="inbox" :finished="finished" :can-switch="usable.length > 1" :cleanup="house?.candidates.length ?? 0" :reviews="reviews" :config-errors="configErrors" @select="select" @accounts="emit('accounts')" @new="openNew()" @continue="continueElsewhere" @house="openHousekeeping" @finish="finish" />
@@ -452,11 +455,18 @@ onUnmounted(() => {
 </template>
 
 <style>
-.toast {
+.corner {
   position: fixed;
   z-index: 6;
   left: 16px;
   bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.toast {
   max-width: min(520px, calc(100vw - 32px - 560px));
   margin: 0;
   padding: 8px 12px;
@@ -504,7 +514,7 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.bar {
+.topbar {
   position: fixed;
   z-index: 5;
   left: 16px;
@@ -1186,7 +1196,7 @@ kbd {
     display: none;
   }
 
-  .bar {
+  .topbar {
     max-width: calc(100vw - 32px);
   }
 }

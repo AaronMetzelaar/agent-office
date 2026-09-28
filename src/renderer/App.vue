@@ -4,6 +4,7 @@ import type { AccountView, AppUpdate, HostStatus } from '../shared/ipc'
 import Office from './office/Office.vue'
 import Accounts from './panels/Accounts.vue'
 import Onboarding from './panels/Onboarding.vue'
+import UpdatePill from './panels/UpdatePill.vue'
 import type { ChatSource } from './state/projection'
 
 const accounts = ref<AccountView[]>()
@@ -13,14 +14,9 @@ const settingsOpen = ref(false)
 const host = ref<HostStatus>({ connected: true, updateReady: false })
 const update = ref<AppUpdate>({ behind: 0, subjects: [] })
 const needsLogin = computed(() => accounts.value?.some((account) => account.health.status === 'needs-login'))
-const updateList = computed(() => [...update.value.subjects, ...(update.value.behind > update.value.subjects.length ? [`and ${update.value.behind - update.value.subjects.length} more`] : [])].join('\n'))
 let unsubscribe = () => {}
 let offHost = () => {}
 let offUpdate = () => {}
-
-function installUpdate() {
-  void window.office.installAppUpdate()
-}
 
 function restartHost() {
   void window.office.restartHost()
@@ -56,14 +52,6 @@ onUnmounted(() => {
   <p v-else-if="host.updateReady" class="host" role="status">
     Agent host update ready<button @click="restartHost">Restart now</button>
   </p>
-  <p v-else-if="update.stage === 'installing'" class="host" role="status">Installing the update. The window reopens in a moment.</p>
-  <p v-else-if="update.stage === 'waiting'" class="host" role="status" :title="updateList">Update ready. It installs once no agent is working.<button @click="installUpdate">Install now</button></p>
-  <p v-else-if="update.stage === 'building'" class="host" role="status" :title="updateList">Getting {{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} ready in the background…</p>
-  <p v-else-if="update.error" class="host" role="alert">{{ update.error }}<button @click="installUpdate">Try again</button></p>
-  <p v-else-if="update.behind" class="host" role="status" :title="updateList">
-    <template v-if="update.download">{{ update.subjects[0] }} is available<button @click="installUpdate">Download</button></template>
-    <template v-else>{{ update.behind }} update{{ update.behind === 1 ? '' : 's' }} available: {{ update.subjects[0] }}<button @click="installUpdate">Update</button></template>
-  </p>
   <template v-if="accounts && source">
     <Onboarding v-if="accounts.length === 0 || setup" :connected="accounts.length > 0" @adding="setup = true" @done="setup = false" />
     <template v-else>
@@ -71,6 +59,7 @@ onUnmounted(() => {
         <button class="tbtn" :aria-expanded="settingsOpen" title="Settings (⌘,)" @click="settingsOpen = !settingsOpen">
           Settings<span v-if="needsLogin" class="alert" aria-label="An account needs login" />
         </button>
+        <template #corner><UpdatePill :update="update" /></template>
       </Office>
       <Accounts v-if="settingsOpen" :accounts="accounts" @close="settingsOpen = false" />
     </template>

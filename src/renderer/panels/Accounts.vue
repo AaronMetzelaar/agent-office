@@ -19,6 +19,8 @@ const linearKey = ref('')
 const hasJevKey = ref(false)
 const jevKey = ref('')
 const settings = ref<Settings>()
+/** Missing when this build can't update itself. */
+const autoUpdate = ref<boolean>()
 const hookError = ref('')
 const skills = ref<CommandEntry[]>([])
 const skillGroups = computed(() =>
@@ -85,6 +87,11 @@ async function clearJevKey() {
   hasJevKey.value = false
 }
 
+function toggleAutoUpdate() {
+  autoUpdate.value = !autoUpdate.value
+  void window.office.setAutoUpdate(autoUpdate.value)
+}
+
 async function togglePhonePush() {
   if (settings.value) settings.value = await window.office.setSetting('phonePush', !settings.value.phonePush)
 }
@@ -126,6 +133,7 @@ onMounted(async () => {
   hasLinearKey.value = await window.office.hasLinearKey()
   hasJevKey.value = await window.office.hasJevKey()
   settings.value = await window.office.getSettings()
+  autoUpdate.value = (await window.office.getAppUpdate()).auto
   skills.value = await window.office.userCommands()
   const info = await window.office.getAppInfo()
   version.value = info.commit ? `${info.version} · ${info.commit}` : info.version
@@ -208,6 +216,10 @@ onUnmounted(() => removeEventListener('keydown', onKey))
 
       <section v-if="settings" class="section">
         <h3 class="sec">General</h3>
+        <label v-if="autoUpdate !== undefined" class="opt">
+          <input type="checkbox" :checked="autoUpdate" @change="toggleAutoUpdate" />
+          <span>Update automatically<small>When an update is ready and no agent is working, the app restarts by itself after a 10 second heads-up. Off: you choose when to restart.</small></span>
+        </label>
         <label class="opt">
           <input type="checkbox" :checked="settings.phonePush" :disabled="!settings.phonePushAvailable" @change="togglePhonePush" />
           <span>Phone push<small>{{ settings.phonePushAvailable ? 'Also send notifications to your phone through ntfy.' : 'Add ~/.config/agent-office/ntfy-topic to use phone push.' }}</small></span>

@@ -1,4 +1,5 @@
 import type { AppUpdate } from '../shared/ipc'
+import type { AppUpdater } from './updates'
 
 export const latestRelease = 'https://api.github.com/repos/AaronMetzelaar/agent-office/releases/latest'
 const checkEvery = 6 * 60 * 60_000
@@ -14,7 +15,7 @@ export function newer(candidate: string, current: string): boolean {
   return false
 }
 
-export function createReleaseCheck({ version, changed, open, fetch = globalThis.fetch, now = Date.now }: { version: string; changed: (update: AppUpdate) => void; open: (url: string) => void; fetch?: Fetch; now?: () => number }) {
+export function createReleaseCheck({ version, changed, open, fetch = globalThis.fetch, now = Date.now }: { version: string; changed: (update: AppUpdate) => void; open: (url: string) => void; fetch?: Fetch; now?: () => number }): AppUpdater {
   let state: AppUpdate = { behind: 0, subjects: [] }
   let checkedAt = 0
   let timer: NodeJS.Timeout | undefined
@@ -42,8 +43,12 @@ export function createReleaseCheck({ version, changed, open, fetch = globalThis.
     focused() {
       if (now() - checkedAt > focusGap) void check()
     },
-    install() {
+    async install() {
       if (state.download) open(state.download)
+      return undefined
     },
+    // A release build can't restart into an update, so there's nothing to cancel or automate.
+    cancel() {},
+    setAuto() {},
   }
 }

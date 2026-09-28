@@ -5,7 +5,7 @@ import { cleanupChoices, gb, parkChoices, plural, runsIn, size, stopText, summar
 import type { AgentEntry } from '../office/world'
 
 const props = defineProps<{ view?: HousekeepingView; chats: ChatView[]; agents: AgentEntry[] }>()
-const emit = defineEmits<{ close: []; select: [chatId: string] }>()
+const emit = defineEmits<{ close: []; select: [chatId: string]; say: [message: string] }>()
 
 interface Row {
   chat: ChatView
@@ -17,9 +17,7 @@ interface Row {
 
 const confirming = ref(false)
 const busy = ref(false)
-const flash = ref('')
 const now = ref(Date.now())
-let flashTimer: ReturnType<typeof setTimeout> | undefined
 const clock = setInterval(() => (now.value = Date.now()), 60_000)
 
 const inside = (path: string, folder: string) => path === folder || path.startsWith(`${folder}/`)
@@ -66,17 +64,11 @@ const segments = computed(() => [
   ...(props.view?.outside.map((use) => ({ key: use.cwd, title: `Outside the office · ${folderName(use.cwd)}`, bytes: use.bytes, kind: 'out' })) ?? []),
 ])
 
-function say(message: string) {
-  flash.value = message
-  clearTimeout(flashTimer)
-  flashTimer = setTimeout(() => (flash.value = ''), 6000)
-}
-
 async function act(work: () => Promise<string>) {
   if (busy.value) return
   busy.value = true
   try {
-    say(await work())
+    emit('say', await work())
   } finally {
     busy.value = false
     confirming.value = false
@@ -123,10 +115,7 @@ const hold = (row: Row) => (row.chat.visitor ? visitorHold(row.chat, now.value) 
 const quiet = (row: Row) => ago(now.value - row.chat.lastActivityAt)
 
 onMounted(() => void window.office.getHousekeeping(true))
-onUnmounted(() => {
-  clearInterval(clock)
-  clearTimeout(flashTimer)
-})
+onUnmounted(() => clearInterval(clock))
 </script>
 
 <template>
@@ -188,7 +177,6 @@ onUnmounted(() => {
       </div>
       <button v-else type="button" class="btn primary" :disabled="busy" @click="confirming = true">Clean up {{ safe.length }} safe · frees {{ gb(preview.bytes) }}</button>
     </div>
-    <p v-if="flash" class="flash toast" role="status">{{ flash }}</p>
 
     <section v-for="section in sections" :key="section.key" :aria-label="section.title">
       <h3 v-if="section.rows.length || section.empty" class="sec">{{ section.title }}<i>{{ section.hint }}</i></h3>

@@ -73,3 +73,18 @@ export function offstage(win: Stageable): void {
     isVisible: () => visible,
   })
 }
+
+/** How the window comes back after an update restarts the app: in front, behind the app in use, or still closed to the tray. */
+export type Reopen = 'front' | 'background' | 'hidden'
+
+interface Watchable {
+  isVisible(): boolean
+  isFocused(): boolean
+}
+
+export const reopenAs = (win: Watchable): Reopen => (!win.isVisible() ? 'hidden' : win.isFocused() ? 'front' : 'background')
+
+export function reopenFrom(argv: readonly string[]): Reopen {
+  const value = argv.find((arg) => arg.startsWith('--reopen='))?.slice('--reopen='.length)
+  return value === 'background' || value === 'hidden' ? value : 'front'
+}

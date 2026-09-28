@@ -18,10 +18,20 @@ export interface ClaudeCode {
   signedIn: boolean
 }
 
+export type AppRestart = 'now' | 'asked' | 'auto'
+
 export interface AppUpdate {
   behind: number
   subjects: string[]
-  stage?: 'building' | 'waiting' | 'installing'
+  stage?: 'building' | 'ready' | 'installing'
+  /** Why the app will restart into the update: 'now' on request, 'asked' once agents finish, 'auto' from the setting. */
+  restart?: AppRestart
+  /** When the ten second heads-up ends and the app restarts, in epoch ms. */
+  restartAt?: number
+  /** The Update automatically setting. Missing when this build can't update itself. */
+  auto?: boolean
+  /** The build this launch moved to, with what changed since the last launch. */
+  updated?: { commit: string; count: number; subjects: string[] }
   error?: string
   download?: string
 }
@@ -156,7 +166,10 @@ export interface Commands {
   openInDesktop(chatId: string): Promise<{ error?: string } | undefined>
   getHostStatus(): HostStatus
   getAppUpdate(): AppUpdate
-  installAppUpdate(): void
+  installAppUpdate(when?: 'now' | 'whenIdle'): Promise<'busy' | undefined>
+  cancelAppUpdate(): void
+  setAutoUpdate(on: boolean): void
+  openUpdateLog(): void
   restartHost(): void
   stopHost(): Promise<void>
   searchChats(query: string): Promise<SearchHit[]>

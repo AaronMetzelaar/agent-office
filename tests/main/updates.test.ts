@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AppUpdate } from '../../src/shared/ipc'
+import type { Reopen } from '../../src/main/lifecycle'
 import { createUpdater, type Git, type InstallStep, type Launch } from '../../src/main/updates'
 
-function setup({ commit = 'abc1234', behind = 2, working = false, interrupt = false } = {}) {
+function setup({ commit = 'abc1234', previous = undefined as string | undefined, behind = 2, working = false, auto = false } = {}) {
   const calls: string[][] = []
   const steps: InstallStep[] = []
+  const reopens: (Reopen | undefined)[] = []
   const exits: ((code: number | null) => void)[] = []
   const seen: AppUpdate[] = []
   const agents = { working }
@@ -16,17 +18,22 @@ function setup({ commit = 'abc1234', behind = 2, working = false, interrupt = fa
     if (args[0] === 'log') return 'Fix the inbox\nAdd a meter\n'
     return ''
   }
-  const launch: Launch = (_repo, step, onExit) => {
+  const launch: Launch = (_repo, step, onExit, reopen) => {
     steps.push(step)
+    reopens.push(reopen)
     exits.push(onExit)
   }
-  const confirmInterrupt = vi.fn(async () => interrupt)
-  const updater = createUpdater({ commit, repo: '/repo', git, launch, busy: async () => agents.working, confirmInterrupt, changed: (update) => seen.push(update), now: () => clock })
+  const updater = createUpdater({ commit, previous, repo: '/repo', git, launch, busy: async () => agents.working, auto, reopen: () => 'background', changed: (update) => seen.push(update), now: () => clock })
   const finish = async (code = 0) => {
     exits.at(-1)!(code)
     await vi.waitFor(() => Promise.resolve())
   }
-  return { updater, calls, steps, seen, agents, main, confirmInterrupt, finish, tick: (ms: number) => (clock += ms) }
+  const ready = async () => {
+    await updater.check()
+    await finish()
+    await vi.waitFor(() => expect(updater.state().stage).toBe('ready'))
+  }
+  return { updater, calls, steps, reopens, seen, agents, main, finish, ready, tick: (ms: number) => (clock += ms) }
 }
 
 afterEach(() => vi.useRealTimers())
@@ -49,50 +56,103 @@ describe('app updates', () => {
     expect(steps).toEqual([])
   })
 
-  it('builds on its own and installs straight away when no agent is working', async () => {
-    const { updater, steps, finish } = setup()
-    await updater.check()
-    expect(updater.state().stage).toBe('building')
-    await finish()
+  it('builds on its own, then waits for a click before it restarts', async () => {
+    vi.useFakeTimers()
+    const { updater, steps, ready } = setup()
+    await ready()
+    await vi.advanceTimersByTimeAsync(60 * 60_000)
+    expect(steps).toEqual(['build'])
+    expect(updater.state()).toMatchObject({ stage: 'ready', auto: false })
+    expect(updater.state().restart).toBeUndefined()
+  })
+
+  it('restarts at once on a click when no agent is working, reopening the way the window was', async () => {
+    const { updater, steps, reopens, ready } = setup()
+    await ready()
+    await updater.install()
     await vi.waitFor(() => expect(steps).toEqual(['build', 'swap']))
+    expect(reopens.at(-1)).toBe('background')
     expect(updater.state().stage).toBe('installing')
   })
 
-  it('holds a built update while agents work, and installs once they stop', async () => {
+  it('reports busy agents on a click instead of interrupting them, then does what the second click says', async () => {
     vi.useFakeTimers()
-    const { updater, steps, agents, finish } = setup({ working: true })
-    await updater.check()
-    await finish()
-    expect(updater.state().stage).toBe('waiting')
+    const later = setup({ working: true })
+    await later.ready()
+    expect(await later.updater.install()).toBe('busy')
+    expect(later.steps).toEqual(['build'])
+    await later.updater.install('whenIdle')
+    expect(later.updater.state().restart).toBe('asked')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(later.steps).toEqual(['build'])
+
+    const now = setup({ working: true })
+    await now.ready()
+    await now.updater.install('now')
+    await vi.waitFor(() => expect(now.steps).toEqual(['build', 'swap']))
+  })
+
+  it('with Update automatically on, restarts ten seconds after the last agent finishes', async () => {
+    vi.useFakeTimers()
+    const { updater, steps, agents, ready } = setup({ working: true, auto: true })
+    await ready()
+    expect(updater.state().restart).toBe('auto')
     await vi.advanceTimersByTimeAsync(60_000)
     expect(steps).toEqual(['build'])
     agents.working = false
     await vi.advanceTimersByTimeAsync(20_000)
+    expect(updater.state().restartAt).toBeDefined()
+    expect(steps).toEqual(['build'])
+    await vi.advanceTimersByTimeAsync(10_000)
     expect(steps).toEqual(['build', 'swap'])
   })
 
-  it('asks before Install now interrupts working agents, and keeps waiting if told to', async () => {
+  it('goes back to waiting when an agent starts during the heads-up', async () => {
     vi.useFakeTimers()
-    const waits = setup({ working: true, interrupt: false })
-    await waits.updater.check()
-    await waits.finish()
-    await waits.updater.install()
-    expect(waits.confirmInterrupt).toHaveBeenCalledOnce()
-    expect(waits.steps).toEqual(['build'])
-
-    const now = setup({ working: true, interrupt: true })
-    await now.updater.check()
-    await now.finish()
-    await now.updater.install()
-    expect(now.steps).toEqual(['build', 'swap'])
+    const { updater, steps, agents, ready } = setup({ auto: true })
+    await ready()
+    await vi.waitFor(() => expect(updater.state().restartAt).toBeDefined())
+    agents.working = true
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(updater.state()).toMatchObject({ stage: 'ready', restart: 'auto', restartAt: undefined })
+    agents.working = false
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(steps).toEqual(['build', 'swap'])
   })
 
-  it('rebuilds once before installing when main moved since the build, so the new app is current', async () => {
-    const { updater, steps, main, finish } = setup()
+  it('stops an automatic restart on Not now, and tries again once main moves on', async () => {
+    vi.useFakeTimers()
+    const { updater, steps, main, ready } = setup({ auto: true })
+    await ready()
+    await vi.waitFor(() => expect(updater.state().restartAt).toBeDefined())
+    updater.cancel()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(steps).toEqual(['build'])
+    expect(updater.state()).toMatchObject({ stage: 'ready', restart: undefined, restartAt: undefined })
     await updater.check()
+    expect(updater.state().restart).toBeUndefined()
     main.behind = 3
-    await finish()
+    await updater.check()
+    expect(updater.state().restart).toBe('auto')
+  })
+
+  it('follows the setting when it changes while an update waits', async () => {
+    vi.useFakeTimers()
+    const { updater, ready } = setup({ working: true })
+    await ready()
+    updater.setAuto(true)
+    expect(updater.state()).toMatchObject({ auto: true, restart: 'auto' })
+    updater.setAuto(false)
+    expect(updater.state()).toMatchObject({ auto: false, restart: undefined })
+  })
+
+  it('rebuilds once before restarting when main moved since the build, so the new app is current', async () => {
+    const { updater, steps, main, finish, ready } = setup()
+    await ready()
+    main.behind = 3
+    await updater.install()
     await vi.waitFor(() => expect(steps).toEqual(['build', 'build']))
+    expect(updater.state().restart).toBe('now')
     main.behind = 4
     await finish()
     await vi.waitFor(() => expect(steps).toEqual(['build', 'build', 'swap']))
@@ -110,12 +170,20 @@ describe('app updates', () => {
   })
 
   it('clears Installing when the swap ends and this window is still open', async () => {
-    const { updater, finish } = setup()
-    await updater.check()
-    await finish()
+    const { updater, finish, ready } = setup()
+    await ready()
+    await updater.install()
     await vi.waitFor(() => expect(updater.state().stage).toBe('installing'))
     await finish()
-    expect(updater.state()).toMatchObject({ stage: undefined, error: expect.stringContaining('install-app.log') })
+    expect(updater.state()).toMatchObject({ stage: undefined, restart: undefined, error: expect.stringContaining('install-app.log') })
+  })
+
+  it('tells what the update brought when this launch runs a newer build than the last one', async () => {
+    const { updater, calls } = setup({ previous: 'fff0000' })
+    updater.start()
+    await vi.waitFor(() => expect(updater.state().updated).toEqual({ commit: 'abc1234', count: 2, subjects: ['Fix the inbox', 'Add a meter'] }))
+    expect(calls).toContainEqual(['rev-list', '--count', 'fff0000..abc1234'])
+    updater.stop()
   })
 
   it('rechecks on focus at most every five minutes', async () => {
