@@ -442,7 +442,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     const bm = new THREE.MeshStandardMaterial({ color: 0x8cc4f0, roughness: 0.15, transparent: true, opacity: 0.62, depthWrite: false })
     mesh(CY(0.14, 0.14, 0.36, 24), bm, 0, 1.16, 0, g).castShadow = false
     mesh(CY(0.05, 0.05, 0.07, 12), bm, 0, 0.96, 0, g).castShadow = false
-    mesh(CY(0.145, 0.145, 0.02, 24), M(0x3b7bff, 0.4), 0, 1.33, 0, g)
+    mesh(CY(0.145, 0.145, 0.02, 24), M(0x3b7bff, 0.4), 0, 1.335, 0, g)
     blockAt(x, z, 0.2, 0.2)
   }
   function bench(x: number, z: number) {
@@ -602,7 +602,7 @@ export function buildOffice(scene: THREE.Scene, nav: Nav) {
     belt.rotation.x = -Math.PI / 2
     belt.receiveShadow = true
     for (const sx of [-0.36, 0.36]) mesh(RB(0.09, 0.03, 1.7, 0.01), mat.metal, sx, 0.125, 0, g)
-    mesh(RB(0.82, 0.16, 0.3, 0.05), mat.dark, 0, 0.1, 0.8, g)
+    mesh(RB(0.84, 0.16, 0.3, 0.05), mat.dark, 0, 0.1, 0.8, g)
     for (const sx of [-0.37, 0.37]) {
       mesh(RB(0.05, 0.92, 0.05, 0.02), mat.metal, sx, 0.56, 0.78, g).rotation.x = -0.1
       mesh(RB(0.04, 0.04, 0.62, 0.015), mat.metal, sx, 0.93, 0.5, g)
