@@ -119,6 +119,42 @@ test('review requests fill the tray and the drawer, Review starts an agent in PR
   await quit(app)
 })
 
+test('Review runs the review skill picked in Settings, and Default goes back to the plain prompt', async () => {
+  const skill = join(process.env.CLAUDE_CONFIG_DIR!, 'skills', 'pr-review')
+  mkdirSync(skill, { recursive: true })
+  writeFileSync(join(skill, 'SKILL.md'), '---\nname: pr-review\ndescription: Review a pull request my way\n---\n')
+  const { app, page, views } = await launch()
+  await github(app, { search: requests, nodes })
+
+  await page.getByRole('button', { name: /^Settings/ }).click()
+  const settings = page.getByRole('complementary', { name: 'Settings' })
+  const picker = settings.getByLabel(/Review skill/)
+  await expect(picker).toHaveValue('')
+  await picker.selectOption('pr-review')
+  await expect(picker).toHaveValue('pr-review')
+  await settings.getByRole('button', { name: 'Close settings' }).click()
+
+  const drawer = page.getByRole('complementary', { name: 'Inbox' })
+  const request = drawer.locator('.rqi', { hasText: 'Deep links for push' })
+  const sent = () => app.evaluate(() => (globalThis as unknown as Globals).fakeEngine.sent)
+  await request.getByRole('button', { name: 'Review' }).click()
+  await expect(drawer.getByRole('heading', { name: 'Review #9 Deep links for push' })).toBeVisible()
+  const skilled = (await views()).find((view) => view.title.startsWith('Review #9'))!
+  await expect.poll(async () => (await sent()).find((message) => message.chatId === skilled.id)?.text).toBe('/pr-review https://github.com/mws/monorepo/pull/9')
+
+  await drawer.getByRole('button', { name: 'Back to inbox' }).click()
+  await page.getByRole('button', { name: /^Settings/ }).click()
+  await expect(picker).toHaveValue('pr-review')
+  await picker.selectOption('')
+  await settings.getByRole('button', { name: 'Close settings' }).click()
+  await request.getByRole('button', { name: 'Review' }).click()
+  await expect.poll(async () => (await views()).filter((view) => view.title.startsWith('Review #9')).length).toBe(2)
+  const plain = (await views()).find((view) => view.title.startsWith('Review #9') && view.id !== skilled.id)!
+  await expect.poll(async () => (await sent()).find((message) => message.chatId === plain.id)?.text).toBe('Review this pull request: https://github.com/mws/monorepo/pull/9')
+
+  await quit(app)
+})
+
 test('a ticket id in the prompt is enough: it names the chat and the worktree after it, without a Linear key', async () => {
   const { app, page, views } = await launch()
   const drawer = page.getByRole('complementary', { name: 'Inbox' })

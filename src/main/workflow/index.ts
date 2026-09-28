@@ -16,6 +16,7 @@ export interface WorkflowDeps {
   store: Pick<ChatStore, 'view' | 'views' | 'start' | 'setDepartment'>
   commandNames(chatId: string): string[]
   commands: ConfigCommands
+  reviewSkill(): string
   accounts: () => AccountView[]
   tiedRoom(label: string): string | undefined
   linear: Linear
@@ -25,7 +26,7 @@ export interface WorkflowDeps {
   confirm(message: string, detail: string): Promise<boolean>
 }
 
-export function wireWorkflow(hub: Hub, { store, commandNames, commands, accounts, tiedRoom, linear, jev, rooms, gh, confirm }: WorkflowDeps) {
+export function wireWorkflow(hub: Hub, { store, commandNames, commands, reviewSkill, accounts, tiedRoom, linear, jev, rooms, gh, confirm }: WorkflowDeps) {
   const cwdOf = (chatId: unknown) => {
     const cwd = typeof chatId === 'string' ? store.view(chatId)?.cwd : undefined
     if (!cwd) throw new Error('There’s no chat with that id')
@@ -76,7 +77,7 @@ export function wireWorkflow(hub: Hub, { store, commandNames, commands, accounts
     if (!request) return { error: 'That review request isn’t in the list any more.' }
     const accountId = defaultAccountFor(accounts(), tiedRoom, reviewRoom.id)
     if (!accountId) return { error: 'Log in to an account first.' }
-    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd) ?? chat.cwd))], commands.review)
+    const { cwd, prompt, options } = await reviewStart(request, [...new Set(store.views().map((chat) => repoRoot(chat.cwd) ?? chat.cwd))], reviewSkill() || commands.review)
     return store.start(accountId, cwd, prompt, undefined, undefined, options)
   })
 

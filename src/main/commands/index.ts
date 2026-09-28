@@ -62,6 +62,8 @@ export function wireCommands(hub: Hub, { engine, store, db, claudeDir }: Command
     throw new Error('getCommands needs a chat id or an absolute folder')
   })
 
+  hub.handle('userCommands', () => scanCommands(claudeDir, []))
+
   return {
     names(chatId: string): string[] {
       const cwd = store.view(chatId)?.cwd

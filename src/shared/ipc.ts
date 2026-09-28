@@ -1,4 +1,4 @@
-import type { CommandList, CommandTarget } from './commands'
+import type { CommandEntry, CommandList, CommandTarget } from './commands'
 import type { Attachment, ChatPatchBatch, ChatRow, ChatSnapshot, Effort, OlderRows, Refusal, RewindPreview, RoomsUpdate, SimulatorShot, StartChatResult } from './chat'
 import type { RoomDef, StartOptions } from './departments'
 import type { SearchHit } from './history'
@@ -70,9 +70,10 @@ export interface Settings {
   quietHoursEnabled: boolean
   quietHoursStart: string
   quietHoursEnd: string
+  reviewSkill: string
 }
 
-export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'quietHoursEnabled' | 'quietHoursStart' | 'quietHoursEnd'
+export type SettingName = 'phonePush' | 'alertsHintSeen' | 'editor' | 'quietHoursEnabled' | 'quietHoursStart' | 'quietHoursEnd' | 'reviewSkill'
 
 export interface HostStatus {
   connected: boolean
@@ -136,6 +137,7 @@ export interface Commands {
   finishChats(chatIds: string[], removeWorktrees?: boolean): Promise<FinishedMany | undefined>
   getShipIt(chatId: string): Promise<ShipIt>
   getCommands(target: CommandTarget): CommandList
+  userCommands(): CommandEntry[]
   lookupTicket(text: string): Promise<TicketLookup>
   moveTicket(chatId: string): Promise<{ status?: string; error?: string }>
   getReviewRequests(): ReviewQueue
