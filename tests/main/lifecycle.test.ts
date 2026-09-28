@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { describe, expect, it, vi } from 'vitest'
-import { hideOnClose, reveal } from '../../src/main/lifecycle'
+import { hideOnClose, reopenAs, reopenFrom, reveal } from '../../src/main/lifecycle'
 
 function fakeWindow(minimized = false) {
   return Object.assign(new EventEmitter(), {
@@ -68,5 +68,22 @@ describe('reveal', () => {
     reveal(win)
     expect(win.restore).toHaveBeenCalled()
     expect(win.show).toHaveBeenCalled()
+  })
+})
+
+describe('reopen after an update', () => {
+  const win = (visible: boolean, focused: boolean) => ({ isVisible: () => visible, isFocused: () => focused })
+
+  it('comes back in front only when the window was in use, behind other apps when merely open, and closed when closed', () => {
+    expect(reopenAs(win(true, true))).toBe('front')
+    expect(reopenAs(win(true, false))).toBe('background')
+    expect(reopenAs(win(false, false))).toBe('hidden')
+  })
+
+  it('reads the flag the install script passes, and opens in front without one', () => {
+    expect(reopenFrom(['/Agent Office', '--restart-host', '--reopen=background'])).toBe('background')
+    expect(reopenFrom(['/Agent Office', '--reopen=hidden'])).toBe('hidden')
+    expect(reopenFrom(['/Agent Office', '--reopen=sideways'])).toBe('front')
+    expect(reopenFrom(['/Agent Office'])).toBe('front')
   })
 })

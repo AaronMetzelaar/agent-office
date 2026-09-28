@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, Menu, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, Notification, screen, shell } from 'electron'
 import { version } from '../../package.json'
 import type { Events, HostStatus, Navigate } from '../shared/ipc'
 import { createCore, prepareCore, type Core } from './host/core'
@@ -10,9 +10,10 @@ import { localUi, noteBridge, spawnHost, uiState } from './host/link'
 import type { Welcome } from './host/server'
 import type { StripState } from './tray/strip'
 import { guard, handle, send, windowHub } from './ipc'
-import { confirmQuitWhileBusy, hideOnClose, offstage, reveal } from './lifecycle'
+import { confirmQuitWhileBusy, hideOnClose, offstage, reopenAs, reopenFrom, reveal } from './lifecycle'
 import { pinFolder } from './folders'
 import { loginShellPath } from './login-path'
+import { prefsFile } from './prefs'
 import { forwardRendererErrors } from './renderer-log'
 import { bundleUrl, hardenWindow, registerBundleScheme, secureSession } from './security'
 import { simulatorScreenshot } from './simulator'
@@ -20,7 +21,8 @@ import { openArtifact } from './artifacts'
 import { createTray } from './tray'
 import { claudeCode } from './claude-code'
 import { createReleaseCheck } from './releases'
-import { createUpdater, launchInstaller, runGit } from './updates'
+import { createUpdater, installLog, launchInstaller, runGit, type AppUpdater } from './updates'
+import { fitBounds, rememberBounds } from './window-bounds'
 
 const devServerUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
 const appUrl = devServerUrl ?? bundleUrl
@@ -48,8 +50,11 @@ async function start(): Promise<void> {
   if (!app.isPackaged) app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))
   const prepared = inlineHost ? await prepareCore() : undefined
   secureSession(devServerUrl, join(__dirname, '../renderer'))
-  const win = createWindow()
   const dataDir = app.getPath('userData')
+  const prefs = prefsFile(join(dataDir, 'window.json'))
+  const saved = prefs.read()
+  const win = createWindow(fitBounds(saved.bounds, screen.getAllDisplays().map((display) => display.workArea)))
+  rememberBounds(win, (bounds) => prefs.save({ bounds }))
   let status: HostStatus = { connected: inlineHost, updateReady: false }
   let report = () => {}
   let shown = false
@@ -82,21 +87,27 @@ async function start(): Promise<void> {
   for (const event of ['focus', 'blur', 'show', 'hide', 'minimize', 'restore'] as const) win.on(event as 'focus', changed)
   app.on('did-become-active', changed)
   app.on('did-resign-active', changed)
+  const reopen = reopenFrom(process.argv)
   win.once('ready-to-show', () => {
-    if (!app.getLoginItemSettings().wasOpenedAtLogin) show()
+    if (reopen === 'hidden' || app.getLoginItemSettings().wasOpenedAtLogin) return
+    if (reopen === 'front') return show()
+    win.showInactive()
+    changed()
   })
   let agentsBusy = async () => false
-  const confirmInterrupt = async () =>
-    (await dialog.showMessageBox(win, { type: 'warning', buttons: ['Install Now', 'When Agents Finish'], defaultId: 1, cancelId: 1, message: 'Agents are still working', detail: 'Installing restarts the app, which interrupts their turns. They come back as Stuck, with Resume. Otherwise the update installs by itself once no agent is working.' })).response === 0
-  const updater =
+  const commit = app.isPackaged ? __BUILD_COMMIT__ : ''
+  if (commit) prefs.save({ commit })
+  const updater: AppUpdater =
     __SOURCE_REPO__ || !app.isPackaged
       ? createUpdater({
-          commit: app.isPackaged ? __BUILD_COMMIT__ : '',
+          commit,
+          previous: saved.commit,
           repo: __SOURCE_REPO__,
           git: runGit(__SOURCE_REPO__),
           launch: launchInstaller(() => loginShellPath()),
           busy: () => agentsBusy(),
-          confirmInterrupt,
+          auto: saved.autoUpdate ?? false,
+          reopen: () => reopenAs(win),
           changed: (update) => send(win, 'appUpdate', update),
         })
       : createReleaseCheck({ version, changed: (update) => send(win, 'appUpdate', update), open: (url) => void shell.openExternal(url) })
@@ -105,7 +116,13 @@ async function start(): Promise<void> {
   handle('getAppInfo', win, appUrl, () => ({ name: app.getName(), version, commit: __BUILD_COMMIT__.slice(0, 7) || undefined }))
   handle('getAppUpdate', win, appUrl, updater.state)
   handle('claudeCode', win, appUrl, () => claudeCode(() => loginShellPath()))
-  handle('installAppUpdate', win, appUrl, () => updater.install())
+  handle('installAppUpdate', win, appUrl, (when) => updater.install(when))
+  handle('cancelAppUpdate', win, appUrl, updater.cancel)
+  handle('setAutoUpdate', win, appUrl, (on) => {
+    prefs.save({ autoUpdate: on })
+    updater.setAuto(on)
+  })
+  handle('openUpdateLog', win, appUrl, () => void shell.openPath(installLog.replace(/^~/, app.getPath('home'))))
   handle('pickFolder', win, appUrl, async () => {
     const picked = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], buttonLabel: 'Choose' })
     const path = picked.canceled ? undefined : picked.filePaths[0]
@@ -221,10 +238,11 @@ async function confirmQuit(win: BrowserWindow): Promise<boolean> {
   return response === 0
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(bounds?: Electron.Rectangle): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
+    ...bounds,
     show: false,
     title: 'Agent Office',
     backgroundColor: '#f6f8fc',
